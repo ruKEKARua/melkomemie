@@ -1,8 +1,9 @@
 import { useGoogleLogin } from '@react-oauth/google';
 import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { spreadsheetId } from '../../shared/googleSheets';
 import { setExcelMovies } from '../store/excelMovies';
-import { appendMovieToSheet, type MovieSheetEntry } from '../api/googleSheets';
+import { appendMovieToSheet, updateMovieInSheet, type MovieSheetEntry } from '../api/googleSheets';
 
 type GoogleSheetsResponse = {
     values?: string[][];
@@ -54,8 +55,6 @@ type CloudflareSessionResponse = {
 const isServerAuthEnabled = typeof window !== 'undefined'
     && window.location.protocol === 'https:'
     && !['localhost', '127.0.0.1'].includes(window.location.hostname);
-// Previous spreadsheet ID: '1DD6U6fawOirU61-ZuP4GYpoK2p2eLUV2PbJe26uB7A8'
-const spreadsheetId = '1F4z-LBQWf2tRt64x0yYhUK3-Evk1k8L9R_C93kNiZY8';
 
 const normalizeMovieData = (
     movies: string[],
@@ -397,6 +396,53 @@ const useGetMovies = () => {
         setParticipantNames(loaded.participantNames);
     };
 
+    const updateMovie = async (entry: MovieSheetEntry) => {
+        if (isServerAuthEnabled) {
+            const response = await fetch('/api/update-movie', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(entry),
+            });
+
+            if (!response.ok) {
+                throw new Error(response.status === 401
+                    ? 'Сессия Google истекла. Войдите снова'
+                    : 'Не удалось обновить запись в Google Sheets');
+            }
+
+            const session = await loadCloudflareSession();
+            if (!session) {
+                throw new Error('Сессия Google истекла. Войдите снова');
+            }
+
+            const loaded = normalizeMovieData(
+                session.movies,
+                session.movieComments ?? [],
+                session.ratings,
+                session.participants,
+            );
+            setUserName(session.userName);
+            setUserPicture(session.userPicture);
+            setData(loaded.movies);
+            setMovieComments(loaded.movieComments);
+            setUsersRating(loaded.usersRating);
+            setParticipantNames(loaded.participantNames);
+            return;
+        }
+
+        if (!accessToken) {
+            throw new Error('Необходимо авторизоваться в Google');
+        }
+
+        await updateMovieInSheet(accessToken, entry);
+        const loaded = await loadGoogleSheets(accessToken);
+        setData(loaded.movies);
+        setMovieComments(loaded.movieComments);
+        setUsersRating(loaded.usersRating);
+        setParticipantNames(loaded.participantNames);
+    };
+
     useEffect(() => {
         dispatch(setExcelMovies(data));
     }, [data, dispatch]);
@@ -414,6 +460,7 @@ const useGetMovies = () => {
         userPicture,
         authError,
         saveMovie,
+        updateMovie,
     };
 };
 

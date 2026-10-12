@@ -7,6 +7,7 @@ import type { RootState } from "../store/store";
 
 import MovieCard from "./MovieCard";
 import type { MovieRatings } from "../HooksExcelMovies/useGetMovies";
+import type { MovieSheetEntry } from "../api/googleSheets";
 import { getTmdbImageUrl } from "../api/tmdbImage";
 import type { MovieSource } from "../api/movieSource";
 
@@ -48,12 +49,21 @@ type KnownForMovie = {
 type MovieSliderProps = {
   media: Media[];
   ratings: MovieRatings[];
+  participantNames?: string[];
+  onUpdateMovie?: (entry: MovieSheetEntry) => Promise<void>;
   isLoading?: boolean;
   highlightMovieTitle?: string | null;
 };
 
 
-export function MovieSlider({ media, ratings, isLoading = false, highlightMovieTitle }: MovieSliderProps ) {
+export function MovieSlider({
+    media,
+    ratings,
+    participantNames = [],
+    onUpdateMovie,
+    isLoading = false,
+    highlightMovieTitle,
+}: MovieSliderProps ) {
     
     const dispatch = useDispatch();
     const sliderRef = useRef<HTMLDivElement>(null);
@@ -229,6 +239,8 @@ export function MovieSlider({ media, ratings, isLoading = false, highlightMovieT
                         ratings={ratings}
                         excelMovieTitle={excelMovieTitle}
                         fallbackTitle={fallbackMovieTitle}
+                        participantNames={participantNames}
+                        onUpdateMovie={onUpdateMovie}
                     />
                     )}
                 </div>

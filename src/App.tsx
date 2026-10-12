@@ -99,7 +99,7 @@ function App() {
         })
         : foundMovies;
 
-    const { login, logout, isAuthorized, isLoading, userName, userPicture, authError, usersRating, participantNames, saveMovie } = useGetMovies();
+    const { login, logout, isAuthorized, isLoading, userName, userPicture, authError, usersRating, participantNames, saveMovie, updateMovie } = useGetMovies();
     const areMoviesLoaded = useSetArrayOfSearchedMovies(moviesFromExcel);
 
     const sortedFoundMovies = sortMovies(foundMovies, sortOrder, usersRating);
@@ -161,7 +161,15 @@ function App() {
 
 
     if (page === 'roulette') {
-        return <MovieRoulette excelMovies={foundMovies.filter((movie) => movie.media_type !== 'person') as unknown as NormalizedMovie[]} isAuthorized={isAuthorized} login={login} ratings={usersRating} onClose={() => setPage('main')} />;
+        return <MovieRoulette
+            excelMovies={foundMovies.filter((movie) => movie.media_type !== 'person') as unknown as NormalizedMovie[]}
+            isAuthorized={isAuthorized}
+            login={login}
+            ratings={usersRating}
+            participantNames={participantNames}
+            onUpdateMovie={updateMovie}
+            onClose={() => setPage('main')}
+        />;
     }
 
     if (page === 'entry' || (isAddMovieRequested && isAuthorized)) {
@@ -320,6 +328,8 @@ function App() {
                             <MovieSlider
                                 media={displayedMovies}
                                 ratings={usersRating}
+                                participantNames={participantNames}
+                                onUpdateMovie={updateMovie}
                                 isLoading={isCatalogLoading}
                                 highlightMovieTitle={highlightMovieTitle}
                             />

@@ -304,7 +304,7 @@ body {
 
   20%,
   75% {
-    transform: scale(2);
+    transform: scale(1.15);
     box-shadow: 0 0 2.5rem rgba(56, 189, 248, 0.9);
   }
 }

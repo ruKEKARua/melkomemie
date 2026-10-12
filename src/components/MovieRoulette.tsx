@@ -7,6 +7,7 @@ import Modal from './Modal';
 import { openModal } from '../store/openModal';
 import type { RootState } from '../store/store';
 import type { MovieRatings } from '../HooksExcelMovies/useGetMovies';
+import type { MovieSheetEntry } from '../api/googleSheets';
 
 type RouletteMode = 'elimination' | 'winner';
 type RouletteSource = 'excel' | 'online' | 'text';
@@ -30,6 +31,8 @@ type MovieRouletteProps = {
     isAuthorized: boolean;
     login: () => void;
     ratings: MovieRatings[];
+    participantNames: string[];
+    onUpdateMovie: (entry: MovieSheetEntry) => Promise<void>;
     onClose: () => void;
 };
 
@@ -80,7 +83,15 @@ const getWheelBackground = (movieCount: number) => {
     return `conic-gradient(from ${-sectorAngle / 2}deg, ${stops.join(', ')})`;
 };
 
-const MovieRoulette = ({ excelMovies, isAuthorized, login, ratings, onClose }: MovieRouletteProps) => {
+const MovieRoulette = ({
+    excelMovies,
+    isAuthorized,
+    login,
+    ratings,
+    participantNames,
+    onUpdateMovie,
+    onClose,
+}: MovieRouletteProps) => {
     const dispatch = useDispatch();
     const isModalOpen = useSelector((state: RootState) => state.openModal.value);
     const [source, setSource] = useState<RouletteSource>('excel');
@@ -488,6 +499,8 @@ const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
                     ratings={ratings}
                     excelMovieTitle={modalMovie.excelTitle}
                     fallbackTitle={modalMovie.isExcelFallback ? movieTitle(modalMovie) : undefined}
+                    participantNames={participantNames}
+                    onUpdateMovie={onUpdateMovie}
                 />
             )}
         </main>

@@ -5,6 +5,8 @@ import Button from "./UI/Button";
 import useGetMovieInfo from "../HooksTMDB/useGetMovieInfo";
 import useGetConfiguration from "../HooksTMDB/useGetConfiguration";
 import type { MovieRatings } from "../HooksExcelMovies/useGetMovies";
+import { useEditMovie } from "../HooksExcelMovies/useEditMovie";
+import type { MovieSheetEntry } from "../api/googleSheets";
 import { getTmdbImageUrl } from "../api/tmdbImage";
 import type { MovieSource } from "../api/movieSource";
 
@@ -16,10 +18,21 @@ type ModalProps = {
     ratings: MovieRatings[];
     excelMovieTitle?: string;
     fallbackTitle?: string;
+    participantNames?: string[];
+    onUpdateMovie?: (entry: MovieSheetEntry) => Promise<void>;
 
 }
 
-const Modal = ({isHidden = 'hidden', movie_ID, source = 'tmdb', ratings, excelMovieTitle, fallbackTitle }: ModalProps) => {
+const Modal = ({
+    isHidden = 'hidden',
+    movie_ID,
+    source = 'tmdb',
+    ratings,
+    excelMovieTitle,
+    fallbackTitle,
+    participantNames = [],
+    onUpdateMovie,
+}: ModalProps) => {
     
     const dispatch = useDispatch();
     
@@ -62,6 +75,148 @@ const Modal = ({isHidden = 'hidden', movie_ID, source = 'tmdb', ratings, excelMo
     const excelRatings = excelMovie?.ratings ?? [];
     const overallRating = excelRatings[0]?.scores[1];
     const watchDate = excelMovie?.date ? formatDateFromExcel(excelMovie.date) : '';
+    const editMovie = useEditMovie({
+        movie: excelMovie,
+        participantNames,
+        onSave: onUpdateMovie,
+    });
+
+    const clubRatingsPanel = excelMovie && (
+        <div className="relative flex h-full w-full max-h-80 flex-col rounded-2xl bg-white p-3 text-slate-900 transition-all dark:bg-slate-800 dark:text-white">
+            <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
+                <h4 className="text-center text-lg font-semibold">Оценки Киноклуба</h4>
+                {editMovie.canEdit && !editMovie.isEditing && (
+                    <Button
+                        label="Изменить"
+                        onClick={editMovie.startEditing}
+                        className="rounded-lg bg-sky-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-sky-500"
+                    />
+                )}
+            </div>
+
+            {editMovie.isEditing ? (
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                    <div className="flex flex-col gap-3">
+                        {editMovie.participants.map((participant, index) => {
+                            const selectedNames = new Set(
+                                editMovie.participants.map((item) => item.name).filter(Boolean),
+                            );
+
+                            return (
+                                <div key={index} className="grid grid-cols-[minmax(0,1fr)_4rem_3rem] gap-5">
+                                    <select
+                                        aria-label={`Участник ${index + 1}`}
+                                        value={participant.name}
+                                        onChange={(event) => editMovie.updateParticipant(index, 'name', event.target.value)}
+                                        className="min-w-0 max-w-60 rounded-lg border border-slate-600 bg-slate-900 px-2 py-2 text-sm text-white"
+                                    >
+                                        <option value="">Выберите участника</option>
+                                        {participantNames
+                                            .filter((name) => name === participant.name || !selectedNames.has(name))
+                                            .map((name) => <option key={name} value={name}>{name}</option>)}
+                                    </select>
+                                    <input
+                                        aria-label={`Оценка участника ${index + 1}`}
+                                        type="number"
+                                        min="0"
+                                        max="10"
+                                        step="0.1"
+                                        value={participant.score}
+                                        onChange={(event) => editMovie.updateParticipant(index, 'score', event.target.value)}
+                                        placeholder="Оценка"
+                                        className="w-full rounded-lg border border-slate-600 bg-slate-900 px-2 py-2 text-sm text-white"
+                                    />
+                                    <button
+                                        type="button"
+                                        disabled={editMovie.participants.length === 1}
+                                        onClick={() => editMovie.removeParticipant(index)}
+                                        aria-label={`Удалить участника ${index + 1}`}
+                                        className="rounded-lg border border-red-500/50 px-2 text-red-300 enabled:hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            );
+                        })}
+                        <button
+                            type="button"
+                            onClick={editMovie.addParticipant}
+                            className="self-start rounded-lg border border-sky-500/60 px-3 py-1.5 text-sm text-sky-200 hover:bg-sky-500/10"
+                        >
+                            Добавить участника
+                        </button>
+                    </div>
+                    {editMovie.error && <p role="alert" className="mt-2 text-sm text-red-300">{editMovie.error}</p>}
+                    <div className="mt-4 flex justify-end gap-2">
+                        <Button
+                            label="Отмена"
+                            onClick={editMovie.cancelEditing}
+                            className="rounded-lg bg-slate-600 px-3 py-1.5 text-sm text-white hover:bg-slate-500"
+                        />
+                        <Button
+                            label="Подтвердить"
+                            onClick={editMovie.requestConfirmation}
+                            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+                        />
+                    </div>
+                </div>
+            ) : (
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                    {excelRatings.length > 0 ? (
+                        <div className="flex flex-col gap-3 text-sm">
+                            {excelRatings.map((rating, index) => (
+                                <p key={`${rating.userName}-${index}`} className="flex items-center justify-evenly gap-2 text-xl">
+                                    <span className="w-2/5 text-left">{rating.userName}</span>
+                                    <span className="w-1/5 text-right">{rating.scores[0] ?? '—'}</span>
+                                </p>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-center text-sm text-slate-400">Оценки не указаны</p>
+                    )}
+                </div>
+            )}
+
+            {overallRating && !editMovie.isEditing && (
+                <p className="mt-1 flex h-8 shrink-0 items-center justify-center border-t border-slate-300 text-center font-semibold leading-5 dark:border-slate-600">
+                    Средняя оценка: {overallRating}
+                </p>
+            )}
+
+            {editMovie.isConfirmationOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4">
+                    <section
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="edit-movie-confirm-title"
+                        className="w-full max-w-sm rounded-2xl bg-slate-900 p-6 text-center text-white shadow-2xl"
+                    >
+                        <h3 id="edit-movie-confirm-title" className="text-lg font-semibold">
+                            Сохранить изменения?
+                        </h3>
+                        <p className="mt-2 text-sm text-slate-300">
+                            Оценки участников фильма «{excelMovie.movie}» будут обновлены.
+                        </p>
+                        {editMovie.error && <p role="alert" className="mt-3 text-sm text-red-300">{editMovie.error}</p>}
+                        <div className="mt-5 flex justify-center gap-3">
+                            <Button
+                                label="Нет"
+                                disabled={editMovie.isSaving}
+                                onClick={() => editMovie.cancelEditing()}
+                                className="rounded-lg bg-slate-600 px-4 py-2 text-sm text-white hover:bg-slate-500 disabled:opacity-50"
+                            />
+                            <Button
+                                label={editMovie.isSaving ? 'Сохранение...' : 'Да'}
+                                disabled={editMovie.isSaving}
+                                onClick={() => void editMovie.confirmSave()}
+                                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+                            />
+                        </div>
+                    </section>
+                </div>
+            )}
+        </div>
+    );
 
     const closeModalHandler = () => {
             
@@ -82,24 +237,7 @@ const Modal = ({isHidden = 'hidden', movie_ID, source = 'tmdb', ratings, excelMo
             >
                 <div className="w-full max-w-md rounded-2xl bg-slate-900 p-6 text-white shadow-xl">
                     <h2 className="mb-5 text-center text-xl font-semibold">{fallbackTitle}</h2>
-                    <h3 className="mb-3 text-center text-lg font-semibold">Оценки Киноклуба</h3>
-                    {excelRatings.length > 0 ? (
-                        <div className="flex flex-col gap-3 text-sm">
-                            {excelRatings.map((rating, index) => (
-                                <p key={`${rating.userName}-${index}`} className="flex items-center justify-between gap-4">
-                                    <span>{rating.userName}</span>
-                                    <span>{rating.scores[0] ?? '—'}</span>
-                                </p>
-                            ))}
-                            {overallRating && (
-                                <p className="border-t border-slate-600 pt-3 text-center font-semibold">
-                                    Средняя оценка: {overallRating}
-                                </p>
-                            )}
-                        </div>
-                    ) : (
-                        <p className="text-center text-slate-300">Оценки не указаны</p>
-                    )}
+                    {clubRatingsPanel ?? <p className="text-center text-slate-300">Оценки не указаны</p>}
                     <div className="mt-6 flex justify-center">
                         <Button
                             label="Закрыть"
@@ -259,26 +397,7 @@ const Modal = ({isHidden = 'hidden', movie_ID, source = 'tmdb', ratings, excelMo
 
             </div>
 
-            {excelRatings.length > 0 && (
-                <div className="flex h-full w-full max-h-80 flex-col rounded-2xl bg-white p-3 text-slate-900 transition-all dark:bg-slate-800 dark:text-white">
-                    <h4 className="mb-2 shrink-0 text-center text-lg font-semibold">Оценки Киноклуба</h4>
-                    <div className="min-h-0 flex-1 overflow-y-auto">
-                        <div className="flex flex-col gap-3 text-sm">
-                            {excelRatings.map((rating, index) => (
-                                <p key={`${rating.userName}-${index}`} className="flex items-center justify-evenly">
-                                    <span className="w-2/5 text-left text-lg">{rating.userName}</span>
-                                    <span className="w-1/5 text-right">{rating.scores[0] ?? '—'}</span>
-                                </p>
-                            ))}
-                        </div>
-                    </div>
-                    {overallRating && (
-                        <p className="mt-1 flex h-8 items-center justify-center border-t border-slate-300 text-center font-semibold leading-5 dark:border-slate-600">
-                            Средняя оценка: {overallRating}
-                        </p>
-                    )}
-                </div>
-            )}
+            {clubRatingsPanel}
 
             <div className="w-full h-max flex flex-col items-center justify-center rounded-2xl bg-white p-1 transition-all dark:bg-slate-800">
                 

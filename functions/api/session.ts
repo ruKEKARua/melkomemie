@@ -10,6 +10,7 @@ import {
   sessionCookieName,
   sessionTtlSeconds,
 } from '../_shared/auth';
+import { spreadsheetId } from '../../shared/googleSheets';
 
 type GoogleSheetsResponse = {
   values?: string[][];
@@ -26,7 +27,6 @@ type GoogleSheetsNotesResponse = {
 };
 
 // Previous spreadsheet ID: '1DD6U6fawOirU61-ZuP4GYpoK2p2eLUV2PbJe26uB7A8'
-const spreadsheetId = '1F4z-LBQWf2tRt64x0yYhUK3-Evk1k8L9R_C93kNiZY8';
 
 async function fetchRange(accessToken: string, range: string, majorDimension: 'ROWS' | 'COLUMNS' = 'COLUMNS') {
   const query = new URLSearchParams({ majorDimension: majorDimension.toLowerCase() });
