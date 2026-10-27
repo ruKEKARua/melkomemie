@@ -1,118 +1,214 @@
-const kinopoiskApiUrl = 'https://kinopoiskapiunofficial.tech/api/v2.1';
-const kinopoiskApiKey = import.meta.env.VITE_KINOPOISK_API_KEY
-    ?? '5a2a67d9-a49f-4cda-9b4e-ab7c48034246';
+const kinopoiskApiV21 = 'https://kinopoiskapiunofficial.tech/api/v2.1';
+const kinopoiskApiV22 = 'https://kinopoiskapiunofficial.tech/api/v2.2';
+
+const kinopoiskApiKey =
+  import.meta.env.VITE_KINOPOISK_API_KEY ?? '5a2a67d9-a49f-4cda-9b4e-ab7c48034246';
 
 export type KinopoiskFilm = {
-    filmId: number;
-    nameRu?: string;
-    nameEn?: string;
-    year?: number | string;
-    description?: string;
-    posterUrl?: string;
-    posterUrlPreview?: string;
-    rating?: number | string;
-    ratingVoteCount?: number;
-    genres?: Array<{ genre?: string }>;
-};
-
-type KinopoiskFilmResponse = {
-    data?: KinopoiskFilm;
+  filmId: number;
+  kinopoiskId?: number;
+  nameRu?: string;
+  nameEn?: string;
+  nameOriginal?: string;
+  year?: number | string;
+  description?: string;
+  shortDescription?: string;
+  posterUrl?: string;
+  posterUrlPreview?: string;
+  coverUrl?: string;
+  logoUrl?: string;
+  rating?: number | string;
+  ratingKinopoisk?: number | string;
+  ratingVoteCount?: number;
+  ratingKinopoiskVoteCount?: number;
+  genres?: Array<{ genre?: string }>;
 };
 
 type KinopoiskSearchResponse = {
-    films?: KinopoiskFilm[];
+  films?: KinopoiskFilm[];
 };
 
-const kinopoiskRequestIntervalMs = 250;
+type KinopoiskTopResponse = {
+  films?: KinopoiskFilm[];
+  items?: KinopoiskFilm[];
+};
+
+const KINOPOISK_INTERVAL_MS = 250; // Max 4 requests/sec (API limit is 5 req/sec)
 let nextKinopoiskRequestAt = 0;
 let requestQueue = Promise.resolve();
 
-const wait = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
+const wait = (milliseconds: number) =>
+  new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
 
-const scheduleKinopoiskRequest = async <T>(request: () => Promise<T>): Promise<T> => {
-    const queuedRequest = requestQueue.then(async () => {
-        const delay = Math.max(0, nextKinopoiskRequestAt - Date.now());
-        if (delay > 0) {
-            await wait(delay);
+/**
+ * Executes a request in sequence, respecting the rate limit.
+ * If 429 Too Many Requests occurs, pauses with exponential backoff and retries.
+ */
+const scheduleKinopoiskRequest = <T>(requestFn: () => Promise<T>, maxRetries = 2): Promise<T> => {
+  const queued = requestQueue.then(async () => {
+    let attempt = 0;
+    while (attempt <= maxRetries) {
+      const delay = Math.max(0, nextKinopoiskRequestAt - Date.now());
+      if (delay > 0) {
+        await wait(delay);
+      }
+      nextKinopoiskRequestAt = Date.now() + KINOPOISK_INTERVAL_MS;
+
+      try {
+        return await requestFn();
+      } catch (err: unknown) {
+        const error = err as { status?: number; message?: string };
+        attempt++;
+
+        if (error.status === 429 && attempt <= maxRetries) {
+          const backoff = 1500 * attempt;
+          console.warn(`[Kinopoisk] 429 Too Many Requests. Backing off for ${backoff}ms (attempt ${attempt}/${maxRetries})...`);
+          await wait(backoff);
+          continue;
         }
 
-        nextKinopoiskRequestAt = Date.now() + kinopoiskRequestIntervalMs;
-        return request();
-    });
+        if (attempt <= maxRetries && error.status && error.status >= 500) {
+          await wait(1000);
+          continue;
+        }
 
-    requestQueue = queuedRequest.then(() => undefined, () => undefined);
-    return queuedRequest;
+        throw err;
+      }
+    }
+
+    throw new Error('Kinopoisk request failed after maximum retries');
+  });
+
+  // Ensure queue chain never permanently rejects
+  requestQueue = queued.then(
+    () => undefined,
+    () => undefined,
+  );
+
+  return queued;
 };
 
-const getKinopoisk = async <T>(url: string): Promise<T> => scheduleKinopoiskRequest(async () => {
+const getKinopoisk = async <T>(url: string): Promise<T> => {
+  return scheduleKinopoiskRequest(async () => {
     const response = await fetch(url, {
-        headers: {
-            'X-API-KEY': kinopoiskApiKey,
-            'Content-Type': 'application/json',
-        },
+      headers: {
+        'X-API-KEY': kinopoiskApiKey,
+        'Content-Type': 'application/json',
+      },
     });
 
     if (!response.ok) {
-        throw new Error(`Kinopoisk request failed: ${response.status}`);
+      const error = new Error(`Kinopoisk request failed: HTTP ${response.status}`) as Error & {
+        status?: number;
+      };
+      error.status = response.status;
+      throw error;
     }
 
-    return response.json() as Promise<T>;
-});
+    return (await response.json()) as T;
+  });
+};
 
+// In-memory caching & request deduplication
 const searchCache = new Map<string, { expiresAt: number; films: KinopoiskFilm[] }>();
-const searchRequests = new Map<string, Promise<KinopoiskFilm[]>>();
-const searchCacheLifetimeMs = 10 * 60 * 1000;
+const searchInFlight = new Map<string, Promise<KinopoiskFilm[]>>();
+const SEARCH_CACHE_LIFETIME_MS = 15 * 60 * 1000; // 15 mins
+
+const filmCache = new Map<number, { expiresAt: number; film: KinopoiskFilm }>();
+const filmInFlight = new Map<number, Promise<KinopoiskFilm>>();
+const FILM_CACHE_LIFETIME_MS = 30 * 60 * 1000; // 30 mins
 
 export async function fetchKinopoiskSearch(keyword: string): Promise<KinopoiskFilm[]> {
-    if (!kinopoiskApiKey) {
-        throw new Error('VITE_KINOPOISK_API_KEY is not configured');
-    }
+  const cleanKeyword = keyword.trim().toLocaleLowerCase('ru-RU');
+  if (!cleanKeyword) {
+    return [];
+  }
 
-    const cacheKey = keyword.trim().toLocaleLowerCase('ru-RU');
-    const cached = searchCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-        return cached.films;
-    }
+  const cached = searchCache.get(cleanKeyword);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.films;
+  }
 
-    const existingRequest = searchRequests.get(cacheKey);
-    if (existingRequest) {
-        return existingRequest;
-    }
+  const activeRequest = searchInFlight.get(cleanKeyword);
+  if (activeRequest) {
+    return activeRequest;
+  }
 
-    const request = getKinopoisk<KinopoiskSearchResponse>(
-        `${kinopoiskApiUrl}/films/search-by-keyword?keyword=${encodeURIComponent(keyword)}&page=1`,
-    )
-        .then((data) => {
-            const films = data.films ?? [];
-            searchCache.set(cacheKey, { expiresAt: Date.now() + searchCacheLifetimeMs, films });
-            return films;
-        })
-        .finally(() => searchRequests.delete(cacheKey));
+  const request = getKinopoisk<KinopoiskSearchResponse>(
+    `${kinopoiskApiV21}/films/search-by-keyword?keyword=${encodeURIComponent(cleanKeyword)}&page=1`,
+  )
+    .then((data) => {
+      const films = data.films ?? [];
+      searchCache.set(cleanKeyword, {
+        expiresAt: Date.now() + SEARCH_CACHE_LIFETIME_MS,
+        films,
+      });
+      return films;
+    })
+    .finally(() => {
+      searchInFlight.delete(cleanKeyword);
+    });
 
-    searchRequests.set(cacheKey, request);
-    return request;
+  searchInFlight.set(cleanKeyword, request);
+  return request;
 }
 
 export async function fetchKinopoiskPopular(page: number): Promise<KinopoiskFilm[]> {
-    if (!kinopoiskApiKey) {
-        throw new Error('VITE_KINOPOISK_API_KEY is not configured');
-    }
-
-    const data = await getKinopoisk<{ films?: KinopoiskFilm[] }>(
-        `${kinopoiskApiUrl}/films/top?type=TOP_100_POPULAR_FILMS&page=${page}`,
-    );
-    return data.films ?? [];
+  const data = await getKinopoisk<KinopoiskTopResponse>(
+    `${kinopoiskApiV22}/films/top?type=TOP_100_POPULAR_FILMS&page=${page}`,
+  );
+  return data.films ?? data.items ?? [];
 }
 
 export async function fetchKinopoiskFilm(filmId: number): Promise<KinopoiskFilm> {
-    if (!kinopoiskApiKey) {
-        throw new Error('VITE_KINOPOISK_API_KEY is not configured');
-    }
+  const cached = filmCache.get(filmId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.film;
+  }
 
-    const data = await getKinopoisk<KinopoiskFilm | KinopoiskFilmResponse>(`${kinopoiskApiUrl}/films/${filmId}`);
-    if ('data' in data && data.data) {
-        return data.data;
-    }
+  const activeRequest = filmInFlight.get(filmId);
+  if (activeRequest) {
+    return activeRequest;
+  }
 
-    return data as KinopoiskFilm;
+  const request = getKinopoisk<KinopoiskFilm | { data?: KinopoiskFilm }>(
+    `${kinopoiskApiV22}/films/${filmId}`,
+  )
+    .then((data) => {
+      let film: KinopoiskFilm;
+      if ('data' in data && data.data) {
+        film = data.data;
+      } else {
+        film = data as KinopoiskFilm;
+      }
+
+      // Ensure filmId is filled
+      if (!film.filmId && film.kinopoiskId) {
+        film.filmId = film.kinopoiskId;
+      }
+
+      filmCache.set(filmId, {
+        expiresAt: Date.now() + FILM_CACHE_LIFETIME_MS,
+        film,
+      });
+
+      return film;
+    })
+    .catch(async () => {
+      // Fallback to v2.1 if v2.2 fails for some reason
+      const fallback = await getKinopoisk<{ data?: KinopoiskFilm } | KinopoiskFilm>(
+        `${kinopoiskApiV21}/films/${filmId}`,
+      );
+      const film = 'data' in fallback && fallback.data ? fallback.data : (fallback as KinopoiskFilm);
+      if (!film.filmId && (film as { kinopoiskId?: number }).kinopoiskId) {
+        film.filmId = (film as { kinopoiskId: number }).kinopoiskId;
+      }
+      return film;
+    })
+    .finally(() => {
+      filmInFlight.delete(filmId);
+    });
+
+  filmInFlight.set(filmId, request);
+  return request;
 }

@@ -1,85 +1,149 @@
-import { searchMoviesFromSource } from '../api/movieSource';
+import { getCachedMovie, setCachedMovie } from '../api/movieCache';
+import { searchMoviesFromSource, type NormalizedMovie } from '../api/movieSource';
 
-const normalizeTitle = (value: string) => value
+export const normalizeTitle = (value: string): string =>
+  value
     .toLocaleLowerCase('ru-RU')
-    .replace(/[«»"']/g, '')
-    .replace(/\s*\(\d{4}\)\s*$/, '')
+    .replace(/[«»"'`]/g, '')
+    .replace(/\s*\((?:18|19|20)\d{2}\)\s*$/, '')
     .trim();
 
-const getRequestedYear = (value: string) => value.match(/\b(18|19|20)\d{2}\b/)?.[0];
+export const getRequestedYear = (value: string): string | undefined =>
+  value.match(/\b(18|19|20)\d{2}\b/)?.[0];
 
-async function findMovieBySearchTitle(title: string) {
-    const excelTitle = title;
-    const normalizedTitle = title.toLocaleLowerCase('ru-RU');
-    const requestedYear = getRequestedYear(title);
-    let preferredMovieId: number | undefined;
+type MovieAlias = {
+  searchQuery?: string;
+  tmdbId?: number;
+  kinopoiskId?: number;
+};
 
-    if (normalizeTitle(title) === 'комната') {
-        preferredMovieId = 17473;
+const MOVIE_ALIASES: Record<string, MovieAlias> = {
+  комната: {
+    tmdbId: 17473,
+    kinopoiskId: 259981,
+  },
+  вершина: {
+    searchQuery: 'На вершине',
+  },
+  толкатель: {
+    searchQuery: 'Дилер',
+  },
+  'толкатель 2': {
+    searchQuery: 'Дилер 2',
+  },
+  'бивис и баттхед уделывают америку (1996)': {
+    searchQuery: 'Бивис и Баттхед уделывают Америку',
+    tmdbId: 3179,
+    kinopoiskId: 4172,
+  },
+  'бивис и баттхед уделывают америку': {
+    searchQuery: 'Бивис и Баттхед уделывают Америку',
+    tmdbId: 3179,
+    kinopoiskId: 4172,
+  },
+  'чёрный котёл': {
+    searchQuery: 'The Black Cauldron',
+    tmdbId: 10957,
+    kinopoiskId: 28108,
+  },
+  'гром в штанах': {
+    searchQuery: 'Thunderpants',
+    tmdbId: 21605,
+    kinopoiskId: 43054,
+  },
+  'золушка (2021)': {
+    searchQuery: 'Cinderella',
+    tmdbId: 593910,
+    kinopoiskId: 1261358,
+  },
+  'птицекалипсис: шок и трепет': {
+    searchQuery: 'Birdemic: Shock and Terror',
+    tmdbId: 40016,
+    kinopoiskId: 494572,
+  },
+  '🎄 клаус 🎄': {
+    searchQuery: 'Клаус',
+  },
+  кентавр: {
+    tmdbId: 1142871,
+    kinopoiskId: 5064560,
+  },
+  'ресидент ивел': {
+    searchQuery: 'Resident Evil',
+    tmdbId: 1423191,
+    kinopoiskId: 5396556,
+  },
+};
+
+export async function findMovieBySearchTitle(title: string): Promise<NormalizedMovie | null> {
+  const excelTitle = title.trim();
+  if (!excelTitle) {
+    return null;
+  }
+
+  // 1. Check persistent cache first (instant return, 0 network requests)
+  const cached = getCachedMovie(excelTitle);
+  if (cached) {
+    return { ...cached, excelTitle };
+  }
+
+  const normalized = normalizeTitle(excelTitle);
+  const requestedYear = getRequestedYear(excelTitle);
+
+  const alias = MOVIE_ALIASES[normalized] ?? MOVIE_ALIASES[excelTitle.toLocaleLowerCase('ru-RU')];
+  const searchQuery = alias?.searchQuery || excelTitle;
+
+  try {
+    const movies = await searchMoviesFromSource(searchQuery);
+    if (!movies || movies.length === 0) {
+      return null;
     }
 
-    switch (normalizedTitle) {
-        case 'комната': {
-            break;
+    // Match candidate in order of precision:
+    // 1. Alias ID match (TMDB or Kinopoisk ID based on movie.source)
+    let candidate: NormalizedMovie | undefined;
+
+    if (alias) {
+      candidate = movies.find((item) => {
+        if (item.source === 'tmdb' && alias.tmdbId && item.id === alias.tmdbId) {
+          return true;
         }
-        case 'вершина':
-            title = 'На вершине';
-            break;
-        case 'толкатель':
-            title = 'Дилер';
-            break;
-        case 'толкатель 2':
-            title = 'Дилер 2';
-            break;
-        case 'бивис и баттхед уделывают америку (1996)':
-            title = 'Бивис и Баттхед уделывают Америку';
-            preferredMovieId = 3179;
-            break;
-        case 'чёрный котёл':
-            title = 'The Black Cauldron';
-            preferredMovieId = 10957;
-            break;
-        case 'гром в штанах':
-            title = 'Thunderpants';
-            preferredMovieId = 21605;
-            break;
-        case 'золушка (2021)':
-            title = 'Cinderella';
-            preferredMovieId = 593910;
-            break;
-        case 'птицекалипсис: шок и трепет':
-            title = 'Birdemic: Shock and Terror';
-            preferredMovieId = 40016;
-            break;
-        case '🎄 клаус 🎄': 
-            title = 'Клаус';
-            break;
-        case 'кентавр': 
-            preferredMovieId = 1142871
-            break;
-        case 'ресидент ивел':
-            title = 'Resident Evil';
-            preferredMovieId = 1423191
-            break;
-
-        default:
-            break;
+        if (item.source === 'kinopoisk' && alias.kinopoiskId && item.id === alias.kinopoiskId) {
+          return true;
+        }
+        return false;
+      });
     }
-    
-        const movies = await searchMoviesFromSource(title);
-        const exactTitleMatches = movies.filter((item) =>
-            normalizeTitle(item.title) === normalizeTitle(title)
-            || normalizeTitle(item.original_title) === normalizeTitle(title),
-        );
-        const yearMatches = (requestedYear
-            ? exactTitleMatches.filter((item) => item.release_date?.startsWith(requestedYear))
-            : exactTitleMatches);
-        const movie = (preferredMovieId && movies.find((item) => item.id === preferredMovieId))
-            ?? yearMatches[0]
-            ?? exactTitleMatches[0]
-            ?? movies[0];
 
-        return movie ? { ...movie, excelTitle } : null;
+    if (!candidate) {
+      const exactTitleMatches = movies.filter(
+        (item) =>
+          normalizeTitle(item.title) === normalized ||
+          normalizeTitle(item.original_title) === normalized,
+      );
+
+      const yearMatches = requestedYear
+        ? exactTitleMatches.filter((item) => item.release_date?.startsWith(requestedYear))
+        : [];
+
+      candidate = yearMatches[0] ?? exactTitleMatches[0] ?? movies[0];
+    }
+
+    if (candidate) {
+      const result: NormalizedMovie = {
+        ...candidate,
+        excelTitle,
+      };
+
+      // Save to persistent cache
+      setCachedMovie(excelTitle, result);
+      return result;
+    }
+  } catch (error) {
+    console.error(`[MovieSearch] Failed to find movie "${excelTitle}":`, error);
+  }
+
+  return null;
 }
 
 export default findMovieBySearchTitle;

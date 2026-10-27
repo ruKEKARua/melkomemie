@@ -40,14 +40,11 @@ type MovieSliderProps = {
 };
 
 const useSearchMovie = (searchValue: string, enabled: boolean) => {
-
+    const isQueryActive = enabled && Boolean(searchValue.trim());
     const [data, setData] = useState<MovieSliderProps>();
 
-
     useEffect(() => {
-
-        if (!enabled || !searchValue.trim()) {
-            setData(undefined);
+        if (!isQueryActive) {
             return;
         }
 
@@ -56,13 +53,9 @@ const useSearchMovie = (searchValue: string, enabled: boolean) => {
             .catch(err => console.error(err)), 500);
 
         return () => window.clearTimeout(timeoutId);
-    
+    }, [isQueryActive, searchValue]);
 
-    }, [enabled, searchValue])
-
-    return (
-        data
-    )
+    return isQueryActive ? data : undefined;
 }
 
 export default useSearchMovie

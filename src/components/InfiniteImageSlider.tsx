@@ -7,7 +7,7 @@ import useMovieImages from "../HooksTMDB/useMovieImages";
 import "swiper/css";
 import "swiper/css/navigation";
 import Button from "./UI/Button";
-import { getTmdbImageUrl } from "../api/tmdbImage";
+import { getMovieImageUrl } from "../api/tmdbImage";
 import type { MovieSource } from "../api/movieSource";
 
 type InfiniteSliderProps = {
@@ -31,7 +31,7 @@ export default function InfiniteSlider({movie_ID, source = 'tmdb'}:InfiniteSlide
 
     const posterSize:string = 'w780';
     const backdropsURLs = movieImages.slice(0,21).map((image) => {
-        return source === 'kinopoisk' ? image.file_path : getTmdbImageUrl(posterSize, image.file_path);
+        return getMovieImageUrl(image.file_path, posterSize);
     })
 
     useEffect(() => {

@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { searchMoviesFromSource, type NormalizedMovie } from '../api/movieSource';
 import Button from './UI/Button';
-import { getTmdbImageUrl } from '../api/tmdbImage';
+import { getMovieImageUrl } from '../api/tmdbImage';
 import Modal from './Modal';
 import { openModal } from '../store/openModal';
 import type { RootState } from '../store/store';
@@ -62,22 +62,25 @@ const movieTitle = (movie: RouletteMovie) => movie.title || movie.original_title
 
 const movieKey = (movie: RouletteMovie) => `${movie.source}-${movie.id}-${'excelTitle' in movie ? movie.excelTitle ?? '' : ''}`;
 const isTextMovie = (movie: RouletteMovie): movie is TextRouletteMovie => movie.source === 'text';
-const wheelColors = ['#343946', '#252936'];
-const wheelDivider = '#171920';
-const wheelDividerAngle = 0.2;
+const wheelColors = ['#131622', '#1a1f2e', '#161b28'];
+const wheelDivider = 'rgba(245, 158, 11, 0.45)';
+const wheelDividerAngle = 0.35;
 
 const getWheelBackground = (movieCount: number) => {
-    if (movieCount === 0) {
+    if (movieCount <= 1) {
         return `conic-gradient(${wheelColors[0]} 0deg 360deg)`;
     }
 
     const sectorAngle = 360 / movieCount;
-    const colorOffset = movieCount % 2 === 1 ? 1 : 0;
+    const isOdd = movieCount % 2 === 1;
     const stops = Array.from({ length: movieCount }, (_, index) => {
         const start = index * sectorAngle;
         const end = (index + 1) * sectorAngle;
         const dividerStart = Math.max(start, end - wheelDividerAngle);
-        return `${wheelColors[(index + colorOffset) % wheelColors.length]} ${start}deg ${dividerStart}deg, ${wheelDivider} ${dividerStart}deg ${end}deg`;
+        const color = isOdd && index === movieCount - 1
+            ? wheelColors[2]
+            : wheelColors[index % 2];
+        return `${color} ${start}deg ${dividerStart}deg, ${wheelDivider} ${dividerStart}deg ${end}deg`;
     });
 
     return `conic-gradient(from ${-sectorAngle / 2}deg, ${stops.join(', ')})`;
@@ -94,7 +97,7 @@ const MovieRoulette = ({
 }: MovieRouletteProps) => {
     const dispatch = useDispatch();
     const isModalOpen = useSelector((state: RootState) => state.openModal.value);
-    const [source, setSource] = useState<RouletteSource>('excel');
+    const [source, setSource] = useState<RouletteSource>('online');
     const [mode, setMode] = useState<RouletteMode>('elimination');
     const [query, setQuery] = useState('');
     const [textValue, setTextValue] = useState('');
@@ -110,6 +113,16 @@ const MovieRoulette = ({
     const [pendingIndex, setPendingIndex] = useState<number | null>(null);
     const [spinDurationMs, setSpinDurationMs] = useState(10200);
     const [spinTurns, setSpinTurns] = useState(5);
+    const [eliminatingMovie, setEliminatingMovie] = useState<RouletteMovie | null>(null);
+    const eliminationTimeoutRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        return () => {
+            if (eliminationTimeoutRef.current !== null) {
+                window.clearTimeout(eliminationTimeoutRef.current);
+            }
+        };
+    }, []);
 
     useEffect(() => {
         if (source !== 'online' || !query.trim()) {
@@ -154,7 +167,7 @@ const MovieRoulette = ({
         return excelMovies.filter((movie) => [movieTitle(movie), movie.original_title]
             .some((title) => title.toLocaleLowerCase('ru-RU').includes(normalizedQuery)));
     }, [excelMovies, onlineResults, query, source]);
-    const canStart = selectedMovies.length > 0 && !winner && (mode === 'winner' || selectedMovies.length > 1);
+    const canStart = selectedMovies.length > 0 && (mode === 'winner' || selectedMovies.length > 1);
 
     const addMovie = (movie: RouletteMovie) => {
         if (!spinning && !selectedKeys.has(movieKey(movie))) {
@@ -188,17 +201,22 @@ const MovieRoulette = ({
 
     const spin = () => {
         if (!canStart || spinning) return;
+        if (eliminationTimeoutRef.current !== null) {
+            window.clearTimeout(eliminationTimeoutRef.current);
+            eliminationTimeoutRef.current = null;
+        }
 
         const index = randomIndex(selectedMovies.length);
         const sectorAngle = 360 / selectedMovies.length;
         const availableAngle = Math.max(0, sectorAngle - wheelDividerAngle - 1);
-        const randomOffset = (randomFraction() - 0.5) * availableAngle;
+        const randomOffset = (randomFraction() - 0.5) * availableAngle * 0.7;
         const chosenAngle = index * sectorAngle + randomOffset;
         const targetAngle = ((360 - chosenAngle) % 360 + 360) % 360;
 
         setPendingIndex(index);
         setSpinning(true);
         setLastEliminated(null);
+        setEliminatingMovie(null);
         setWinner(null);
         setRotation((current) => {
             const currentAngle = ((current % 360) + 360) % 360;
@@ -211,32 +229,63 @@ const MovieRoulette = ({
         if (pendingIndex === null) return;
 
         const chosenMovie = selectedMovies[pendingIndex];
-        if (mode === 'winner') {
-            setWinner(chosenMovie);
-        } else {
-            setLastEliminated(chosenMovie);
-            const remainingMovies = selectedMovies.filter((_, movieIndex) => movieIndex !== pendingIndex);
-            setSelectedMovies(remainingMovies);
-            if (remainingMovies.length === 1) {
-                setWinner(remainingMovies[0]);
-            }
+        if (!chosenMovie) {
+            setPendingIndex(null);
+            setSpinning(false);
+            return;
         }
 
-        setPendingIndex(null);
-        setSpinning(false);
+        if (mode === 'winner') {
+            setWinner(chosenMovie);
+            setPendingIndex(null);
+            setSpinning(false);
+        } else {
+            // Режим на выбывание:
+            // 1. Стрелка остановилась точно на выбранном фильме (он прямо под указателем).
+            // Фиксируем его как выбывший фильм и подсвечиваем на колесе.
+            setLastEliminated(chosenMovie);
+            setEliminatingMovie(chosenMovie);
+
+            // 2. Даем пользователю время увидеть, на какой фильм попала стрелка,
+            // после чего удаляем фильм из активного состава колеса.
+            eliminationTimeoutRef.current = window.setTimeout(() => {
+                setSelectedMovies((current) => {
+                    const remaining = current.filter((m) => movieKey(m) !== movieKey(chosenMovie));
+                    if (remaining.length === 1) {
+                        setWinner(remaining[0]);
+                    }
+                    return remaining;
+                });
+                setEliminatingMovie(null);
+                setPendingIndex(null);
+                setSpinning(false);
+                eliminationTimeoutRef.current = null;
+            }, 1400);
+        }
+    };
+
+    const handleWheelTransitionEnd = (event: React.TransitionEvent<HTMLDivElement>) => {
+        // Игнорируем события от дочерних элементов (постеров, кнопок и т.д.)
+        if (event.target !== event.currentTarget) return;
+        if (event.propertyName !== 'transform') return;
+        if (!spinning) return;
+        finishSpin();
     };
 
     const reset = () => {
         if (spinning) return;
+        if (eliminationTimeoutRef.current !== null) {
+            window.clearTimeout(eliminationTimeoutRef.current);
+            eliminationTimeoutRef.current = null;
+        }
         setSelectedMovies([]);
         setWinner(null);
         setLastEliminated(null);
+        setEliminatingMovie(null);
         setModalMovie(null);
     };
 
-    const posterUrl = (movie: MovieRouletteMovie) => movie.source === 'kinopoisk'
-        ? movie.poster_path
-        : getTmdbImageUrl('w185', movie.poster_path);
+    const posterUrl = (movie: MovieRouletteMovie) => getMovieImageUrl(movie.poster_path, 'w185');
 
     const openMovieModal = (movie: MovieRouletteMovie) => {
         setModalMovie(movie);
@@ -296,17 +345,27 @@ const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
                     <p className="roulette-kicker">КИНОКЛУБ / СЛУЧАЙНЫЙ ВЫБОР</p>
                     <h1>Рулетка фильмов</h1>
                 </div>
-                <div className='gap-10 flex'>
-                    <div className='flex flex-col'>
-                        <label className="border-0 roulette-secondary-button absolute w-75 ">Загрузить картинку</label>
+                <div className="roulette-header-actions flex items-center gap-3">
+                    <label className="relative inline-flex items-center justify-center gap-2 cursor-pointer rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 px-4 py-2 text-xs font-semibold text-white transition shadow-sm">
+                        <svg className="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                            <circle cx="9" cy="9" r="2" />
+                            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                        </svg>
+                        <span>Сменить картинку в центре колеса</span>
                         <input 
                             type="file" 
                             accept="image/*"
                             onChange={handleFileSelect}
-                            className="opacity-0 size-full cursor-pointer"
-                            />                    
-                    </div>
-                    <Button label="Вернуться к каталогу" onClick={onClose} className="roulette-secondary-button" />
+                            className="sr-only"
+                        />
+                    </label>
+                    <button
+                        onClick={onClose}
+                        className="rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 text-xs transition shadow-lg shadow-amber-500/20 cursor-pointer flex items-center gap-1.5"
+                    >
+                        <span>← Вернуться к каталогу</span>
+                    </button>
                 </div>
 
             </header>
@@ -403,7 +462,13 @@ const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
                                 </button>
                             );
                         })}
-                        {source !== 'text' && !isSearching && availableMovies.length === 0 && <p className="roulette-hint">Фильмы не найдены</p>}
+                        {source !== 'text' && !isSearching && availableMovies.length === 0 && (
+                            <p className="roulette-hint">
+                                {source === 'online' && !query.trim()
+                                    ? 'Введите название фильма для поиска'
+                                    : 'Фильмы не найдены'}
+                            </p>
+                        )}
                     </div>
                 </section>
 
@@ -413,7 +478,38 @@ const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
                     <div className="roulette-board">
                         <div className="roulette-wheel-panel">
                             <div className="roulette-wheel-wrap">
-                                <div className="roulette-pointer" aria-hidden="true" />
+                                <div className="roulette-pointer" aria-hidden="true">
+                                    <svg viewBox="0 0 32 38" className="roulette-pointer-icon" fill="none">
+                                        <defs>
+                                            <linearGradient id="goldPointerGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                                <stop offset="0%" stopColor="#fef08a" />
+                                                <stop offset="35%" stopColor="#f59e0b" />
+                                                <stop offset="75%" stopColor="#d97706" />
+                                                <stop offset="100%" stopColor="#78350f" />
+                                            </linearGradient>
+                                            <filter id="pointerGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                                <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#f59e0b" floodOpacity="0.7" />
+                                            </filter>
+                                        </defs>
+                                        <path
+                                            d="M3 4 L29 4 L29 16 L16 35 L3 16 Z"
+                                            fill="url(#goldPointerGrad)"
+                                            stroke="#fef08a"
+                                            strokeWidth="1.2"
+                                            filter="url(#pointerGlow)"
+                                        />
+                                        <path
+                                            d="M8 8 L24 8 L24 15 L16 27 L8 15 Z"
+                                            fill="#78350f"
+                                            opacity="0.35"
+                                        />
+                                        <path
+                                            d="M16 11 L21 16 L16 24 L11 16 Z"
+                                            fill="#fef08a"
+                                            opacity="0.9"
+                                        />
+                                    </svg>
+                                </div>
                                 <div
                                     className={`roulette-wheel ${spinning ? 'is-spinning' : ''}`}
                                     style={{
@@ -421,45 +517,72 @@ const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
                                         transitionDuration: `${spinDurationMs}ms`,
                                         background: getWheelBackground(selectedMovies.length),
                                     }}
-                                    onTransitionEnd={finishSpin}
+                                    onTransitionEnd={handleWheelTransitionEnd}
                                     aria-label="Колесо рулетки"
                                 >
                                     {selectedMovies.map((movie, index) => {
                                         const angle = (360 / selectedMovies.length) * index;
+                                        const isText = isTextMovie(movie);
+                                        const title = movieTitle(movie);
+                                        const poster = !isText ? posterUrl(movie) : null;
+                                        const isEliminating = eliminatingMovie && movieKey(eliminatingMovie) === movieKey(movie);
+
                                         return (
                                             <div
-                                                className="roulette-poster-slot"
+                                                className={`roulette-sector-slot ${isEliminating ? 'is-eliminating' : ''}`}
                                                 key={movieKey(movie)}
                                                 style={{
-                                                    '--poster-angle': `${angle}deg`,
+                                                    '--sector-angle': `${angle}deg`,
                                                 } as CSSProperties}
-                                                role={isTextMovie(movie) ? undefined : 'button'}
-                                                tabIndex={isTextMovie(movie) ? undefined : 0}
-                                                aria-label={isTextMovie(movie) ? movieTitle(movie) : `Открыть описание: ${movieTitle(movie)}`}
-                                                onClick={() => { if (!isTextMovie(movie)) openMovieModal(movie); }}
+                                                role={isText ? undefined : 'button'}
+                                                tabIndex={isText ? undefined : 0}
+                                                aria-label={isText ? title : `Открыть описание: ${title}`}
+                                                onClick={() => { if (!isText && !spinning) openMovieModal(movie); }}
                                                 onKeyDown={(event) => {
-                                                    if (!isTextMovie(movie) && (event.key === 'Enter' || event.key === ' ')) {
+                                                    if (!isText && !spinning && (event.key === 'Enter' || event.key === ' ')) {
                                                         event.preventDefault();
                                                         openMovieModal(movie);
                                                     }
                                                 }}
                                             >
-                                                {isTextMovie(movie) ? <span className="roulette-text-slot">{movie.text}</span> : posterUrl(movie) ? <img src={posterUrl(movie)} alt={movieTitle(movie)} /> : <span>{movieTitle(movie)}</span>}
+                                                <span className="roulette-slot-title" title={title}>
+                                                    {title}
+                                                </span>
+                                                {isText ? (
+                                                    <div className="roulette-text-slot">
+                                                        <span>{movie.text}</span>
+                                                    </div>
+                                                ) : poster ? (
+                                                    <img
+                                                        className="roulette-slot-poster"
+                                                        src={poster}
+                                                        alt={title}
+                                                        loading="lazy"
+                                                    />
+                                                ) : (
+                                                    <div className="roulette-slot-poster roulette-slot-placeholder">
+                                                        <span>{title.slice(0, 1)}</span>
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })}
-                                    
-                                        
                                 </div>
-                                <div className={`${/*bg-[url('${userImage}')]*/''} 
-                                        roulette-wheel-center overflow-hidden`} 
-                                        onClick={spin} 
-                                        aria-label={mode === 'winner' ? 'Выбрать победителя' : 'Выбрать выбывший фильм'}
-                                        >
-
-                                            <img src={userImage} alt="" className='size-full object-cover absolute'  />
-
-                                    </div>
+                                <button
+                                    type="button"
+                                    className="roulette-wheel-center"
+                                    onClick={spin}
+                                    disabled={spinning || !canStart}
+                                    aria-label={spinning ? 'Колесо вращается' : mode === 'winner' ? 'Крутить и выбрать победителя' : 'Крутить и выбрать выбывший фильм'}
+                                    title={spinning ? 'Колесо вращается' : 'Крутить рулетку'}
+                                >
+                                    <img
+                                        src={userImage}
+                                        alt={spinning ? 'Колесо вращается' : 'Крутить рулетку'}
+                                        className="roulette-center-avatar"
+                                        draggable={false}
+                                    />
+                                </button>
                             </div>
                         </div>
 
@@ -484,7 +607,7 @@ const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
                                     <span>{movieTitle(movie)}</span>
                                 </div>
                             ))}
-                            {selectedMovies.length === 0 && <p className="roulette-empty">Добавьте фильмы из списка слева, чтобы начать.</p>}
+                            {selectedMovies.length === 0 && <p className="roulette-empty">Добавьте фильмы, чтобы начать вращение.</p>}
                         </aside>
                     </div>
 

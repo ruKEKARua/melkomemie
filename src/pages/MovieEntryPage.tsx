@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { type NormalizedMovie } from '../api/movieSource';
-import { fetchTmdb } from '../api/tmdb';
-import { getTmdbImageUrl } from '../api/tmdbImage';
+import { getPopularMoviesFromSource, type NormalizedMovie } from '../api/movieSource';
+import { getMovieImageUrl } from '../api/tmdbImage';
 import type { MovieSheetEntry } from '../api/googleSheets';
 import { searchMoviesWithTmdbFallback } from './searchMoviesWithTmdbFallback';
 
@@ -51,17 +50,13 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
   useEffect(() => {
     const randomPage = Math.floor(Math.random() * 5) + 1;
 
-    fetchTmdb<{ results: Array<Pick<NormalizedMovie, 'title' | 'original_title'>> }>(
-      `/movie/popular?language=ru-RU&page=${randomPage}`,
-    )
-      .then((response) => {
-        const items = response.results.slice(0, 5);
-        if (items.length === 0) {
-          return;
-        }
+    getPopularMoviesFromSource(randomPage)
+      .then((items) => {
+        const slice = items.slice(0, 5);
+        if (slice.length === 0) return;
 
-        const randomIndex = Math.floor(Math.random() * items.length);
-        const sample = items[randomIndex];
+        const randomIndex = Math.floor(Math.random() * slice.length);
+        const sample = slice[randomIndex];
         const title = sample.title || sample.original_title || 'Дурак';
 
         setPlaceholder(`Например: ${title}`);
@@ -95,30 +90,25 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
       window.clearTimeout(searchTimeoutRef.current);
     }
 
-    searchTimeoutRef.current = window.setTimeout(() => searchMoviesWithTmdbFallback(trimmedValue)
-      .then((movies) => {
-        if (currentRequestId !== requestIdRef.current) {
-          return;
-        }
-
-        setResults(movies);
-        setSelectedMovie((current) => current ?? movies[0] ?? null);
-      })
-      .catch((error) => {
-        console.error('Ошибка поиска фильма:', error);
-        if (currentRequestId === requestIdRef.current) {
-          setResults([]);
-          setSelectedMovie(null);
-        }
-      })
-      .finally(() => {
-        if (currentRequestId === requestIdRef.current) {
-          setIsSearching(false);
-        }
-      })
-      .finally(() => {
-        searchTimeoutRef.current = undefined;
-      }), 500);
+    searchTimeoutRef.current = window.setTimeout(() => {
+      searchMoviesWithTmdbFallback(trimmedValue)
+        .then((movies) => {
+          if (currentRequestId !== requestIdRef.current) return;
+          setResults(movies);
+          setSelectedMovie((current) => current ?? movies[0] ?? null);
+        })
+        .catch((error) => {
+          console.error('Ошибка поиска фильма:', error);
+          if (currentRequestId === requestIdRef.current) {
+            setResults([]);
+            setSelectedMovie(null);
+          }
+        })
+        .finally(() => {
+          if (currentRequestId === requestIdRef.current) setIsSearching(false);
+          searchTimeoutRef.current = undefined;
+        });
+    }, 450);
   };
 
   const hasParticipantErrors = (participants: ParticipantScore[]) =>
@@ -128,7 +118,7 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
     const nextErrors: { date?: string; title?: string; participants?: string } = {};
 
     if (!form.date.trim()) {
-      nextErrors.date = 'Выберите дату';
+      nextErrors.date = 'Выберите дату просмотра';
     }
 
     if (!form.title.trim()) {
@@ -136,7 +126,7 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
     }
 
     if (hasParticipantErrors(form.participants)) {
-      nextErrors.participants = 'Для каждого участника укажите имя и оценку';
+      nextErrors.participants = 'Для каждого участника укажите имя и оценку от 0 до 10';
     }
 
     setErrors(nextErrors);
@@ -146,9 +136,7 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setSaveError('');
     setIsSaving(true);
@@ -216,9 +204,10 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
   };
 
   const removeParticipantRow = (index: number) => {
-    const participants = form.participants.length > 1
-      ? form.participants.filter((_, participantIndex) => participantIndex !== index)
-      : [createEmptyParticipant()];
+    const participants =
+      form.participants.length > 1
+        ? form.participants.filter((_, participantIndex) => participantIndex !== index)
+        : [createEmptyParticipant()];
     setForm((current) => ({
       ...current,
       participants,
@@ -229,67 +218,77 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
   };
 
   const selectedParticipantNames = new Set(
-    form.participants
-      .map((participant) => participant.name)
-      .filter(Boolean),
+    form.participants.map((participant) => participant.name).filter(Boolean),
   );
 
-
   return (
-    <div className="movie-entry-page flex flex-col gap-10 w-full max-w-6xl mx-auto text-white">
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <div className='m-auto gap-10 flex flex-col'>
-          <p className="text-6xl uppercase tracking-[0.06em] text-sky-300"><b>Киноклуб</b></p>
-          <p className="text-3xl font-semibold text-white">Добавить фильм в таблицу</p>
+    <div className="w-full max-w-5xl mx-auto flex flex-col gap-8 text-zinc-100 pb-16 animate-fade-in">
+      {/* Page Title */}
+      <div className="flex flex-col gap-2 pb-6 border-b border-white/10">
+        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400">
+          <span>Таблица Google Sheets</span>
+          <span>•</span>
+          <span>База данных киноклуба</span>
         </div>
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight">
+          Добавить фильм в коллекцию
+        </h1>
+        <p className="text-sm text-zinc-400">
+          Заполните дату совместного просмотра, выберите фильм и укажите оценки участников.
+        </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="flex flex-col gap-5">
-          <div className="rounded-2xl border border-sky-500/40 bg-slate-900/75 p-5 shadow-2xl shadow-sky-950/20 backdrop-blur-sm">
-            <label className="flex flex-col gap-2 text-left text-sm text-slate-200">
-              <span>Дата</span>
-              <div className='flex flex-row gap-2 text-left text-sm text-slate-200'>
+      <form onSubmit={handleSubmit} className="grid gap-8 lg:grid-cols-[1.1fr_1fr] items-start">
+        {/* Left Column: Date & Live Search Results */}
+        <div className="flex flex-col gap-6">
+          {/* Date Picker Box */}
+          <div className="rounded-2xl border border-white/10 bg-[#121420] p-5 shadow-xl">
+            <label className="flex flex-col gap-2 text-left text-sm font-semibold text-zinc-200">
+              <span>Дата просмотра в киноклубе</span>
+              <div className="flex flex-wrap items-center gap-2">
                 <input
-                    type="date"
-                    value={form.date}
-                    onChange={(event) => updateDate(event.target.value)}
-                    className="w-35 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition focus:border-sky-400"
+                  type="date"
+                  value={form.date}
+                  onChange={(event) => updateDate(event.target.value)}
+                  className="rounded-xl border border-white/15 bg-[#090a10] px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400 transition"
                 />
-                <button onClick={() => updateDate(new Date().toLocaleDateString('sv-SE'))} type='button'
-                className='w-60 rounded-xl border border-slate-700 bg-slate-950 text-white outline-none transition focus:border-sky-400'>
-                    Установить сегодняшнюю дату
+                <button
+                  type="button"
+                  onClick={() => updateDate(new Date().toLocaleDateString('sv-SE'))}
+                  className="rounded-xl bg-white/10 hover:bg-white/15 px-3.5 py-2.5 text-xs font-semibold text-zinc-200 transition"
+                >
+                  Сегодня
                 </button>
-                    
-                {errors.date && <span className="text-xs text-red-400">{errors.date}</span>}
               </div>
+              {errors.date && <span className="text-xs text-rose-400 mt-1">{errors.date}</span>}
             </label>
           </div>
 
-          <aside className="rounded-2xl border border-indigo-500/40 bg-slate-900/75 p-4 shadow-2xl shadow-indigo-950/20 backdrop-blur-sm">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-slate-100">Результаты поиска</h2>
-              <div className="flex gap-1 rounded-lg border border-slate-700 bg-slate-950/80 p-1" role="group" aria-label="Вид результатов поиска">
+          {/* Search Autocomplete / Live Results */}
+          <aside className="rounded-2xl border border-white/10 bg-[#121420] p-5 shadow-xl flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-amber-400">
+                Результаты поиска фильма
+              </h2>
+              <div className="flex gap-1 rounded-lg bg-[#090a10] p-0.5 border border-white/10" role="group">
                 <button
                   type="button"
-                  aria-pressed={searchResultsView === 'list'}
                   onClick={() => setSearchResultsView('list')}
-                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${
                     searchResultsView === 'list'
-                      ? 'bg-sky-500 text-slate-950'
-                      : 'text-slate-300 hover:bg-slate-800'
+                      ? 'bg-amber-500 text-slate-950'
+                      : 'text-zinc-400 hover:text-white'
                   }`}
                 >
                   Списком
                 </button>
                 <button
                   type="button"
-                  aria-pressed={searchResultsView === 'grid'}
                   onClick={() => setSearchResultsView('grid')}
-                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${
                     searchResultsView === 'grid'
-                      ? 'bg-sky-500 text-slate-950'
-                      : 'text-slate-300 hover:bg-slate-800'
+                      ? 'bg-amber-500 text-slate-950'
+                      : 'text-zinc-400 hover:text-white'
                   }`}
                 >
                   Плиткой
@@ -298,72 +297,79 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
             </div>
 
             {!form.title.trim() && (
-              <p className="rounded-xl border border-dashed border-slate-700 px-3 py-6 text-sm text-slate-400">
-                Введите название фильма.
+              <p className="rounded-xl border border-dashed border-white/10 p-6 text-center text-xs text-zinc-500">
+                Начните вводить название фильма справа, чтобы увидеть варианты из TMDB и Кинопоиска.
               </p>
             )}
 
             {form.title.trim() && isSearching && (
-              <div className="rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-6 text-sm text-slate-300">
-                Поиск...
+              <div className="flex items-center justify-center gap-3 rounded-xl bg-white/5 p-6 text-xs text-zinc-400">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
+                <span>Ищем фильм в базе данных...</span>
               </div>
             )}
 
             {form.title.trim() && !isSearching && results.length === 0 && (
-              <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-6 text-sm text-amber-100">
-                По названию ничего не найдено.
+              <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-5 text-center text-xs text-amber-300">
+                По названию ничего не найдено. Вы можете продолжить добавление с введённым названием вручную.
               </div>
             )}
 
-            <div className={searchResultsView === 'grid'
-              ? 'grid grid-cols-2 gap-3 sm:grid-cols-3'
-              : 'space-y-3'}
+            <div
+              className={`max-h-96 overflow-y-auto pr-1 ${
+                searchResultsView === 'grid'
+                  ? 'grid grid-cols-2 gap-3 sm:grid-cols-3 items-stretch'
+                  : 'flex flex-col gap-2'
+              }`}
             >
               {results.map((movie) => {
                 const poster = movie.poster_path
-                  ? movie.source === 'kinopoisk'
-                    ? movie.poster_path
-                    : getTmdbImageUrl('w185', movie.poster_path)
-                  : movie.poster_path || 'https://placehold.co/185x278/1e293b/94a3b8?text=No+Poster';
+                  ? getMovieImageUrl(movie.poster_path, 'w185')
+                  : 'https://placehold.co/185x278/131620/94a3b8?text=No+Poster';
 
-                const isSelected = selectedMovie?.id === movie.id && selectedMovie?.source === movie.source;
+                const isSelected =
+                  selectedMovie?.id === movie.id && selectedMovie?.source === movie.source;
 
                 return (
                   <button
                     key={`${movie.source}-${movie.id}`}
                     type="button"
                     onClick={() => applySelectedMovie(movie)}
-                    className={`${searchResultsView === 'grid'
-                      ? 'flex min-w-0 flex-col items-stretch gap-2'
-                      : 'flex w-full items-center gap-3'
-                    } rounded-xl border p-2 text-left transition ${
+                    className={`rounded-xl border p-2 text-left transition-all cursor-pointer ${
+                      searchResultsView === 'grid'
+                        ? 'flex flex-col gap-2 h-full'
+                        : 'flex items-center gap-3'
+                    } ${
                       isSelected
-                        ? 'border-sky-400 bg-sky-500/10 shadow-lg shadow-sky-900/20'
-                        : 'border-slate-700 bg-slate-950/60 hover:border-sky-500/60'
+                        ? 'border-amber-400 bg-amber-500/15 shadow-lg shadow-amber-950/20'
+                        : 'border-white/10 bg-white/[0.03] hover:border-amber-500/40 hover:bg-white/[0.06]'
                     }`}
                   >
                     <img
                       src={poster}
                       alt={movie.title || movie.original_title}
-                      className={searchResultsView === 'grid'
-                        ? 'aspect-[2/3] w-full rounded-lg object-cover'
-                        : 'h-20 w-14 shrink-0 rounded-lg object-cover'}
+                      className={
+                        searchResultsView === 'grid'
+                          ? 'aspect-[2/3] w-full rounded-lg object-cover shrink-0'
+                          : 'h-16 w-11 shrink-0 rounded-lg object-cover'
+                      }
                       onError={(event) => {
-                        event.currentTarget.src = 'https://placehold.co/185x278/1e293b/94a3b8?text=No+Poster';
+                        event.currentTarget.src =
+                          'https://placehold.co/185x278/131620/94a3b8?text=No+Poster';
                       }}
                     />
-                    <div className="min-w-0 max-w-full flex-1">
-                      <p className={`max-w-full whitespace-normal wrap-break-word font-medium text-white ${
-                        searchResultsView === 'grid' ? 'line-clamp-2 text-center' : ''
-                      }`}>{movie.title || movie.original_title}</p>
-                      {searchResultsView === 'list' && (
-                        <>
-                          <p className="max-w-full whitespace-normal wrap-break-word text-xs text-slate-400">{movie.original_title || movie.title}</p>
-                          <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-sky-300">
-                            {movie.source === 'tmdb' ? 'TMDB' : 'KINOPOISK'}
-                          </p>
-                        </>
-                      )}
+                    <div className="min-w-0 flex-1 flex flex-col justify-between">
+                      <div>
+                        <p className="text-xs sm:text-sm font-semibold text-white line-clamp-2">
+                          {movie.title || movie.original_title}
+                        </p>
+                        <p className="text-[11px] text-zinc-400 line-clamp-1 mt-0.5">
+                          {movie.original_title || movie.title}
+                        </p>
+                      </div>
+                      <span className="inline-block mt-1 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+                        {movie.source === 'tmdb' ? 'TMDB' : 'Кинопоиск'}
+                      </span>
                     </div>
                   </button>
                 );
@@ -372,127 +378,133 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
           </aside>
         </div>
 
-        <div className="rounded-2xl border border-sky-500/40 bg-slate-900/75 p-5 shadow-2xl shadow-sky-950/20 backdrop-blur-sm">
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="flex flex-col gap-2 text-left text-sm text-slate-200 md:col-span-2">
-              <span>Название</span>
-              <input
-                type="text"
-                value={form.title}
-                onChange={(event) => {
-                  const title = event.target.value;
-                  handleTitleChange(title);
-                  if (title.trim()) {
-                    setErrors((current) => ({ ...current, title: undefined }));
-                  }
-                }}
-                placeholder={placeholder}
-                className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition placeholder:text-slate-400 focus:border-sky-400"
-              />
-              {errors.title && <span className="text-xs text-red-400">{errors.title}</span>}
-            </label>
+        {/* Right Column: Title input & Participant Ratings */}
+        <div className="flex flex-col gap-6 rounded-2xl border border-white/10 bg-[#121420] p-6 shadow-xl">
+          {/* Title Input */}
+          <label className="flex flex-col gap-2 text-left text-sm font-semibold text-zinc-200">
+            <span>Название фильма</span>
+            <input
+              type="text"
+              value={form.title}
+              onChange={(event) => {
+                const title = event.target.value;
+                handleTitleChange(title);
+                if (title.trim()) setErrors((c) => ({ ...c, title: undefined }));
+              }}
+              placeholder={placeholder}
+              className="rounded-xl border border-white/15 bg-[#090a10] px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400 transition"
+            />
+            {errors.title && <span className="text-xs text-rose-400">{errors.title}</span>}
+          </label>
 
-            <div className="flex flex-col gap-3 text-left text-sm text-slate-200 md:col-span-2">
-              <div className="flex items-center justify-between gap-3">
-                <span>Участники и оценки</span>
-                <button
-                  type="button"
-                  onClick={addParticipantRow}
-                  className="rounded-lg border border-sky-500/60 bg-sky-500/10 px-2.5 py-1.5 text-xs font-medium text-sky-200 transition hover:bg-sky-500/20"
-                >
-                  Добавить участника
-                </button>
-              </div>
+          {/* Participants & Scores Section */}
+          <div className="flex flex-col gap-3 text-left">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <span className="text-sm font-bold uppercase tracking-wider text-amber-400">
+                Оценки участников (от 0 до 10)
+              </span>
+              <button
+                type="button"
+                onClick={addParticipantRow}
+                className="rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 px-3 py-1 text-xs font-semibold transition"
+              >
+                + Добавить строку
+              </button>
+            </div>
 
-              <div className="space-y-3">
-                {errors.participants && (
-                  <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-                    {errors.participants}
-                  </div>
-                )}
+            {errors.participants && (
+              <div className="rounded-xl bg-rose-500/15 border border-rose-500/30 p-2.5 text-xs text-rose-300">
+                {errors.participants}
+              </div>
+            )}
 
-                {form.participants.map((participant, index) => (
-                  <div key={index} className="grid gap-2 md:grid-cols-[1.4fr_0.8fr_48px]">
-                    <select
-                      value={participant.name}
-                      onChange={(event) => updateParticipantRow(index, 'name', event.target.value)}
-                      className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition focus:border-sky-400"
-                    >
-                      <option value="">
-                        {participantNames.length > 0 ? 'Выберите участника' : 'Участники не загружены'}
-                      </option>
-                      {participantNames
-                        .filter((name) => name === participant.name || !selectedParticipantNames.has(name))
-                        .map((name) => (
-                          <option key={name} value={name}>{name}</option>
-                        ))}
-                    </select>
-                    <input
-                      type="number"
-                      min="0"
-                      max="10"
-                      step="0.1"
-                      value={participant.score}
-                      onChange={(event) => updateParticipantRow(index, 'score', event.target.value)}
-                      placeholder="Оценка"
-                      className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition placeholder:text-slate-400 focus:border-sky-400"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeParticipantRow(index)}
-                      className="rounded-xl border border-red-500/50 bg-red-500/10 px-2 py-2 text-xs font-medium text-red-200 transition hover:bg-red-500/20"
-                      aria-label="Удалить участника"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className='flex justify-end'>
-                <button
-                  type="button"
-                  onClick={addParticipantRow}
-                  className="rounded-lg border border-sky-500/60 bg-sky-500/10 px-2.5 py-1.5 text-xs font-medium text-sky-200 transition hover:bg-sky-500/20"
-                >
-                  Добавить участника
-                </button>
-              </div>
+            <div className="flex flex-col gap-2.5 max-h-96 overflow-y-auto pr-1">
+              {form.participants.map((participant, index) => (
+                <div key={index} className="grid grid-cols-[1fr_5rem_2.5rem] gap-2 items-center">
+                  <select
+                    value={participant.name}
+                    onChange={(event) => updateParticipantRow(index, 'name', event.target.value)}
+                    className="rounded-xl border border-white/15 bg-[#090a10] px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                  >
+                    <option value="">
+                      {participantNames.length > 0 ? 'Выберите участника' : 'Участники не загружены'}
+                    </option>
+                    {participantNames
+                      .filter((name) => name === participant.name || !selectedParticipantNames.has(name))
+                      .map((name) => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                  </select>
+
+                  <input
+                    type="number"
+                    min="0"
+                    max="10"
+                    step="0.1"
+                    value={participant.score}
+                    onChange={(event) => updateParticipantRow(index, 'score', event.target.value)}
+                    placeholder="Балл"
+                    className="rounded-xl border border-white/15 bg-[#090a10] px-2 py-2 text-xs text-center font-bold text-white focus:outline-none focus:border-amber-400"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => removeParticipantRow(index)}
+                    aria-label="Удалить строку"
+                    className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs transition"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="mt-5 flex items-center gap-3">
+          {/* Submit Button */}
+          <div className="pt-4 border-t border-white/10 flex flex-col gap-3">
             <button
               type="submit"
               disabled={isSaving}
-              className="rounded-xl bg-sky-500 px-4 py-2.5 font-medium text-slate-950 transition hover:bg-sky-400"
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-extrabold px-6 py-3 text-sm shadow-xl shadow-amber-500/20 transition-all hover:scale-[1.02] cursor-pointer disabled:opacity-50"
             >
-              {isSaving ? 'Сохранение...' : 'Сохранить запись'}
+              {isSaving ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />
+                  <span>Сохраняем в Google Sheets...</span>
+                </>
+              ) : (
+                'Сохранить фильм в таблицу'
+              )}
             </button>
-            {saveError && <span className="text-sm text-red-300">{saveError}</span>}
+            {saveError && (
+              <span className="text-xs text-rose-400 text-center">{saveError}</span>
+            )}
           </div>
         </div>
       </form>
+
+      {/* Success Modal */}
       {isSuccessModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
-          role="presentation"
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in">
           <section
             aria-labelledby="movie-save-success-title"
             aria-modal="true"
-            className="w-full max-w-md rounded-2xl border border-emerald-500/40 bg-slate-900 p-6 text-center shadow-2xl shadow-emerald-950/40"
+            className="w-full max-w-md rounded-3xl border border-emerald-500/30 bg-[#131622] p-8 text-center text-white shadow-2xl animate-modal-enter"
             role="dialog"
           >
-            <h2 id="movie-save-success-title" className="text-xl font-semibold text-emerald-300">
-              Фильм успешно добавлен
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 mb-4 border border-emerald-500/40 text-2xl">
+              ✓
+            </div>
+            <h2 id="movie-save-success-title" className="text-xl font-bold text-white">
+              Фильм успешно добавлен!
             </h2>
-            <p className="mt-3 text-sm text-slate-300">
-              Список фильмов обновлён.
+            <p className="mt-2 text-xs text-zinc-300">
+              «{savedMovieTitle}» успешно записан в таблицу Google Sheets и скоро появится в каталоге.
             </p>
             <button
               type="button"
               onClick={() => onSaveSuccess(savedMovieTitle)}
-              className="mt-6 rounded-xl bg-emerald-500 px-4 py-2.5 font-medium text-slate-950 transition hover:bg-emerald-400"
+              className="mt-6 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-6 py-2.5 text-xs transition"
             >
               Вернуться к каталогу
             </button>
