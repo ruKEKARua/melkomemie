@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 
 interface HeaderBurgerMenuProps {
+  align?: 'left' | 'right';
   onAddMovie: () => void;
   onOpenTournaments: () => void;
   onOpenRoulette: () => void;
@@ -9,6 +10,7 @@ interface HeaderBurgerMenuProps {
 }
 
 export const HeaderBurgerMenu = ({
+  align = 'left',
   onAddMovie,
   onOpenTournaments,
   onOpenRoulette,
@@ -78,7 +80,7 @@ export const HeaderBurgerMenu = ({
         <div
           role="menu"
           aria-orientation="vertical"
-          className="absolute right-0 mt-2 w-64 sm:w-72 rounded-2xl bg-[#12141f] border border-white/10 shadow-2xl p-2 z-50 animate-modal-enter focus:outline-none ring-1 ring-black/40 text-left"
+          className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} mt-2 w-64 sm:w-72 rounded-2xl bg-[#12141f] border border-white/10 shadow-2xl p-2 z-50 animate-modal-enter focus:outline-none ring-1 ring-black/40 text-left`}
         >
           {/* Header */}
           <div className="px-3 py-1.5 mb-1.5 border-b border-white/5 flex items-center justify-between">

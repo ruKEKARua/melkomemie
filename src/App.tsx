@@ -492,8 +492,8 @@ function App() {
           ========================================================================= */}
       <header className="sticky top-0 z-40 backdrop-blur-xl bg-[#090a0f]/95 border-b border-white/10 px-4 sm:px-6 lg:px-8 py-2 sm:py-2.5 text-white transition-colors">
         <div className="max-w-7xl 2xl:max-w-[1600px] min-[1920px]:max-w-[1800px] min-[2560px]:max-w-[2200px] mx-auto flex flex-col md:flex-row items-center justify-between gap-3 md:gap-5">
-          {/* Left (Block 1): Brand Logo & Navigation Links (Fixed proportional width) */}
-          <div className="flex items-center justify-between w-full md:w-auto md:w-[200px] lg:w-[240px] xl:w-[260px] gap-3 shrink-0">
+          {/* Left (Block 1): Brand Logo, Burger Menu & Navigation Links (Fixed proportional width) */}
+          <div className="flex items-center justify-between w-full md:w-auto md:min-w-[240px] lg:min-w-[270px] xl:min-w-[290px] gap-3 shrink-0">
             <div className="flex items-center gap-3 sm:gap-4">
               <button
                 onClick={() => {
@@ -506,6 +506,37 @@ function App() {
               >
                 <Logo className="h-12 sm:h-14 md:h-[68px] lg:h-[76px] w-auto shrink-0 filter drop-shadow-[0_2px_14px_rgba(245,158,11,0.28)] group-hover:scale-105 group-hover:drop-shadow-[0_2px_22px_rgba(245,158,11,0.45)] transition-all" />
               </button>
+
+              {/* Burger Menu Button (Moved here between Logo and Catalog) */}
+              <HeaderBurgerMenu
+                align="left"
+                onAddMovie={() => {
+                  if (isAuthorized) {
+                    navigateToPage('entry');
+                    setIsAddMovieRequested(false);
+                  } else {
+                    setIsAddMovieRequested(true);
+                    login();
+                  }
+                }}
+                onOpenTournaments={() => {
+                  if (isAuthorized) {
+                    navigateToPage('tournaments');
+                  } else {
+                    login();
+                  }
+                }}
+                onOpenRoulette={() => navigateToPage('roulette')}
+                onOpenCatalog={() => {
+                  if (isAuthorized) {
+                    navigateToPage('main');
+                    setSortOrder('added');
+                    dispatch(setSearchBarValue(''));
+                  } else {
+                    login();
+                  }
+                }}
+              />
 
               {/* Navigation Tab (Каталог) - ONLY visible when authorized */}
               {isAuthorized && (
@@ -539,34 +570,6 @@ function App() {
                 onSourceChange={(source) => {
                   setActiveMovieSource(source);
                   setMovieDatabaseSource(source);
-                }}
-              />
-              <HeaderBurgerMenu
-                onAddMovie={() => {
-                  if (isAuthorized) {
-                    navigateToPage('entry');
-                    setIsAddMovieRequested(false);
-                  } else {
-                    setIsAddMovieRequested(true);
-                    login();
-                  }
-                }}
-                onOpenTournaments={() => {
-                  if (isAuthorized) {
-                    navigateToPage('tournaments');
-                  } else {
-                    login();
-                  }
-                }}
-                onOpenRoulette={() => navigateToPage('roulette')}
-                onOpenCatalog={() => {
-                  if (isAuthorized) {
-                    navigateToPage('main');
-                    setSortOrder('added');
-                    dispatch(setSearchBarValue(''));
-                  } else {
-                    login();
-                  }
                 }}
               />
             </div>
@@ -631,8 +634,8 @@ function App() {
             <div className="hidden md:flex flex-1" />
           )}
 
-          {/* Right (Block 2): User Avatar / Login, Gear Settings & Burger Menu (Fixed proportional width) */}
-          <div className="hidden md:flex items-center justify-end w-[200px] lg:w-[240px] xl:w-[260px] gap-2 sm:gap-2.5 shrink-0">
+          {/* Right (Block 2): User Avatar / Login & Gear Settings (Fixed proportional width) */}
+          <div className="hidden md:flex items-center justify-end md:min-w-[150px] lg:min-w-[180px] xl:min-w-[200px] gap-2 sm:gap-2.5 shrink-0">
             {isAuthorized ? (
               <div className="flex items-center gap-2 pr-1 border-r border-white/10">
                 {userPicture ? (
@@ -691,36 +694,6 @@ function App() {
               onSourceChange={(source) => {
                 setActiveMovieSource(source);
                 setMovieDatabaseSource(source);
-              }}
-            />
-
-            {/* Burger Menu Button (Contains Add Movie, Tournaments, Roulette) */}
-            <HeaderBurgerMenu
-              onAddMovie={() => {
-                if (isAuthorized) {
-                  navigateToPage('entry');
-                  setIsAddMovieRequested(false);
-                } else {
-                  setIsAddMovieRequested(true);
-                  login();
-                }
-              }}
-              onOpenTournaments={() => {
-                if (isAuthorized) {
-                  navigateToPage('tournaments');
-                } else {
-                  login();
-                }
-              }}
-              onOpenRoulette={() => navigateToPage('roulette')}
-              onOpenCatalog={() => {
-                if (isAuthorized) {
-                  navigateToPage('main');
-                  setSortOrder('added');
-                  dispatch(setSearchBarValue(''));
-                } else {
-                  login();
-                }
               }}
             />
           </div>
