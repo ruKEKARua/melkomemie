@@ -26,7 +26,7 @@ import MovieRoulette from './components/MovieRoulette';
 import { getTmdbImageUrl } from './api/tmdbImage';
 import Logo from './components/UI/Logo';
 import { TournamentsPage } from './pages/TournamentsPage';
-import HeaderBurgerMenu from './components/UI/HeaderBurgerMenu';
+import HeaderPageSelector from './components/UI/HeaderPageSelector';
 import HeaderSettingsMenu from './components/UI/HeaderSettingsMenu';
 
 type PageMode = 'main' | 'entry' | 'roulette' | 'tournaments';
@@ -234,6 +234,8 @@ function App() {
   const dispatch = useDispatch();
   const [page, setPage] = useState<PageMode>(() => parsePageFromHash(true));
   const [isAddMovieRequested, setIsAddMovieRequested] = useState(false);
+  const pendingPageRef = useRef<PageMode | null>(null);
+  const prevIsAuthorizedRef = useRef(false);
   const [sortOrder, setSortOrder] = useState<SortOrder>('added');
   const [viewingFilterMode, setViewingFilterMode] = useState<ViewingFilterMode>('all');
   const [selectedViewingMonth, setSelectedViewingMonth] = useState('');
@@ -284,9 +286,15 @@ function App() {
   // Navigation with browser history support (Back / Forward button works without leaving the site)
   const navigateToPage = (newPage: PageMode, replace = false) => {
     if (!isAuthorized && newPage !== 'roulette' && newPage !== 'main') {
+      pendingPageRef.current = newPage;
+      if (newPage === 'entry') {
+        setIsAddMovieRequested(true);
+      }
       login();
       return;
     }
+    pendingPageRef.current = null;
+    setIsAddMovieRequested(false);
     setPage(newPage);
     const targetHash = newPage === 'main' ? '' : `#${newPage}`;
     if (window.location.hash !== targetHash) {
@@ -298,6 +306,29 @@ function App() {
       }
     }
   };
+
+  // Handle deferred navigation after successful authorization
+  useEffect(() => {
+    const wasAuthorized = prevIsAuthorizedRef.current;
+    prevIsAuthorizedRef.current = isAuthorized;
+
+    if (!wasAuthorized && isAuthorized) {
+      const target = pendingPageRef.current ?? (isAddMovieRequested ? 'entry' : null);
+      pendingPageRef.current = null;
+      if (target) {
+        const timer = setTimeout(() => {
+          setIsAddMovieRequested(false);
+          setPage(target);
+          const targetHash = target === 'main' ? '' : `#${target}`;
+          if (window.location.hash !== targetHash) {
+            const targetUrl = window.location.pathname + window.location.search + targetHash;
+            window.history.pushState({ page: target }, '', targetUrl);
+          }
+        }, 0);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isAuthorized, isAddMovieRequested]);
 
   // Listen to browser Back / Forward navigation
   useEffect(() => {
@@ -485,6 +516,11 @@ function App() {
     fourth: 4,
   }));
 
+  const currentDisplayedPage: PageMode =
+    isAuthorized && (page === 'entry' || isAddMovieRequested)
+      ? 'entry'
+      : page;
+
   return (
     <div className="min-h-screen bg-[#f4f6fa] dark:bg-[#090a0f] text-slate-900 dark:text-zinc-100 flex flex-col selection:bg-amber-500 selection:text-slate-950 transition-colors duration-200">
       {/* =========================================================================
@@ -507,55 +543,22 @@ function App() {
                 <Logo className="h-12 sm:h-14 md:h-[68px] lg:h-[76px] w-auto shrink-0 filter drop-shadow-[0_2px_14px_rgba(245,158,11,0.28)] group-hover:scale-105 group-hover:drop-shadow-[0_2px_22px_rgba(245,158,11,0.45)] transition-all" />
               </button>
 
-              {/* Burger Menu Button (Moved here between Logo and Catalog) */}
-              <HeaderBurgerMenu
-                align="left"
-                onAddMovie={() => {
-                  if (isAuthorized) {
-                    navigateToPage('entry');
-                    setIsAddMovieRequested(false);
-                  } else {
-                    setIsAddMovieRequested(true);
-                    login();
-                  }
+              {/* Page Selector (Reference: selector box with chevron, replaces burger menu & separate Catalog tab) */}
+              <HeaderPageSelector
+                currentPage={currentDisplayedPage}
+                onSelectCatalog={() => {
+                  navigateToPage('main');
+                  setSortOrder('added');
+                  dispatch(setSearchBarValue(''));
                 }}
-                onOpenTournaments={() => {
-                  if (isAuthorized) {
-                    navigateToPage('tournaments');
-                  } else {
-                    login();
-                  }
+                onSelectTournaments={() => {
+                  navigateToPage('tournaments');
                 }}
-                onOpenRoulette={() => navigateToPage('roulette')}
-                onOpenCatalog={() => {
-                  if (isAuthorized) {
-                    navigateToPage('main');
-                    setSortOrder('added');
-                    dispatch(setSearchBarValue(''));
-                  } else {
-                    login();
-                  }
+                onSelectRoulette={() => navigateToPage('roulette')}
+                onSelectAddMovie={() => {
+                  navigateToPage('entry');
                 }}
               />
-
-              {/* Navigation Tab (Каталог) - ONLY visible when authorized */}
-              {isAuthorized && (
-                <nav className="flex items-center">
-                  <button
-                    onClick={() => {
-                      setSortOrder('added');
-                      navigateToPage('main');
-                    }}
-                    className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-                      page === 'main'
-                        ? 'bg-white/15 text-white shadow-sm font-bold'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    Каталог
-                  </button>
-                </nav>
-              )}
             </div>
 
             {/* Mobile-only right controls */}
@@ -760,12 +763,14 @@ function App() {
                   <img
                     src={getTmdbImageUrl('original', featuredMovie.backdrop_path)}
                     alt=""
+                    referrerPolicy="no-referrer"
                     className="absolute inset-0 w-full h-full object-cover object-top opacity-50 dark:opacity-40 scale-102"
                   />
                 ) : featuredMovie.poster_path ? (
                   <img
                     src={getTmdbImageUrl('w1280', featuredMovie.poster_path)}
                     alt=""
+                    referrerPolicy="no-referrer"
                     className="absolute inset-0 w-full h-full object-cover object-center opacity-40 dark:opacity-30 blur-sm"
                   />
                 ) : null}
@@ -823,7 +828,7 @@ function App() {
                       </button>
 
                       <button
-                        onClick={() => setPage('roulette')}
+                        onClick={() => navigateToPage('roulette')}
                         className="flex items-center gap-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-semibold px-4 py-2.5 text-sm backdrop-blur-md transition-all cursor-pointer border border-white/20"
                       >
                         <span>🎲</span>
@@ -831,7 +836,7 @@ function App() {
                       </button>
 
                       <button
-                        onClick={() => setPage('tournaments')}
+                        onClick={() => navigateToPage('tournaments')}
                         className="flex items-center gap-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold px-4 py-2.5 text-sm backdrop-blur-md border border-amber-500/30 transition-all cursor-pointer"
                       >
                         <span>🏆</span>

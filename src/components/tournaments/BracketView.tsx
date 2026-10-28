@@ -500,9 +500,7 @@ export const BracketView = ({
       <div className="flex flex-col gap-5">
         <div className="flex items-center justify-between border-b border-blue-500/20 pb-3">
           <div className="flex items-center gap-3">
-            <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 font-bold text-sm border border-blue-500/30">
-              В
-            </span>
+            
             <div>
               <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">
                 Плей-офф • Double Elimination
@@ -618,9 +616,7 @@ export const BracketView = ({
       <div className="flex flex-col gap-5">
         <div className="flex items-center justify-between border-b border-purple-500/20 pb-3">
           <div className="flex items-center gap-3">
-            <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-purple-500/20 text-purple-700 dark:text-purple-300 font-bold text-sm border border-purple-500/30">
-              Н
-            </span>
+            
             <div>
               <span className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest">
                 Сетка лузеров

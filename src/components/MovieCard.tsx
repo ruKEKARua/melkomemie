@@ -24,10 +24,13 @@ const getRatingStyle = (ratingStr?: string) => {
 };
 
 const MovieCard = ({ id = 0, title = '', posterPath = '', overallRating, func }: MovieCardProps) => {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
+  const [loadedPosterPath, setLoadedPosterPath] = useState<string | null>(null);
+  const [errorPosterPath, setErrorPosterPath] = useState<string | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const [isTruncated, setIsTruncated] = useState(false);
+
+  const imageLoaded = loadedPosterPath === posterPath;
+  const imageError = errorPosterPath === posterPath;
 
   const ratingStyle = getRatingStyle(overallRating);
 
@@ -76,8 +79,9 @@ const MovieCard = ({ id = 0, title = '', posterPath = '', overallRating, func }:
               alt={title}
               loading="lazy"
               decoding="async"
-              onLoad={() => setImageLoaded(true)}
-              onError={() => setImageError(true)}
+              referrerPolicy="no-referrer"
+              onLoad={() => setLoadedPosterPath(posterPath)}
+              onError={() => setErrorPosterPath(posterPath)}
               className={`h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-108 ${
                 imageLoaded ? 'opacity-100' : 'opacity-0'
               }`}

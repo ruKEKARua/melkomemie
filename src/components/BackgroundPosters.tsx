@@ -30,6 +30,7 @@ const BackgroundPosters = ({ page, direction }: BackgroundPostersProps) => {
           src={poster}
           alt=""
           decoding="async"
+          referrerPolicy="no-referrer"
           width="200"
           height="300"
           className="h-full w-40 rounded-4xl shrink-0 object-cover pointer-events-none"

@@ -8,6 +8,8 @@
  * - Supports TTL expiration (14 days).
  */
 
+import { getActiveMovieSource, type MovieSource } from './movieSource';
+
 export type CompactPosterItem = {
   id: number;
   poster_path: string;
@@ -18,13 +20,14 @@ type CachedPageRecord = {
   posters: CompactPosterItem[];
 };
 
-const KEY_PREFIX = 'mm_bg_posters_p_';
+const KEY_PREFIX = 'mm_bg_posters_';
 const CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
 const MAX_POSTERS_PER_PAGE = 20; // 20 posters per row is sufficient to cover the background width
 const MAX_STRING_LENGTH = 4096; // 4 KB safety limit per entry to strictly respect string length limits
 
-function getStorageKey(page: number): string {
-  return `${KEY_PREFIX}${page}`;
+function getStorageKey(page: number, source?: MovieSource): string {
+  const currentSource = source ?? getActiveMovieSource();
+  return `${KEY_PREFIX}${currentSource}_p_${page}`;
 }
 
 export function isLocalStorageAvailable(): boolean {
@@ -45,10 +48,11 @@ export function isLocalStorageAvailable(): boolean {
  * Reads cached posters for a specific page from localStorage synchronously.
  * Returns null if not cached, expired, or invalid.
  */
-export function getCachedPopularPosters(page: number): CompactPosterItem[] | null {
+export function getCachedPopularPosters(page: number, source?: MovieSource): CompactPosterItem[] | null {
   if (typeof window === 'undefined' || !window.localStorage) return null;
 
-  const key = getStorageKey(page);
+  const currentSource = source ?? getActiveMovieSource();
+  const key = getStorageKey(page, currentSource);
   try {
     const raw = window.localStorage.getItem(key);
     if (!raw) return null;
@@ -60,6 +64,17 @@ export function getCachedPopularPosters(page: number): CompactPosterItem[] | nul
 
     // Check TTL
     if (Date.now() - (record.cachedAt ?? 0) > CACHE_TTL_MS) {
+      window.localStorage.removeItem(key);
+      return null;
+    }
+
+    // Validate format compatibility with the target source
+    const isKinopoisk = currentSource === 'kinopoisk';
+    const isCompatible = isKinopoisk
+      ? record.posters.every((p) => p.poster_path.startsWith('http://') || p.poster_path.startsWith('https://'))
+      : record.posters.every((p) => !p.poster_path.startsWith('http'));
+
+    if (!isCompatible) {
       window.localStorage.removeItem(key);
       return null;
     }
@@ -79,11 +94,13 @@ export function getCachedPopularPosters(page: number): CompactPosterItem[] | nul
 export function setCachedPopularPosters(
   page: number,
   movies: Array<{ id?: number; poster_path?: string | null }>,
+  source?: MovieSource,
 ): void {
   if (typeof window === 'undefined' || !window.localStorage) return;
   if (!movies || movies.length === 0) return;
 
-  const key = getStorageKey(page);
+  const currentSource = source ?? getActiveMovieSource();
+  const key = getStorageKey(page, currentSource);
 
   try {
     // Extract only essential fields to minimize storage footprint

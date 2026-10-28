@@ -69,6 +69,26 @@ if (typeof window !== 'undefined') {
   migrateLegacyStorage();
 }
 
+export function isValidMovieForSource(movie: NormalizedMovie, targetSource: MovieSource): boolean {
+  if (!movie || movie.isExcelFallback || !movie.poster_path) {
+    return false;
+  }
+
+  const poster = movie.poster_path.trim();
+  if (!poster) return false;
+
+  if (targetSource === 'kinopoisk') {
+    // Kinopoisk poster MUST be a full http://, https://, or // URL
+    return (
+      (movie.source === 'kinopoisk' || poster.startsWith('http://') || poster.startsWith('https://') || poster.startsWith('//')) &&
+      (poster.startsWith('http://') || poster.startsWith('https://') || poster.startsWith('//'))
+    );
+  }
+
+  // TMDB poster MUST be a relative path like /abc.jpg
+  return (movie.source === 'tmdb' || !poster.startsWith('http')) && !poster.startsWith('http');
+}
+
 export function getCachedMovie(title: string, preferredSource?: MovieSource): NormalizedMovie | null {
   if (typeof window === 'undefined' || !window.localStorage) return null;
 
@@ -81,7 +101,12 @@ export function getCachedMovie(title: string, preferredSource?: MovieSource): No
     if (raw) {
       const record = JSON.parse(raw) as CacheRecord;
       if (record?.movie && Date.now() - (record.cachedAt ?? 0) <= CACHE_TTL_MS) {
-        return record.movie;
+        if (isValidMovieForSource(record.movie, targetSource)) {
+          return record.movie;
+        } else {
+          // Stale or incompatible record saved under this key - purge it
+          window.localStorage.removeItem(sourceKey);
+        }
       }
     }
   } catch (error) {
@@ -95,15 +120,7 @@ export function getCachedMovie(title: string, preferredSource?: MovieSource): No
     if (raw) {
       const record = JSON.parse(raw) as CacheRecord;
       if (record?.movie && Date.now() - (record.cachedAt ?? 0) <= CACHE_TTL_MS) {
-        // Prevent TMDB / Kinopoisk conflict:
-        // Only accept legacy record if its source matches targetSource,
-        // or if poster_path format is compatible (Kinopoisk requires http/https, TMDB uses /xxx.jpg)
-        const isKinopoisk = targetSource === 'kinopoisk';
-        const isCompatible = isKinopoisk
-          ? record.movie.source === 'kinopoisk' || record.movie.poster_path?.startsWith('http')
-          : record.movie.source === 'tmdb' || !record.movie.poster_path?.startsWith('http');
-
-        if (isCompatible) {
+        if (isValidMovieForSource(record.movie, targetSource)) {
           return record.movie;
         }
       }
@@ -117,17 +134,24 @@ export function getCachedMovie(title: string, preferredSource?: MovieSource): No
 
 export function setCachedMovie(title: string, movie: NormalizedMovie): void {
   if (typeof window === 'undefined' || !window.localStorage) return;
-  if (!title || movie.isExcelFallback) {
+  if (!title || movie.isExcelFallback || !movie.poster_path) {
     return;
   }
 
   const source = movie.source || getActiveMovieSource();
+  if (!isValidMovieForSource(movie, source)) {
+    return;
+  }
+
   const sourceKey = getSourceStorageKey(title, source);
   const legacyKey = getLegacyStorageKey(title);
 
   try {
     const record: CacheRecord = {
-      movie,
+      movie: {
+        ...movie,
+        source,
+      },
       cachedAt: Date.now(),
     };
     const payload = JSON.stringify(record);

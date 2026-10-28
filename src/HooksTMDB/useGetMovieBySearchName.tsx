@@ -95,7 +95,7 @@ export async function findMovieBySearchTitle(title: string, source?: MovieSource
   const searchQuery = alias?.searchQuery || excelTitle;
 
   try {
-    const movies = await searchMoviesFromSource(searchQuery);
+    const movies = await searchMoviesFromSource(searchQuery, currentSource);
     if (!movies || movies.length === 0) {
       return null;
     }
@@ -133,6 +133,7 @@ export async function findMovieBySearchTitle(title: string, source?: MovieSource
     if (candidate) {
       const result: NormalizedMovie = {
         ...candidate,
+        source: candidate.source || currentSource,
         excelTitle,
       };
 

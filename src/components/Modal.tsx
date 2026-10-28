@@ -455,6 +455,7 @@ const Modal = ({
               <img
                 src={backdropUrl}
                 alt=""
+                referrerPolicy="no-referrer"
                 className="absolute inset-0 h-full w-full object-cover object-top opacity-55"
               />
             )}
@@ -468,6 +469,7 @@ const Modal = ({
                 <img
                   src={posterUrl}
                   alt={title}
+                  referrerPolicy="no-referrer"
                   className="hidden sm:block w-28 md:w-36 aspect-[2/3] object-cover rounded-xl shadow-2xl border border-slate-200 dark:border-white/15 shrink-0"
                 />
               )}

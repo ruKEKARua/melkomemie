@@ -178,13 +178,15 @@ async function searchKinopoiskMovies(query: string): Promise<NormalizedMovie[]> 
  * Searches movies using the currently active source.
  * If TMDB is active and fails, automatically falls back to Kinopoisk and updates active source.
  */
-export async function searchMoviesFromSource(query: string): Promise<NormalizedMovie[]> {
+export async function searchMoviesFromSource(query: string, source?: MovieSource): Promise<NormalizedMovie[]> {
   const cleanQuery = query.trim();
   if (!cleanQuery) {
     return [];
   }
 
-  if (activeSource === 'tmdb') {
+  const targetSource = source ?? activeSource;
+
+  if (targetSource === 'tmdb') {
     try {
       return await searchTmdbMovies(cleanQuery);
     } catch (error) {

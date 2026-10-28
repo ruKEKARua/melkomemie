@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getPopularMoviesFromSource } from "../api/movieSource";
+import { getActiveMovieSource, onSourceChange, getPopularMoviesFromSource, type MovieSource } from "../api/movieSource";
 import {
   getCachedPopularPosters,
   setCachedPopularPosters,
@@ -60,15 +60,21 @@ function fetchPopularPage(page: number): Promise<PopularMovieData[]> {
 }
 
 const usePopularMovies = (page: number) => {
-  // Synchronous initialization from localStorage for instantaneous first render (no fetch, no delay)
-  const [data, setData] = useState<PopularMovieData[]>(() => {
-    const cached = getCachedPopularPosters(page);
-    return cached && cached.length > 0 ? compactToPopularMovieData(cached) : [];
-  });
+  const [currentSource, setCurrentSource] = useState<MovieSource>(() => getActiveMovieSource());
+  const [fetchedData, setFetchedData] = useState<PopularMovieData[]>([]);
+
+  // Listen for database source changes
+  useEffect(() => {
+    return onSourceChange((newSource) => {
+      setCurrentSource(newSource);
+    });
+  }, []);
+
+  const cached = getCachedPopularPosters(page, currentSource);
+  const data = cached && cached.length > 0 ? compactToPopularMovieData(cached) : fetchedData;
 
   useEffect(() => {
-    // 1. If valid cached data exists in localStorage, do NOT fetch over network
-    const cached = getCachedPopularPosters(page);
+    // 1. If valid cached data exists for this source in localStorage, do NOT fetch over network
     if (cached && cached.length > 0) {
       return;
     }
@@ -79,7 +85,7 @@ const usePopularMovies = (page: number) => {
     fetchPopularPage(page)
       .then((movies) => {
         if (isSubscribed) {
-          setData(movies);
+          setFetchedData(movies);
         }
       })
       .catch((err) => {
@@ -89,21 +95,21 @@ const usePopularMovies = (page: number) => {
     return () => {
       isSubscribed = false;
     };
-  }, [page]);
+  }, [page, currentSource, cached]);
 
   // Listen for storage events (e.g. if cache was cleared in another tab or programmatically)
   useEffect(() => {
     const onCacheCleared = () => {
       fetchPopularPage(page)
-        .then((movies) => setData(movies))
+        .then((movies) => setFetchedData(movies))
         .catch(() => {});
     };
 
     const handleStorage = (e: StorageEvent) => {
-      if (!e.key || e.key.startsWith('mm_bg_posters_p_')) {
-        const cached = getCachedPopularPosters(page);
-        if (cached && cached.length > 0) {
-          setData(compactToPopularMovieData(cached));
+      if (!e.key || e.key.startsWith('mm_bg_posters_')) {
+        const latest = getCachedPopularPosters(page, currentSource);
+        if (latest && latest.length > 0) {
+          setFetchedData(compactToPopularMovieData(latest));
         } else {
           onCacheCleared();
         }
@@ -117,7 +123,7 @@ const usePopularMovies = (page: number) => {
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('mm_posters_cache_cleared', onCacheCleared);
     };
-  }, [page]);
+  }, [page, currentSource]);
 
   return data;
 };

@@ -19,6 +19,10 @@ export function getMovieImageUrl(
     return path;
   }
 
+  if (path.startsWith('//')) {
+    return `https:${path}`;
+  }
+
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
 
   if (tmdbProxyUrl) {
