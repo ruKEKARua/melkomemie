@@ -34,14 +34,20 @@ export type MovieDetails = NormalizedMovie & {
 
 export type MovieImage = { file_path: string };
 
-const SESSION_SOURCE_KEY = 'melkomemie_active_source';
+const STORAGE_SOURCE_KEY = 'melkomemie_active_source';
 
-// Read initial source from session cache if available
+// Read initial source from persistent localStorage first, then session cache
 function getInitialSource(): MovieSource {
-  if (typeof window !== 'undefined' && window.sessionStorage) {
-    const saved = window.sessionStorage.getItem(SESSION_SOURCE_KEY);
-    if (saved === 'tmdb' || saved === 'kinopoisk') {
-      return saved;
+  if (typeof window !== 'undefined') {
+    try {
+      const saved =
+        window.localStorage.getItem(STORAGE_SOURCE_KEY) ??
+        window.sessionStorage?.getItem(STORAGE_SOURCE_KEY);
+      if (saved === 'tmdb' || saved === 'kinopoisk') {
+        return saved;
+      }
+    } catch {
+      // ignore
     }
   }
   return 'tmdb';
@@ -68,8 +74,13 @@ export function getActiveMovieSource(): MovieSource {
 export function setActiveMovieSource(source: MovieSource): void {
   if (activeSource !== source) {
     activeSource = source;
-    if (typeof window !== 'undefined' && window.sessionStorage) {
-      window.sessionStorage.setItem(SESSION_SOURCE_KEY, source);
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(STORAGE_SOURCE_KEY, source);
+        window.sessionStorage?.setItem(STORAGE_SOURCE_KEY, source);
+      } catch {
+        // ignore
+      }
     }
     console.info(`[MovieSource] Active database set to: ${source.toUpperCase()}`);
     notifySourceChange(source);
@@ -193,6 +204,7 @@ export async function getPopularMoviesFromSource(page: number): Promise<Normaliz
     try {
       const response = await fetchTmdb<{ results: Omit<NormalizedMovie, 'source'>[] }>(
         `/movie/popular?language=ru-RU&page=${page}`,
+        { timeoutMs: 3000 },
       );
       return response.results.map(normalizeTmdbMovie);
     } catch (error) {
@@ -205,30 +217,63 @@ export async function getPopularMoviesFromSource(page: number): Promise<Normaliz
 }
 
 /**
- * Fetches movie details by ID and source.
+ * Fetches movie details by ID and source with resilient title-based fallback.
  */
 export async function getMovieDetailsFromSource(
   movieId: number,
   source?: MovieSource,
+  fallbackTitle?: string,
 ): Promise<MovieDetails> {
   const targetSource = source ?? activeSource;
 
   if (targetSource === 'tmdb') {
     try {
-      const tmdbData = await fetchTmdb<MovieDetails>(`/movie/${movieId}?language=ru-RU`);
-      return { ...tmdbData, source: 'tmdb' };
-    } catch (error) {
-      if (!source) {
-        // Source wasn't explicitly pinned, so try fallback
-        switchToFallback(error);
-      } else {
-        throw error;
+      if (movieId > 0) {
+        const tmdbData = await fetchTmdb<MovieDetails>(`/movie/${movieId}?language=ru-RU`);
+        return { ...tmdbData, source: 'tmdb' };
       }
+    } catch (error) {
+      console.warn('[movieSource] Failed to fetch TMDB details, attempting Kinopoisk fallback:', error);
+      if (fallbackTitle) {
+        try {
+          const kpFilms = await searchKinopoiskMovies(fallbackTitle);
+          if (kpFilms.length > 0) {
+            const film = await fetchKinopoiskFilm(kpFilms[0].id);
+            return normalizeKinopoiskFilm(film) as MovieDetails;
+          }
+        } catch {
+          // ignore fallback error and propagate or throw below
+        }
+      }
+      throw error;
     }
   }
 
-  const film = await fetchKinopoiskFilm(movieId);
-  return normalizeKinopoiskFilm(film) as MovieDetails;
+  // Kinopoisk source:
+  // If movieId is an invalid fallback ID (<= 0), search Kinopoisk by title directly
+  if (movieId <= 0 && fallbackTitle) {
+    const kpFilms = await searchKinopoiskMovies(fallbackTitle);
+    if (kpFilms.length > 0) {
+      const film = await fetchKinopoiskFilm(kpFilms[0].id);
+      return normalizeKinopoiskFilm(film) as MovieDetails;
+    }
+  }
+
+  try {
+    const film = await fetchKinopoiskFilm(movieId);
+    return normalizeKinopoiskFilm(film) as MovieDetails;
+  } catch (error) {
+    // If fetching by ID failed (e.g. an incompatible TMDB ID was passed), recover by searching title
+    if (fallbackTitle) {
+      console.warn(`[movieSource] Kinopoisk failed for ID ${movieId}. Recovering with search for "${fallbackTitle}"...`);
+      const kpFilms = await searchKinopoiskMovies(fallbackTitle);
+      if (kpFilms.length > 0) {
+        const film = await fetchKinopoiskFilm(kpFilms[0].id);
+        return normalizeKinopoiskFilm(film) as MovieDetails;
+      }
+    }
+    throw error;
+  }
 }
 
 /**
@@ -237,23 +282,26 @@ export async function getMovieDetailsFromSource(
 export async function getMovieImagesFromSource(movieId: number, source?: MovieSource) {
   const targetSource = source ?? activeSource;
 
-  if (targetSource === 'tmdb') {
+  if (targetSource === 'tmdb' && movieId > 0) {
     try {
       return await fetchTmdb<Record<'posters' | 'backdrops' | 'logos', MovieImage[]>>(
         `/movie/${movieId}/images`,
       );
-    } catch (error) {
-      if (!source) {
-        switchToFallback(error);
-      } else {
-        throw error;
-      }
+    } catch {
+      // Fallback to Kinopoisk images if TMDB fails
     }
   }
 
-  const details = await getMovieDetailsFromSource(movieId, 'kinopoisk');
-  const posters: MovieImage[] = details.poster_path ? [{ file_path: details.poster_path }] : [];
-  const backdrops: MovieImage[] = details.backdrop_path ? [{ file_path: details.backdrop_path }] : [];
+  if (movieId > 0) {
+    try {
+      const details = await getMovieDetailsFromSource(movieId, 'kinopoisk');
+      const posters: MovieImage[] = details.poster_path ? [{ file_path: details.poster_path }] : [];
+      const backdrops: MovieImage[] = details.backdrop_path ? [{ file_path: details.backdrop_path }] : [];
+      return { posters, backdrops, logos: [] };
+    } catch {
+      // ignore
+    }
+  }
 
-  return { posters, backdrops, logos: [] };
+  return { posters: [], backdrops: [], logos: [] };
 }

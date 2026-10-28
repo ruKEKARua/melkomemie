@@ -19,7 +19,8 @@ const getRatingStyle = (ratingStr?: string) => {
   if (num >= 6.0) {
     return { bg: 'bg-amber-500/95 border-amber-400/50 shadow-amber-950/40', text: 'text-slate-950' };
   }
-  return { bg: 'bg-zinc-700/90 border-zinc-600 shadow-black/40', text: 'text-zinc-200' };
+  // < 6.0: Brown badge
+  return { bg: 'bg-[#78350f]/95 border-[#92400e]/70 shadow-amber-950/40', text: 'text-amber-100' };
 };
 
 const MovieCard = ({ id = 0, title = '', posterPath = '', overallRating, func }: MovieCardProps) => {
@@ -61,10 +62,10 @@ const MovieCard = ({ id = 0, title = '', posterPath = '', overallRating, func }:
           func(id);
         }
       }}
-      className="group movie-card relative flex flex-col h-full w-full cursor-pointer select-none rounded-2xl bg-[#131620] p-2 sm:p-2.5 transition-all duration-300 ease-out hover:-translate-y-1.5 hover:scale-[1.03] hover:shadow-[0_18px_36px_rgba(0,0,0,0.85),0_0_24px_rgba(245,158,11,0.22)] focus-visible:outline-2 focus-visible:outline-amber-400 border border-white/10 hover:border-amber-500/50 hover:z-30"
+      className="group movie-card relative flex flex-col h-full w-full cursor-pointer select-none rounded-2xl bg-white dark:bg-[#131620] p-2 sm:p-2.5 transition-all duration-300 ease-out hover:-translate-y-1.5 hover:scale-[1.03] shadow-[0_4px_16px_rgba(15,23,42,0.06)] hover:shadow-[0_16px_32px_rgba(15,23,42,0.12),0_0_24px_rgba(245,158,11,0.22)] dark:shadow-none dark:hover:shadow-[0_18px_36px_rgba(0,0,0,0.85),0_0_24px_rgba(245,158,11,0.22)] focus-visible:outline-2 focus-visible:outline-amber-400 border border-slate-200/80 dark:border-white/10 hover:border-amber-500/50 hover:z-30"
     >
       {/* Poster Container (2 / 3 aspect ratio) */}
-      <div className="relative w-full aspect-[2/3] shrink-0 overflow-hidden rounded-xl bg-[#1a1e2b]">
+      <div className="relative w-full aspect-[2/3] shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-[#1a1e2b]">
         {posterPath && !imageError ? (
           <>
             {!imageLoaded && (
@@ -83,8 +84,8 @@ const MovieCard = ({ id = 0, title = '', posterPath = '', overallRating, func }:
             />
           </>
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center p-3 text-center text-xs text-zinc-400 bg-gradient-to-b from-[#1c2130] to-[#121520]">
-            <svg className="w-8 h-8 mb-2 text-zinc-500 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="flex h-full w-full flex-col items-center justify-center p-3 text-center text-xs text-slate-500 dark:text-zinc-400 bg-gradient-to-b from-slate-100 to-slate-200 dark:from-[#1c2130] dark:to-[#121520]">
+            <svg className="w-8 h-8 mb-2 text-slate-400 dark:text-zinc-500 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
             </svg>
             <span className="font-medium line-clamp-2">{title || 'Постер отсутствует'}</span>
@@ -120,7 +121,7 @@ const MovieCard = ({ id = 0, title = '', posterPath = '', overallRating, func }:
         <h3
           ref={titleRef}
           title={title}
-          className="w-full text-center text-xs sm:text-sm font-semibold text-zinc-100 line-clamp-2 leading-snug group-hover:text-amber-400 transition-colors"
+          className="w-full text-center text-xs sm:text-sm font-semibold text-slate-800 dark:text-zinc-100 line-clamp-2 leading-snug group-hover:text-amber-500 dark:group-hover:text-amber-400 transition-colors"
         >
           {title}
         </h3>
@@ -128,7 +129,7 @@ const MovieCard = ({ id = 0, title = '', posterPath = '', overallRating, func }:
         {/* Full title popover displayed ONLY on hover if truncated, anchored at top-0 to expand downwards and never obscure the "Подробнее" button or poster */}
         {isTruncated && (
           <div className="pointer-events-none absolute inset-x-[-0.5rem] top-0 z-40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex justify-center">
-            <div className="w-full rounded-xl bg-[#0a0c16]/98 px-2.5 py-2 text-xs sm:text-sm font-bold text-amber-400 text-center shadow-[0_12px_36px_rgba(0,0,0,0.95),0_0_16px_rgba(245,158,11,0.25)] border border-amber-500/50 backdrop-blur-xl leading-snug break-words">
+            <div className="w-full rounded-xl bg-white/95 dark:bg-[#0a0c16]/98 px-2.5 py-2 text-xs sm:text-sm font-bold text-amber-600 dark:text-amber-400 text-center shadow-[0_12px_36px_rgba(15,23,42,0.15),0_0_16px_rgba(245,158,11,0.25)] dark:shadow-[0_12px_36px_rgba(0,0,0,0.95),0_0_16px_rgba(245,158,11,0.25)] border border-amber-500/50 backdrop-blur-xl leading-snug break-words">
               {title}
             </div>
           </div>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { getCachedMoviesBatch, normalizeCacheKey } from '../api/movieCache';
-import { getActiveMovieSource, type NormalizedMovie } from '../api/movieSource';
+import { getActiveMovieSource, type MovieSource, type NormalizedMovie } from '../api/movieSource';
 import { setFoundMovies } from '../store/foundMovies';
 import findMovieBySearchTitle from './useGetMovieBySearchName';
 
@@ -11,7 +11,26 @@ export type UseSearchedMoviesResult = {
   totalCount: number;
 };
 
-const useSetArrayOfSearchedMovies = (titles: string[]): UseSearchedMoviesResult => {
+/**
+ * Calculates responsive batch size matching MovieSlider's Tailwind grid columns:
+ * grid-cols-2 (default, mobile)
+ * sm:grid-cols-3 (>= 640px)
+ * md:grid-cols-3 (>= 768px)
+ * lg:grid-cols-4 (>= 1024px)
+ * xl:grid-cols-5 (>= 1280px)
+ * 2xl:grid-cols-6 (>= 1536px)
+ */
+export const getResponsiveBatchSize = (): number => {
+  if (typeof window === 'undefined') return 6;
+  const width = window.innerWidth;
+  if (width >= 1536) return 6; // 2xl
+  if (width >= 1280) return 5; // xl
+  if (width >= 1024) return 4; // lg
+  if (width >= 640) return 3;  // sm / md
+  return 2;                    // mobile
+};
+
+const useSetArrayOfSearchedMovies = (titles: string[], source?: MovieSource): UseSearchedMoviesResult => {
   const dispatch = useDispatch();
   const [isLoaded, setIsLoaded] = useState(titles.length === 0);
   const [loadedCount, setLoadedCount] = useState(0);
@@ -29,12 +48,12 @@ const useSetArrayOfSearchedMovies = (titles: string[]): UseSearchedMoviesResult 
 
       setIsLoaded(false);
 
-      // 1. Instant cache lookup across all individual movie keys
-      const { cached, missing } = getCachedMoviesBatch(titles);
+      // 1. Instant cache lookup across all individual movie keys for current source
+      const currentSource = source ?? getActiveMovieSource();
+      const { cached, missing } = getCachedMoviesBatch(titles, currentSource);
       setLoadedCount(cached.size);
 
       // Build initial list so cards can be displayed immediately
-      const currentSource = getActiveMovieSource();
       const movies: NormalizedMovie[] = titles.map((title, index) => {
         const cachedMovie = cached.get(normalizeCacheKey(title));
         if (cachedMovie) {
@@ -86,7 +105,7 @@ const useSetArrayOfSearchedMovies = (titles: string[]): UseSearchedMoviesResult 
         }
 
         try {
-          const resolved = await findMovieBySearchTitle(title);
+          const resolved = await findMovieBySearchTitle(title, currentSource);
           if (cancelled) break;
 
           if (resolved) {
@@ -99,14 +118,17 @@ const useSetArrayOfSearchedMovies = (titles: string[]): UseSearchedMoviesResult 
             currentLoaded++;
             setLoadedCount(currentLoaded);
           }
-
-          updateCounter++;
-          // Progressive update: update Redux state every movie or on final
-          if (updateCounter % 2 === 0 || i === titles.length - 1) {
-            dispatch(setFoundMovies([...movies]));
-          }
         } catch (error) {
           console.error(`[useSetArrayOfSearchedMovies] Error loading "${title}":`, error);
+        }
+
+        if (cancelled) break;
+
+        updateCounter++;
+        const batchSize = getResponsiveBatchSize();
+        // Progressive update: update Redux state row-by-row matching grid column count or on final
+        if (updateCounter % batchSize === 0 || i === titles.length - 1) {
+          dispatch(setFoundMovies([...movies]));
         }
       }
 
@@ -122,7 +144,7 @@ const useSetArrayOfSearchedMovies = (titles: string[]): UseSearchedMoviesResult 
     return () => {
       cancelled = true;
     };
-  }, [titles, dispatch]);
+  }, [titles, source, dispatch]);
 
   return {
     isLoaded,

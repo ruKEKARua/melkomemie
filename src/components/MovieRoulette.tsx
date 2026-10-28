@@ -8,6 +8,7 @@ import { openModal } from '../store/openModal';
 import type { RootState } from '../store/store';
 import type { MovieRatings } from '../HooksExcelMovies/useGetMovies';
 import type { MovieSheetEntry } from '../api/googleSheets';
+import { useTheme } from '../utils/theme';
 
 type RouletteMode = 'elimination' | 'winner';
 type RouletteSource = 'excel' | 'online' | 'text';
@@ -62,13 +63,15 @@ const movieTitle = (movie: RouletteMovie) => movie.title || movie.original_title
 
 const movieKey = (movie: RouletteMovie) => `${movie.source}-${movie.id}-${'excelTitle' in movie ? movie.excelTitle ?? '' : ''}`;
 const isTextMovie = (movie: RouletteMovie): movie is TextRouletteMovie => movie.source === 'text';
-const wheelColors = ['#131622', '#1a1f2e', '#161b28'];
+const wheelColorsDark = ['#131622', '#1a1f2e', '#161b28'];
+const wheelColorsLight = ['#ffffff', '#f1f5f9', '#e2e8f0'];
 const wheelDivider = 'rgba(245, 158, 11, 0.45)';
 const wheelDividerAngle = 0.35;
 
-const getWheelBackground = (movieCount: number) => {
+const getWheelBackground = (movieCount: number, isDark = true) => {
+    const colors = isDark ? wheelColorsDark : wheelColorsLight;
     if (movieCount <= 1) {
-        return `conic-gradient(${wheelColors[0]} 0deg 360deg)`;
+        return `conic-gradient(${colors[0]} 0deg 360deg)`;
     }
 
     const sectorAngle = 360 / movieCount;
@@ -78,8 +81,8 @@ const getWheelBackground = (movieCount: number) => {
         const end = (index + 1) * sectorAngle;
         const dividerStart = Math.max(start, end - wheelDividerAngle);
         const color = isOdd && index === movieCount - 1
-            ? wheelColors[2]
-            : wheelColors[index % 2];
+            ? colors[2]
+            : colors[index % 2];
         return `${color} ${start}deg ${dividerStart}deg, ${wheelDivider} ${dividerStart}deg ${end}deg`;
     });
 
@@ -96,6 +99,7 @@ const MovieRoulette = ({
     onClose,
 }: MovieRouletteProps) => {
     const dispatch = useDispatch();
+    const { isDark } = useTheme();
     const isModalOpen = useSelector((state: RootState) => state.openModal.value);
     const [source, setSource] = useState<RouletteSource>('online');
     const [mode, setMode] = useState<RouletteMode>('elimination');
@@ -340,37 +344,37 @@ const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
 
     return (
         <main className="roulette-page">
-            <header className="roulette-header">
-                <div>
-                    <p className="roulette-kicker">КИНОКЛУБ / СЛУЧАЙНЫЙ ВЫБОР</p>
-                    <h1>Рулетка фильмов</h1>
-                </div>
-                <div className="roulette-header-actions flex items-center gap-3">
-                    <label className="relative inline-flex items-center justify-center gap-2 cursor-pointer rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 px-4 py-2 text-xs font-semibold text-white transition shadow-sm">
-                        <svg className="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                            <circle cx="9" cy="9" r="2" />
-                            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                        </svg>
-                        <span>Сменить картинку в центре колеса</span>
-                        <input 
-                            type="file" 
-                            accept="image/*"
-                            onChange={handleFileSelect}
-                            className="sr-only"
-                        />
-                    </label>
-                    <button
-                        onClick={onClose}
-                        className="rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 text-xs transition shadow-lg shadow-amber-500/20 cursor-pointer flex items-center gap-1.5"
-                    >
-                        <span>← Вернуться к каталогу</span>
-                    </button>
-                </div>
+            <div className="w-full max-w-[105rem] mx-auto flex flex-col">
+                <header className="roulette-header w-full flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 mb-6 border-b border-slate-200 dark:border-white/10">
+                    <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-amber-500">КИНОКЛУБ / СЛУЧАЙНЫЙ ВЫБОР</p>
+                        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">Рулетка фильмов</h1>
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <label className="relative inline-flex items-center justify-center gap-2 cursor-pointer rounded-xl border border-slate-200 dark:border-white/15 bg-white/80 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 px-4 py-2 text-xs font-semibold text-slate-800 dark:text-white transition shadow-sm">
+                            <svg className="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                                <circle cx="9" cy="9" r="2" />
+                                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                            </svg>
+                            <span>Сменить картинку в центре колеса</span>
+                            <input 
+                                type="file" 
+                                accept="image/*"
+                                onChange={handleFileSelect}
+                                className="sr-only"
+                            />
+                        </label>
+                        <button
+                            onClick={onClose}
+                            className="rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 text-xs transition shadow-lg shadow-amber-500/20 cursor-pointer flex items-center gap-1.5"
+                        >
+                            <span>← В каталог</span>
+                        </button>
+                    </div>
+                </header>
 
-            </header>
-
-            <div className="roulette-layout">
+                <div className="roulette-layout">
                 <section className="roulette-controls" aria-label="Настройки рулетки">
                     <div className="roulette-control-group">
                         <span className="roulette-label">Источник фильмов</span>
@@ -515,7 +519,7 @@ const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
                                     style={{
                                         transform: `rotate(${rotation}deg)`,
                                         transitionDuration: `${spinDurationMs}ms`,
-                                        background: getWheelBackground(selectedMovies.length),
+                                        background: getWheelBackground(selectedMovies.length, isDark),
                                     }}
                                     onTransitionEnd={handleWheelTransitionEnd}
                                     aria-label="Колесо рулетки"
@@ -613,6 +617,7 @@ const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
 
                     {mode === 'elimination' && selectedMovies.length === 1 && !winner && <p className="roulette-hint">{movieTitle(selectedMovies[0])} последний в списке и становится победителем.</p>}
                 </section>
+            </div>
             </div>
             {isModalOpen && modalMovie && !isTextMovie(modalMovie) && (
                 <Modal

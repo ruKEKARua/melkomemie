@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react';
 import { getMovieDetailsFromSource } from '../api/movieSource';
 import type { MovieDetails, MovieSource } from '../api/movieSource';
 
 type MovieData = {
     adult: boolean;
-    backdrop_path:string;
+    backdrop_path: string;
     budget: number;
     genres: Genres[];
     homepage: string;
@@ -13,7 +13,7 @@ type MovieData = {
     origin_country: string[];
     original_language: string;
     original_title: string;
-    overview:string;
+    overview: string;
     popularity: number;
     poster_path: string;
     production_companies: ProductionCompanies[];
@@ -27,34 +27,37 @@ type MovieData = {
     title: string;
     vote_average: number;
     vote_count: number;
-}
+};
 
 type Genres = {
     id: number;
     name: string;
-}
+};
 
 type ProductionCompanies = {
     id: number;
     logo_path: string;
     name: string;
     origin_country: string;
-}
+};
 
 type ProductionCountries = {
     iso_3166_1: string;
     name: string;
-}
+};
 
 type Spokenlanguages = {
     english_name: string;
     iso_639_1: string;
     name: string;
-}
+};
 
-
-const useGetMovieInfo = (movieId: number, source?: MovieSource, enabled = true) => {
-
+const useGetMovieInfo = (
+    movieId: number,
+    source?: MovieSource,
+    enabled = true,
+    fallbackTitle?: string,
+) => {
     const [data, setData] = useState<MovieData | MovieDetails | null>(null);
     const [error, setError] = useState<Error | null>(null);
     const requestIdRef = useRef(0);
@@ -66,7 +69,7 @@ const useGetMovieInfo = (movieId: number, source?: MovieSource, enabled = true) 
 
         const requestId = ++requestIdRef.current;
 
-        getMovieDetailsFromSource(movieId, source)
+        getMovieDetailsFromSource(movieId, source, fallbackTitle)
             .then((res) => {
                 if (requestId !== requestIdRef.current) {
                     return;
@@ -82,9 +85,9 @@ const useGetMovieInfo = (movieId: number, source?: MovieSource, enabled = true) 
                 console.error(err);
                 setError(err instanceof Error ? err : new Error('Не удалось загрузить информацию о фильме'));
             });
-    }, [enabled, movieId, source]);
+    }, [enabled, movieId, source, fallbackTitle]);
 
     return { data, error };
-}
+};
 
-export default useGetMovieInfo
+export default useGetMovieInfo;

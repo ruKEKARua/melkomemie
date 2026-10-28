@@ -230,10 +230,10 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
           <span>•</span>
           <span>База данных киноклуба</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
           Добавить фильм в коллекцию
         </h1>
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-slate-600 dark:text-zinc-400">
           Заполните дату совместного просмотра, выберите фильм и укажите оценки участников.
         </p>
       </div>
@@ -242,42 +242,42 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
         {/* Left Column: Date & Live Search Results */}
         <div className="flex flex-col gap-6">
           {/* Date Picker Box */}
-          <div className="rounded-2xl border border-white/10 bg-[#121420] p-5 shadow-xl">
-            <label className="flex flex-col gap-2 text-left text-sm font-semibold text-zinc-200">
+          <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#121420] p-5 shadow-xs dark:shadow-xl">
+            <label className="flex flex-col gap-2 text-left text-sm font-semibold text-slate-800 dark:text-zinc-200">
               <span>Дата просмотра в киноклубе</span>
               <div className="flex flex-wrap items-center gap-2">
                 <input
                   type="date"
                   value={form.date}
                   onChange={(event) => updateDate(event.target.value)}
-                  className="rounded-xl border border-white/15 bg-[#090a10] px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400 transition"
+                  className="rounded-xl border border-slate-300 dark:border-white/15 bg-slate-50 dark:bg-[#090a10] px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 transition"
                 />
                 <button
                   type="button"
                   onClick={() => updateDate(new Date().toLocaleDateString('sv-SE'))}
-                  className="rounded-xl bg-white/10 hover:bg-white/15 px-3.5 py-2.5 text-xs font-semibold text-zinc-200 transition"
+                  className="rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-white/10 dark:hover:bg-white/15 dark:text-zinc-200 px-3.5 py-2.5 text-xs font-semibold transition"
                 >
                   Сегодня
                 </button>
               </div>
-              {errors.date && <span className="text-xs text-rose-400 mt-1">{errors.date}</span>}
+              {errors.date && <span className="text-xs text-rose-500 dark:text-rose-400 mt-1">{errors.date}</span>}
             </label>
           </div>
 
           {/* Search Autocomplete / Live Results */}
-          <aside className="rounded-2xl border border-white/10 bg-[#121420] p-5 shadow-xl flex flex-col gap-3">
+          <aside className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#121420] p-5 shadow-xs dark:shadow-xl flex flex-col gap-3">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-amber-400">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
                 Результаты поиска фильма
               </h2>
-              <div className="flex gap-1 rounded-lg bg-[#090a10] p-0.5 border border-white/10" role="group">
+              <div className="flex gap-1 rounded-lg bg-slate-100 dark:bg-[#090a10] p-0.5 border border-slate-200 dark:border-white/10" role="group">
                 <button
                   type="button"
                   onClick={() => setSearchResultsView('list')}
                   className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${
                     searchResultsView === 'list'
-                      ? 'bg-amber-500 text-slate-950'
-                      : 'text-zinc-400 hover:text-white'
+                      ? 'bg-amber-500 text-slate-950 font-bold'
+                      : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   Списком
@@ -287,8 +287,8 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
                   onClick={() => setSearchResultsView('grid')}
                   className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${
                     searchResultsView === 'grid'
-                      ? 'bg-amber-500 text-slate-950'
-                      : 'text-zinc-400 hover:text-white'
+                      ? 'bg-amber-500 text-slate-950 font-bold'
+                      : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   Плиткой
@@ -297,20 +297,20 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
             </div>
 
             {!form.title.trim() && (
-              <p className="rounded-xl border border-dashed border-white/10 p-6 text-center text-xs text-zinc-500">
+              <p className="rounded-xl border border-dashed border-slate-300 dark:border-white/10 p-6 text-center text-xs text-slate-500 dark:text-zinc-500">
                 Начните вводить название фильма справа, чтобы увидеть варианты из TMDB и Кинопоиска.
               </p>
             )}
 
             {form.title.trim() && isSearching && (
-              <div className="flex items-center justify-center gap-3 rounded-xl bg-white/5 p-6 text-xs text-zinc-400">
+              <div className="flex items-center justify-center gap-3 rounded-xl bg-slate-100 dark:bg-white/5 p-6 text-xs text-slate-600 dark:text-zinc-400">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
                 <span>Ищем фильм в базе данных...</span>
               </div>
             )}
 
             {form.title.trim() && !isSearching && results.length === 0 && (
-              <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-5 text-center text-xs text-amber-300">
+              <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-5 text-center text-xs text-amber-800 dark:text-amber-300">
                 По названию ничего не найдено. Вы можете продолжить добавление с введённым названием вручную.
               </div>
             )}
@@ -341,8 +341,8 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
                         : 'flex items-center gap-3'
                     } ${
                       isSelected
-                        ? 'border-amber-400 bg-amber-500/15 shadow-lg shadow-amber-950/20'
-                        : 'border-white/10 bg-white/[0.03] hover:border-amber-500/40 hover:bg-white/[0.06]'
+                        ? 'border-amber-500 bg-amber-500/15 shadow-sm'
+                        : 'border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.03] hover:border-amber-500/50 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
                     }`}
                   >
                     <img
@@ -360,14 +360,14 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
                     />
                     <div className="min-w-0 flex-1 flex flex-col justify-between">
                       <div>
-                        <p className="text-xs sm:text-sm font-semibold text-white line-clamp-2">
+                        <p className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white line-clamp-2">
                           {movie.title || movie.original_title}
                         </p>
-                        <p className="text-[11px] text-zinc-400 line-clamp-1 mt-0.5">
+                        <p className="text-[11px] text-slate-500 dark:text-zinc-400 line-clamp-1 mt-0.5">
                           {movie.original_title || movie.title}
                         </p>
                       </div>
-                      <span className="inline-block mt-1 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+                      <span className="inline-block mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
                         {movie.source === 'tmdb' ? 'TMDB' : 'Кинопоиск'}
                       </span>
                     </div>
@@ -379,9 +379,9 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
         </div>
 
         {/* Right Column: Title input & Participant Ratings */}
-        <div className="flex flex-col gap-6 rounded-2xl border border-white/10 bg-[#121420] p-6 shadow-xl">
+        <div className="flex flex-col gap-6 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#121420] p-6 shadow-xs dark:shadow-xl">
           {/* Title Input */}
-          <label className="flex flex-col gap-2 text-left text-sm font-semibold text-zinc-200">
+          <label className="flex flex-col gap-2 text-left text-sm font-semibold text-slate-800 dark:text-zinc-200">
             <span>Название фильма</span>
             <input
               type="text"
@@ -392,28 +392,28 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
                 if (title.trim()) setErrors((c) => ({ ...c, title: undefined }));
               }}
               placeholder={placeholder}
-              className="rounded-xl border border-white/15 bg-[#090a10] px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400 transition"
+              className="rounded-xl border border-slate-300 dark:border-white/15 bg-slate-50 dark:bg-[#090a10] px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 transition"
             />
-            {errors.title && <span className="text-xs text-rose-400">{errors.title}</span>}
+            {errors.title && <span className="text-xs text-rose-500 dark:text-rose-400">{errors.title}</span>}
           </label>
 
           {/* Participants & Scores Section */}
           <div className="flex flex-col gap-3 text-left">
-            <div className="flex items-center justify-between pb-2 border-b border-white/10">
-              <span className="text-sm font-bold uppercase tracking-wider text-amber-400">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-white/10">
+              <span className="text-sm font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
                 Оценки участников (от 0 до 10)
               </span>
               <button
                 type="button"
                 onClick={addParticipantRow}
-                className="rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 px-3 py-1 text-xs font-semibold transition"
+                className="rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-300 border border-amber-500/30 px-3 py-1 text-xs font-semibold transition"
               >
-                + Добавить строку
+                Добавить участника
               </button>
             </div>
 
             {errors.participants && (
-              <div className="rounded-xl bg-rose-500/15 border border-rose-500/30 p-2.5 text-xs text-rose-300">
+              <div className="rounded-xl bg-rose-500/15 border border-rose-500/30 p-2.5 text-xs text-rose-600 dark:text-rose-300">
                 {errors.participants}
               </div>
             )}
@@ -424,7 +424,7 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
                   <select
                     value={participant.name}
                     onChange={(event) => updateParticipantRow(index, 'name', event.target.value)}
-                    className="rounded-xl border border-white/15 bg-[#090a10] px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                    className="rounded-xl border border-slate-300 dark:border-white/15 bg-slate-50 dark:bg-[#090a10] px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
                   >
                     <option value="">
                       {participantNames.length > 0 ? 'Выберите участника' : 'Участники не загружены'}
@@ -444,14 +444,14 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
                     value={participant.score}
                     onChange={(event) => updateParticipantRow(index, 'score', event.target.value)}
                     placeholder="Балл"
-                    className="rounded-xl border border-white/15 bg-[#090a10] px-2 py-2 text-xs text-center font-bold text-white focus:outline-none focus:border-amber-400"
+                    className="rounded-xl border border-slate-300 dark:border-white/15 bg-slate-50 dark:bg-[#090a10] px-2 py-2 text-xs text-center font-bold text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
                   />
 
                   <button
                     type="button"
                     onClick={() => removeParticipantRow(index)}
                     aria-label="Удалить строку"
-                    className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs transition"
+                    className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 dark:text-rose-400 border border-rose-500/30 text-xs transition"
                   >
                     ✕
                   </button>
@@ -461,7 +461,7 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
           </div>
 
           {/* Submit Button */}
-          <div className="pt-4 border-t border-white/10 flex flex-col gap-3">
+          <div className="pt-4 border-t border-slate-200 dark:border-white/10 flex flex-col gap-3">
             <button
               type="submit"
               disabled={isSaving}
@@ -477,7 +477,7 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
               )}
             </button>
             {saveError && (
-              <span className="text-xs text-rose-400 text-center">{saveError}</span>
+              <span className="text-xs text-rose-500 dark:text-rose-400 text-center">{saveError}</span>
             )}
           </div>
         </div>
@@ -485,20 +485,20 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
 
       {/* Success Modal */}
       {isSuccessModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/80 backdrop-blur-md p-4 animate-fade-in">
           <section
             aria-labelledby="movie-save-success-title"
             aria-modal="true"
-            className="w-full max-w-md rounded-3xl border border-emerald-500/30 bg-[#131622] p-8 text-center text-white shadow-2xl animate-modal-enter"
+            className="w-full max-w-md rounded-3xl border border-emerald-500/30 bg-white dark:bg-[#131622] p-8 text-center text-slate-900 dark:text-white shadow-2xl animate-modal-enter"
             role="dialog"
           >
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 mb-4 border border-emerald-500/40 text-2xl">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mb-4 border border-emerald-500/40 text-2xl">
               ✓
             </div>
-            <h2 id="movie-save-success-title" className="text-xl font-bold text-white">
+            <h2 id="movie-save-success-title" className="text-xl font-bold text-slate-900 dark:text-white">
               Фильм успешно добавлен!
             </h2>
-            <p className="mt-2 text-xs text-zinc-300">
+            <p className="mt-2 text-xs text-slate-600 dark:text-zinc-300">
               «{savedMovieTitle}» успешно записан в таблицу Google Sheets и скоро появится в каталоге.
             </p>
             <button

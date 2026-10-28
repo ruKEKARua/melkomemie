@@ -1,39 +1,42 @@
+import { useMemo } from 'react';
 import usePopularMovies from '../HooksTMDB/usePopularMovies';
 import { getTmdbImageUrl } from '../api/tmdbImage';
 
-const BackgroundPosters = ({page, direction}:{page:number, direction?:boolean}) => {
-
-    const popularMoviesArray = usePopularMovies(page);
-    const posterSize:string = 'w92';
-    const postersURL = popularMoviesArray.map((image) => {
-        return getTmdbImageUrl(posterSize, image.poster_path);
-    })
-
-    //const newPostersURL = [...postersURL, ...postersURL]
-
-
-  return (
-    <div className="size-full flex items-center gap-5 mt-2 mb-2"
-    style={{
-        transform: `translateX(${direction ? 150 : -150}px)`,
-    }}>
-            
-
-        {postersURL.map((poster, index) => (
-            <img
-                key={index}
-                src={poster}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                width="200"
-                height="300"
-                className="h-full w-40 rounded-4xl shrink-0"
-            />
-        ))}
-              
-    </div>
-  )
+interface BackgroundPostersProps {
+  page: number;
+  direction?: boolean;
 }
 
-export default BackgroundPosters
+const BackgroundPosters = ({ page, direction }: BackgroundPostersProps) => {
+  const popularMoviesArray = usePopularMovies(page);
+  const posterSize = 'w92';
+
+  const postersURL = useMemo(() => {
+    return popularMoviesArray
+      .map((image) => getTmdbImageUrl(posterSize, image.poster_path))
+      .filter((url): url is string => Boolean(url && url.trim().length > 0));
+  }, [popularMoviesArray]);
+
+  return (
+    <div
+      className="size-full flex items-center gap-5 mt-2 mb-2 select-none"
+      style={{
+        transform: `translateX(${direction ? 150 : -150}px)`,
+      }}
+    >
+      {postersURL.map((poster, index) => (
+        <img
+          key={popularMoviesArray[index]?.id ? `${popularMoviesArray[index].id}-${index}` : index}
+          src={poster}
+          alt=""
+          decoding="async"
+          width="200"
+          height="300"
+          className="h-full w-40 rounded-4xl shrink-0 object-cover pointer-events-none"
+        />
+      ))}
+    </div>
+  );
+};
+
+export default BackgroundPosters;

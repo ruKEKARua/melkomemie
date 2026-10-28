@@ -1,26 +1,70 @@
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
+
 :root {
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: light;
+
+  /* Theme tokens - Light Mode */
+  --bg-main: #f4f6fa;
+  --bg-header: rgba(255, 255, 255, 0.88);
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #f1f5f9;
+  --bg-surface-subtle: #f8fafc;
+  --bg-input: #ffffff;
+  --text-main: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --border-subtle: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.15);
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+}
+
+html.dark, :root.dark {
   color-scheme: dark;
+
+  /* Theme tokens - Dark Mode */
+  --bg-main: #090a0f;
+  --bg-header: rgba(9, 10, 15, 0.85);
+  --bg-card: #131620;
+  --bg-card-hover: #1a1e2b;
+  --bg-surface: #12141e;
+  --bg-surface-elevated: #181b28;
+  --bg-surface-subtle: #141724;
+  --bg-input: #181a25;
+  --text-main: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --scrollbar-track: #090a0f;
+  --scrollbar-thumb: #232734;
+  --scrollbar-thumb-hover: #3b4255;
 }
 
 html {
-  background-color: #090a0f;
-  color: #f1f5f9;
+  background-color: var(--bg-main);
+  color: var(--text-main);
   font-family: var(--font-sans);
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #090a0f;
-  color: #f1f5f9;
+  background-color: var(--bg-main);
+  color: var(--text-main);
   overflow-x: hidden;
   overflow-y: auto;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 #root {
@@ -37,30 +81,30 @@ body {
   box-sizing: border-box;
 }
 
-/* Custom Netflix-style sleek dark scrollbars */
+/* Custom sleek scrollbars */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #090a0f;
+  background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #232734;
+  background: var(--scrollbar-thumb);
   border-radius: 9999px;
-  border: 2px solid #090a0f;
+  border: 2px solid var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3b4255;
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* Firefox scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #232734 #090a0f;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 img {

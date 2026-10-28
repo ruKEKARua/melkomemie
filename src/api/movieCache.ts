@@ -1,4 +1,4 @@
-import type { NormalizedMovie } from './movieSource';
+import { getActiveMovieSource, type MovieSource, type NormalizedMovie } from './movieSource';
 
 const KEY_PREFIX = 'mm_film_';
 const CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
@@ -16,7 +16,11 @@ export function normalizeCacheKey(title: string): string {
     .trim();
 }
 
-function getStorageKey(title: string): string {
+function getSourceStorageKey(title: string, source: MovieSource): string {
+  return `${KEY_PREFIX}${source}_${normalizeCacheKey(title)}`;
+}
+
+function getLegacyStorageKey(title: string): string {
   return `${KEY_PREFIX}${normalizeCacheKey(title)}`;
 }
 
@@ -65,28 +69,50 @@ if (typeof window !== 'undefined') {
   migrateLegacyStorage();
 }
 
-export function getCachedMovie(title: string): NormalizedMovie | null {
+export function getCachedMovie(title: string, preferredSource?: MovieSource): NormalizedMovie | null {
   if (typeof window === 'undefined' || !window.localStorage) return null;
 
-  const key = getStorageKey(title);
+  const targetSource = preferredSource ?? getActiveMovieSource();
+  const sourceKey = getSourceStorageKey(title, targetSource);
+
+  // 1. Try source-specific storage key first (e.g. mm_film_kinopoisk_xxx)
   try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return null;
-
-    const record = JSON.parse(raw) as CacheRecord;
-    if (!record || !record.movie) return null;
-
-    // Check TTL
-    if (Date.now() - (record.cachedAt ?? 0) > CACHE_TTL_MS) {
-      window.localStorage.removeItem(key);
-      return null;
+    const raw = window.localStorage.getItem(sourceKey);
+    if (raw) {
+      const record = JSON.parse(raw) as CacheRecord;
+      if (record?.movie && Date.now() - (record.cachedAt ?? 0) <= CACHE_TTL_MS) {
+        return record.movie;
+      }
     }
-
-    return record.movie;
   } catch (error) {
-    console.warn(`[movieCache] Error reading ${key}:`, error);
-    return null;
+    console.warn(`[movieCache] Error reading ${sourceKey}:`, error);
   }
+
+  // 2. Check legacy storage key (mm_film_xxx)
+  const legacyKey = getLegacyStorageKey(title);
+  try {
+    const raw = window.localStorage.getItem(legacyKey);
+    if (raw) {
+      const record = JSON.parse(raw) as CacheRecord;
+      if (record?.movie && Date.now() - (record.cachedAt ?? 0) <= CACHE_TTL_MS) {
+        // Prevent TMDB / Kinopoisk conflict:
+        // Only accept legacy record if its source matches targetSource,
+        // or if poster_path format is compatible (Kinopoisk requires http/https, TMDB uses /xxx.jpg)
+        const isKinopoisk = targetSource === 'kinopoisk';
+        const isCompatible = isKinopoisk
+          ? record.movie.source === 'kinopoisk' || record.movie.poster_path?.startsWith('http')
+          : record.movie.source === 'tmdb' || !record.movie.poster_path?.startsWith('http');
+
+        if (isCompatible) {
+          return record.movie;
+        }
+      }
+    }
+  } catch (error) {
+    console.warn(`[movieCache] Error reading ${legacyKey}:`, error);
+  }
+
+  return null;
 }
 
 export function setCachedMovie(title: string, movie: NormalizedMovie): void {
@@ -95,22 +121,28 @@ export function setCachedMovie(title: string, movie: NormalizedMovie): void {
     return;
   }
 
-  const key = getStorageKey(title);
+  const source = movie.source || getActiveMovieSource();
+  const sourceKey = getSourceStorageKey(title, source);
+  const legacyKey = getLegacyStorageKey(title);
+
   try {
     const record: CacheRecord = {
       movie,
       cachedAt: Date.now(),
     };
-    window.localStorage.setItem(key, JSON.stringify(record));
+    const payload = JSON.stringify(record);
+    window.localStorage.setItem(sourceKey, payload);
+    window.localStorage.setItem(legacyKey, payload);
   } catch (error) {
-    console.warn(`[movieCache] Failed to write ${key}:`, error);
+    console.warn(`[movieCache] Failed to write cache for ${title}:`, error);
   }
 }
 
-export function getCachedMoviesBatch(titles: string[]): {
+export function getCachedMoviesBatch(titles: string[], source?: MovieSource): {
   cached: Map<string, NormalizedMovie>;
   missing: string[];
 } {
+  const targetSource = source ?? getActiveMovieSource();
   const cached = new Map<string, NormalizedMovie>();
   const missing: string[] = [];
 
@@ -118,7 +150,7 @@ export function getCachedMoviesBatch(titles: string[]): {
     const normKey = normalizeCacheKey(title);
     if (!normKey) continue;
 
-    const movie = getCachedMovie(title);
+    const movie = getCachedMovie(title, targetSource);
     if (movie) {
       cached.set(normKey, movie);
     } else {

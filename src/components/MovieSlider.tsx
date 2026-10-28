@@ -7,7 +7,7 @@ import MovieCard from './MovieCard';
 import type { MovieRatings } from '../HooksExcelMovies/useGetMovies';
 import type { MovieSheetEntry } from '../api/googleSheets';
 import { getMovieImageUrl, getTmdbImageUrl } from '../api/tmdbImage';
-import type { MovieSource } from '../api/movieSource';
+import { getActiveMovieSource, type MovieSource } from '../api/movieSource';
 
 type Movie = {
   media_type: 'movie' | 'tv';
@@ -91,9 +91,9 @@ export function MovieSlider({
   if (isLoading) {
     return (
       <div className="w-full py-4">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 md:gap-6 items-stretch">
-          {Array.from({ length: 12 }).map((_, idx) => (
-            <div key={idx} className="flex flex-col h-full rounded-2xl bg-[#131620] p-2 sm:p-2.5 border border-white/5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 min-[1920px]:grid-cols-7 min-[2560px]:grid-cols-8 gap-4 sm:gap-5 md:gap-6 items-stretch">
+          {Array.from({ length: 16 }).map((_, idx) => (
+            <div key={idx} className="flex flex-col h-full rounded-2xl bg-white dark:bg-[#131620] p-2 sm:p-2.5 border border-slate-200/80 dark:border-white/5 shadow-sm dark:shadow-none">
               <div className="w-full aspect-[2/3] shrink-0 rounded-xl animate-shimmer" />
               <div className="mt-2.5 w-full h-10 sm:h-11 shrink-0 flex flex-col justify-center gap-1.5 px-1">
                 <div className="h-3.5 w-3/4 mx-auto rounded animate-shimmer" />
@@ -110,13 +110,13 @@ export function MovieSlider({
   if (media.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/5 border border-white/10 text-amber-500 mb-4 shadow-xl">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-amber-500 mb-4 shadow-xl">
           <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
           </svg>
         </div>
-        <h3 className="text-xl font-bold text-white mb-2">Фильмы не найдены</h3>
-        <p className="text-sm text-zinc-400 max-w-md">
+        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Фильмы не найдены</h3>
+        <p className="text-sm text-slate-600 dark:text-zinc-400 max-w-md">
           По вашему запросу ничего не нашлось. Попробуйте изменить поисковую фразу или проверьте фильтр «Вся база».
         </p>
       </div>
@@ -125,7 +125,7 @@ export function MovieSlider({
 
   return (
     <div ref={sliderRef} className="movie-slider-frame relative w-full">
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 md:gap-6 items-stretch">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 min-[1920px]:grid-cols-7 min-[2560px]:grid-cols-8 gap-4 sm:gap-5 md:gap-6 items-stretch">
         {media.map((item, key) => {
           if (item.media_type !== 'person') {
             const movieVariables: Movie = {
@@ -166,8 +166,8 @@ export function MovieSlider({
                       item.excelTitle,
                       'source' in item && (item.source === 'tmdb' || item.source === 'kinopoisk')
                         ? item.source
-                        : 'tmdb',
-                      item.isExcelFallback ? title : undefined,
+                        : getActiveMovieSource(),
+                      item.excelTitle || title,
                     )
                   }
                 />
@@ -188,9 +188,9 @@ export function MovieSlider({
                 role={movieId !== undefined ? 'button' : undefined}
                 tabIndex={movieId !== undefined ? 0 : undefined}
                 onClick={() => movieId !== undefined && openDescription(movieId)}
-                className="group movie-card relative flex flex-col h-full w-full cursor-pointer select-none rounded-2xl bg-[#131620] p-2 sm:p-2.5 border border-white/10 hover:border-amber-500/50 transition-all duration-300 ease-out hover:-translate-y-1.5 hover:scale-[1.03] hover:shadow-[0_18px_36px_rgba(0,0,0,0.85),0_0_24px_rgba(245,158,11,0.22)] focus-visible:outline-2 focus-visible:outline-amber-400 hover:z-30"
+                className="group movie-card relative flex flex-col h-full w-full cursor-pointer select-none rounded-2xl bg-white dark:bg-[#131620] p-2 sm:p-2.5 border border-slate-200/80 dark:border-white/10 hover:border-amber-500/50 transition-all duration-300 ease-out hover:-translate-y-1.5 hover:scale-[1.03] shadow-[0_4px_16px_rgba(15,23,42,0.06)] hover:shadow-[0_16px_32px_rgba(15,23,42,0.12),0_0_24px_rgba(245,158,11,0.22)] dark:shadow-none dark:hover:shadow-[0_18px_36px_rgba(0,0,0,0.85),0_0_24px_rgba(245,158,11,0.22)] focus-visible:outline-2 focus-visible:outline-amber-400 hover:z-30"
               >
-                <div className="relative w-full aspect-[2/3] shrink-0 overflow-hidden rounded-xl bg-[#1a1e2b]">
+                <div className="relative w-full aspect-[2/3] shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-[#1a1e2b]">
                   <img
                     src={image || placeholderImage}
                     alt={russianName || originalName}
@@ -203,10 +203,10 @@ export function MovieSlider({
                   </div>
                 </div>
                 <div className="mt-2.5 px-1 w-full h-10 sm:h-11 shrink-0 text-center flex flex-col items-center justify-center">
-                  <h3 className="text-xs sm:text-sm font-semibold text-zinc-100 line-clamp-1 text-center">
+                  <h3 className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-zinc-100 line-clamp-1 text-center">
                     {russianName || originalName}
                   </h3>
-                  <p className="text-[11px] text-zinc-400 mt-0.5 text-center line-clamp-1">
+                  <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5 text-center line-clamp-1">
                     {item.known_for_department || 'Деятель кино'}
                   </p>
                 </div>

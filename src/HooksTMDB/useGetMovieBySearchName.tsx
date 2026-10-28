@@ -1,5 +1,5 @@
 import { getCachedMovie, setCachedMovie } from '../api/movieCache';
-import { searchMoviesFromSource, type NormalizedMovie } from '../api/movieSource';
+import { getActiveMovieSource, searchMoviesFromSource, type MovieSource, type NormalizedMovie } from '../api/movieSource';
 
 export const normalizeTitle = (value: string): string =>
   value
@@ -75,14 +75,15 @@ const MOVIE_ALIASES: Record<string, MovieAlias> = {
   },
 };
 
-export async function findMovieBySearchTitle(title: string): Promise<NormalizedMovie | null> {
+export async function findMovieBySearchTitle(title: string, source?: MovieSource): Promise<NormalizedMovie | null> {
   const excelTitle = title.trim();
   if (!excelTitle) {
     return null;
   }
 
-  // 1. Check persistent cache first (instant return, 0 network requests)
-  const cached = getCachedMovie(excelTitle);
+  // 1. Check persistent cache first for the target source
+  const currentSource = source ?? getActiveMovieSource();
+  const cached = getCachedMovie(excelTitle, currentSource);
   if (cached) {
     return { ...cached, excelTitle };
   }
