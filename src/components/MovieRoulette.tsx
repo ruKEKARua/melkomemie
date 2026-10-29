@@ -128,18 +128,6 @@ const MovieRoulette = ({
         };
     }, []);
 
-    // If unauthorized, prevent using Excel as source and purge any Excel movies
-    useEffect(() => {
-        if (!isAuthorized) {
-            if (source === 'excel') {
-                setSource('online');
-            }
-            setSelectedMovies((current) =>
-                current.filter((m) => !('excelTitle' in m && Boolean(m.excelTitle))),
-            );
-        }
-    }, [isAuthorized, source]);
-
     useEffect(() => {
         if (source !== 'online' || !query.trim()) {
             return;
@@ -176,7 +164,7 @@ const MovieRoulette = ({
     const availableMovies = useMemo(() => {
         if (source === 'text') return [];
         if (source === 'online') return query.trim() ? onlineResults : [];
-        if (!isAuthorized || source !== 'excel') return [];
+        if (!isAuthorized && source === 'excel') return [];
 
         const normalizedQuery = query.trim().toLocaleLowerCase('ru-RU');
         if (!normalizedQuery) return excelMovies;
@@ -392,9 +380,7 @@ const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
                     <div className="roulette-control-group">
                         <span className="roulette-label">Источник фильмов</span>
                         <div className="roulette-segmented">
-                            {isAuthorized && (
-                                <button disabled={spinning} className={`${source === 'excel' ? 'is-active' : '' } roulette-excel-button`} onClick={() => setSource('excel')}>Excel</button>
-                            )}
+                            <button disabled={spinning} className={`${source === 'excel' ? 'is-active' : '' } roulette-excel-button`} onClick={() => setSource('excel')}>Excel</button>
                             <button disabled={spinning} className={`${source === 'online' ? 'is-active' : '' } roulette-tmdb-button`} onClick={() => setSource('online')}>TMDB / Kinopoisk</button>
                             <button disabled={spinning} className={`${source === 'text' ? 'is-active' : '' } roulette-text-button`} onClick={() => setSource('text')}>Просто текст</button>
                         </div>
