@@ -348,20 +348,17 @@ export const BookModal: React.FC<BookModalProps> = ({
               </div>
             </div>
           ) : (
-            /* Screenshot 1 exact recreation: Google Sheets table */
+            /* Screenshot 1 recreation: Google Sheets table */
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-bold text-slate-800 dark:text-white">
-                    Точное представление таблицы (по скриншоту 1)
+                    Сводная таблица оценок клуба
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-zinc-400">
-                    Данные участников, индивидуальные оценки и общая оценка клуба
+                    Оценки участников и итоговый балл книги
                   </p>
                 </div>
-                <span className="text-xs font-mono px-2 py-1 rounded bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-zinc-300">
-                  Колонки: E, F, G
-                </span>
               </div>
 
               {/* Exact Google Spreadsheet view */}
