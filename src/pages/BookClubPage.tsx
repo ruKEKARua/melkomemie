@@ -24,8 +24,27 @@ export const BookClubPage: React.FC<BookClubPageProps> = ({ onBack }) => {
 
   // Google Books API Search state
   const [searchQuery, setSearchQuery] = useState('Скотный двор');
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return (
+        localStorage.getItem('google_books_api_key') ||
+        (import.meta.env.VITE_GOOGLE_BOOKS_API_KEY ?? '')
+      );
+    }
+    return '';
+  });
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+
+  const handleUpdateApiKey = (newKey: string) => {
+    setApiKey(newKey);
+    if (typeof window !== 'undefined') {
+      if (newKey.trim()) {
+        localStorage.setItem('google_books_api_key', newKey.trim());
+      } else {
+        localStorage.removeItem('google_books_api_key');
+      }
+    }
+  };
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<GoogleBookVolume[]>([DEFAULT_SKOTNY_DVOR_VOLUME]);
   const [apiStatusMessage, setApiStatusMessage] = useState<string>('');
@@ -165,13 +184,13 @@ export const BookClubPage: React.FC<BookClubPageProps> = ({ onBack }) => {
             <input
               type="text"
               value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
+              onChange={(e) => handleUpdateApiKey(e.target.value)}
               placeholder="AIzaSy..."
               className="px-3 py-1.5 rounded-xl bg-white dark:bg-[#181a25] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-xs w-full sm:w-56 focus:outline-none focus:border-amber-500"
             />
             {apiKey && (
               <button
-                onClick={() => setApiKey('')}
+                onClick={() => handleUpdateApiKey('')}
                 className="px-2 py-1.5 text-xs text-rose-500 hover:text-rose-600 cursor-pointer font-bold"
               >
                 ✕

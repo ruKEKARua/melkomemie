@@ -131,7 +131,9 @@ export async function searchGoogleBooks(
     normalizedQuery.toLowerCase().includes('скотный') ||
     normalizedQuery.toLowerCase().includes('animal farm');
 
-  const keyParam = apiKey ? `&key=${encodeURIComponent(apiKey)}` : '';
+  const envKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GOOGLE_BOOKS_API_KEY) || '';
+  const effectiveKey = (apiKey || envKey).trim();
+  const keyParam = effectiveKey ? `&key=${encodeURIComponent(effectiveKey)}` : '';
   const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(
     normalizedQuery,
   )}&langRestrict=ru&maxResults=8${keyParam}`;
