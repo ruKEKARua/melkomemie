@@ -5,6 +5,7 @@ interface HeaderBurgerMenuProps {
   onAddMovie: () => void;
   onOpenTournaments: () => void;
   onOpenRoulette: () => void;
+  onOpenBookClub?: () => void;
   onOpenCatalog?: () => void;
   className?: string;
 }
@@ -14,6 +15,7 @@ export const HeaderBurgerMenu = ({
   onAddMovie,
   onOpenTournaments,
   onOpenRoulette,
+  onOpenBookClub,
   onOpenCatalog,
   className = '',
 }: HeaderBurgerMenuProps) => {
@@ -161,6 +163,31 @@ export const HeaderBurgerMenu = ({
                 </span>
               </div>
             </button>
+
+            {/* 4. Book Club */}
+            {onOpenBookClub && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onOpenBookClub();
+                  setIsOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer hover:bg-white/10 text-zinc-200 hover:text-white group border border-transparent hover:border-emerald-500/20"
+              >
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-base shrink-0 group-hover:scale-110 transition-transform">
+                  📚
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-bold text-white group-hover:text-emerald-300 transition-colors">
+                    Книжный клуб
+                  </span>
+                  <span className="text-[10px] text-zinc-400 truncate">
+                    Каталог книг и оценки (Скотный двор)
+                  </span>
+                </div>
+              </button>
+            )}
 
             {/* 4. Catalog (Home) if provided */}
             {onOpenCatalog && (

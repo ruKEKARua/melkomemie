@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 
-export type PageMode = 'main' | 'entry' | 'roulette' | 'tournaments';
+export type PageMode = 'main' | 'entry' | 'roulette' | 'tournaments' | 'book-club';
 
 interface HeaderPageSelectorProps {
   currentPage: PageMode;
   onSelectCatalog: () => void;
   onSelectTournaments: () => void;
   onSelectRoulette: () => void;
+  onSelectBookClub: () => void;
   onSelectAddMovie: () => void;
   align?: 'left' | 'right';
   className?: string;
@@ -28,6 +29,7 @@ export const HeaderPageSelector = ({
   onSelectCatalog,
   onSelectTournaments,
   onSelectRoulette,
+  onSelectBookClub,
   onSelectAddMovie,
   align = 'left',
   className = '',
@@ -68,6 +70,7 @@ export const HeaderPageSelector = ({
     main: { title: 'Каталог', icon: '🍿' },
     tournaments: { title: 'Турниры', icon: '🏆' },
     roulette: { title: 'Рулетка', icon: '🎲' },
+    'book-club': { title: 'Книжный клуб', icon: '📚' },
     entry: { title: 'Добавить фильм', icon: '➕' },
   };
 
@@ -103,6 +106,16 @@ export const HeaderPageSelector = ({
       badgeText: 'text-indigo-400',
       badgeBorder: 'border-indigo-500/20',
       action: onSelectRoulette,
+    },
+    {
+      id: 'book-club',
+      title: 'Книжный клуб',
+      subtitle: 'Каталог и оценки книг',
+      icon: '📚',
+      badgeBg: 'bg-emerald-500/20',
+      badgeText: 'text-emerald-400',
+      badgeBorder: 'border-emerald-500/20',
+      action: onSelectBookClub,
     },
   ];
 

@@ -26,10 +26,11 @@ import MovieRoulette from './components/MovieRoulette';
 import { getTmdbImageUrl } from './api/tmdbImage';
 import Logo from './components/UI/Logo';
 import { TournamentsPage } from './pages/TournamentsPage';
+import BookClubPage from './pages/BookClubPage';
 import HeaderPageSelector from './components/UI/HeaderPageSelector';
 import HeaderSettingsMenu from './components/UI/HeaderSettingsMenu';
 
-type PageMode = 'main' | 'entry' | 'roulette' | 'tournaments';
+type PageMode = 'main' | 'entry' | 'roulette' | 'tournaments' | 'book-club';
 type SortOrder = 'added' | 'reverse' | 'top-rated' | 'low-rated' | 'alphabetical' | 'alphabetical-reverse' | 'viewing-month';
 type ViewingFilterMode = 'all' | 'month' | 'range';
 
@@ -226,6 +227,7 @@ const parsePageFromHash = (hasAuth = true): PageMode => {
   const raw = window.location.hash.replace(/^#\/?/, '').toLowerCase();
   if (raw === 'tournaments' || raw === 'tournament') return hasAuth ? 'tournaments' : 'main';
   if (raw === 'roulette') return 'roulette';
+  if (raw === 'book-club' || raw === 'books' || raw === 'book') return 'book-club';
   if (raw === 'entry' || raw === 'add') return hasAuth ? 'entry' : 'main';
   return 'main';
 };
@@ -285,7 +287,7 @@ function App() {
 
   // Navigation with browser history support (Back / Forward button works without leaving the site)
   const navigateToPage = (newPage: PageMode, replace = false) => {
-    if (!isAuthorized && newPage !== 'roulette' && newPage !== 'main') {
+    if (!isAuthorized && newPage !== 'roulette' && newPage !== 'main' && newPage !== 'book-club') {
       pendingPageRef.current = newPage;
       if (newPage === 'entry') {
         setIsAddMovieRequested(true);
@@ -555,6 +557,7 @@ function App() {
                   navigateToPage('tournaments');
                 }}
                 onSelectRoulette={() => navigateToPage('roulette')}
+                onSelectBookClub={() => navigateToPage('book-club')}
                 onSelectAddMovie={() => {
                   navigateToPage('entry');
                 }}
@@ -725,6 +728,13 @@ function App() {
             userPicture={userPicture}
             onLogin={login}
             onLogout={logout}
+          />
+        ) : page === 'book-club' ? (
+          <BookClubPage
+            onBack={() => navigateToPage('main')}
+            isAuthorized={isAuthorized}
+            userName={userName}
+            userPicture={userPicture}
           />
         ) : (page === 'entry' || (isAddMovieRequested && isAuthorized)) && isAuthorized ? (
           <div className="p-4 sm:p-6 md:p-10">
@@ -1380,6 +1390,37 @@ function App() {
                   <div className="flex justify-end mt-4">
                     <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 group-hover:bg-amber-500 group-hover:text-slate-950 transition-all shadow-sm">
                       Сетка →
+                    </span>
+                  </div>
+                </div>
+
+                {/* Card 5: Книжный клуб */}
+                <div
+                  onClick={() => navigateToPage('book-club')}
+                  className="flex-1 min-h-[195px] sm:min-h-[205px] flex flex-col justify-between p-5 sm:p-6 rounded-3xl bg-white/95 dark:bg-[#12141f]/90 border border-slate-200/90 dark:border-white/10 hover:border-emerald-500/40 shadow-xl backdrop-blur-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-2xl hover:shadow-emerald-500/10 cursor-pointer group text-left"
+                >
+                  <div>
+                    <div className="flex items-center gap-3.5 mb-3">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform shrink-0">
+                        📚
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                          Литература
+                        </span>
+                        <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white leading-tight truncate">
+                          Книжный клуб
+                        </h3>
+                      </div>
+                    </div>
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                      Тестовая страница книг с Google Books API и оценками книги «Скотный двор».
+                    </p>
+                  </div>
+
+                  <div className="flex justify-end mt-4">
+                    <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-sm">
+                      Книги →
                     </span>
                   </div>
                 </div>
