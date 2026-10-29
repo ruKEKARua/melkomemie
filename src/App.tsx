@@ -223,18 +223,20 @@ const sortMovies = <T extends SortableMedia>(movies: T[], sortOrder: SortOrder, 
   });
 };
 
-const parsePageFromHash = (hasAuth = true): PageMode => {
+const parsePageFromHash = (hasAuth = false): PageMode => {
   const raw = window.location.hash.replace(/^#\/?/, '').toLowerCase();
-  if (raw === 'tournaments' || raw === 'tournament') return hasAuth ? 'tournaments' : 'main';
   if (raw === 'roulette') return 'roulette';
-  if (raw === 'book-club' || raw === 'books' || raw === 'book') return 'book-club';
-  if (raw === 'entry' || raw === 'add') return hasAuth ? 'entry' : 'main';
+  if (hasAuth) {
+    if (raw === 'tournaments' || raw === 'tournament') return 'tournaments';
+    if (raw === 'book-club' || raw === 'books' || raw === 'book') return 'book-club';
+    if (raw === 'entry' || raw === 'add') return 'entry';
+  }
   return 'main';
 };
 
 function App() {
   const dispatch = useDispatch();
-  const [page, setPage] = useState<PageMode>(() => parsePageFromHash(true));
+  const [page, setPage] = useState<PageMode>(() => parsePageFromHash(false));
   const [isAddMovieRequested, setIsAddMovieRequested] = useState(false);
   const pendingPageRef = useRef<PageMode | null>(null);
   const prevIsAuthorizedRef = useRef(false);
@@ -287,7 +289,7 @@ function App() {
 
   // Navigation with browser history support (Back / Forward button works without leaving the site)
   const navigateToPage = (newPage: PageMode, replace = false) => {
-    if (!isAuthorized && newPage !== 'roulette' && newPage !== 'main' && newPage !== 'book-club') {
+    if (!isAuthorized && newPage !== 'roulette' && newPage !== 'main') {
       pendingPageRef.current = newPage;
       if (newPage === 'entry') {
         setIsAddMovieRequested(true);
@@ -332,6 +334,18 @@ function App() {
     }
   }, [isAuthorized, isAddMovieRequested]);
 
+  // Capture initial deep-link hash if unauthorized on mount
+  useEffect(() => {
+    const raw = window.location.hash.replace(/^#\/?/, '').toLowerCase();
+    if (raw === 'book-club' || raw === 'books' || raw === 'book') {
+      pendingPageRef.current = 'book-club';
+    } else if (raw === 'tournaments' || raw === 'tournament') {
+      pendingPageRef.current = 'tournaments';
+    } else if (raw === 'entry' || raw === 'add') {
+      pendingPageRef.current = 'entry';
+    }
+  }, []);
+
   // Listen to browser Back / Forward navigation
   useEffect(() => {
     const handlePopState = () => {
@@ -352,16 +366,13 @@ function App() {
     };
   }, [isAuthorized]);
 
-  // Redirect away from protected pages if unauthorized after auth state resolves
+  // Strictly redirect away from protected pages if unauthorized
   useEffect(() => {
-    if (!isLoading && !isAuthorized && page !== 'roulette' && page !== 'main') {
-      const timer = setTimeout(() => {
-        setPage('main');
-        window.history.replaceState({ page: 'main' }, '', window.location.pathname + window.location.search);
-      }, 0);
-      return () => clearTimeout(timer);
+    if (!isAuthorized && page !== 'roulette' && page !== 'main') {
+      setPage('main');
+      window.history.replaceState({ page: 'main' }, '', window.location.pathname + window.location.search);
     }
-  }, [isLoading, isAuthorized, page]);
+  }, [isAuthorized, page]);
 
   const { isLoaded: areMoviesLoaded, loadedCount, totalCount } = useSetArrayOfSearchedMovies(
     moviesFromExcel,
@@ -519,7 +530,9 @@ function App() {
   }));
 
   const currentDisplayedPage: PageMode =
-    isAuthorized && (page === 'entry' || isAddMovieRequested)
+    !isAuthorized && page !== 'roulette'
+      ? 'main'
+      : isAuthorized && (page === 'entry' || isAddMovieRequested)
       ? 'entry'
       : page;
 
@@ -548,6 +561,7 @@ function App() {
               {/* Page Selector (Reference: selector box with chevron, replaces burger menu & separate Catalog tab) */}
               <HeaderPageSelector
                 currentPage={currentDisplayedPage}
+                isAuthorized={isAuthorized}
                 onSelectCatalog={() => {
                   navigateToPage('main');
                   setSortOrder('added');
@@ -712,15 +726,15 @@ function App() {
       <main className="flex-1 w-full flex flex-col">
         {page === 'roulette' ? (
           <MovieRoulette
-            excelMovies={foundMovies.filter((movie) => movie.media_type !== 'person') as unknown as NormalizedMovie[]}
+            excelMovies={isAuthorized ? (foundMovies.filter((movie) => movie.media_type !== 'person') as unknown as NormalizedMovie[]) : []}
             isAuthorized={isAuthorized}
             login={login}
-            ratings={usersRating}
-            participantNames={participantNames}
+            ratings={isAuthorized ? usersRating : []}
+            participantNames={isAuthorized ? participantNames : []}
             onUpdateMovie={updateMovie}
             onClose={() => navigateToPage('main')}
           />
-        ) : page === 'tournaments' && isAuthorized ? (
+        ) : isAuthorized && page === 'tournaments' ? (
           <TournamentsPage
             onBack={() => navigateToPage('main')}
             isAuthorized={isAuthorized}
@@ -729,14 +743,14 @@ function App() {
             onLogin={login}
             onLogout={logout}
           />
-        ) : page === 'book-club' ? (
+        ) : isAuthorized && page === 'book-club' ? (
           <BookClubPage
             onBack={() => navigateToPage('main')}
             isAuthorized={isAuthorized}
             userName={userName}
             userPicture={userPicture}
           />
-        ) : (page === 'entry' || (isAddMovieRequested && isAuthorized)) && isAuthorized ? (
+        ) : isAuthorized && (page === 'entry' || (isAddMovieRequested && isAuthorized)) ? (
           <div className="p-4 sm:p-6 md:p-10">
             <div className="max-w-5xl mx-auto mb-4 flex items-center justify-between">
               <button
@@ -1396,7 +1410,14 @@ function App() {
 
                 {/* Card 5: Книжный клуб */}
                 <div
-                  onClick={() => navigateToPage('book-club')}
+                  onClick={() => {
+                    if (isAuthorized) {
+                      navigateToPage('book-club');
+                    } else {
+                      pendingPageRef.current = 'book-club';
+                      login();
+                    }
+                  }}
                   className="flex-1 min-h-[195px] sm:min-h-[205px] flex flex-col justify-between p-5 sm:p-6 rounded-3xl bg-white/95 dark:bg-[#12141f]/90 border border-slate-200/90 dark:border-white/10 hover:border-emerald-500/40 shadow-xl backdrop-blur-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-2xl hover:shadow-emerald-500/10 cursor-pointer group text-left"
                 >
                   <div>

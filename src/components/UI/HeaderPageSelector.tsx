@@ -4,6 +4,7 @@ export type PageMode = 'main' | 'entry' | 'roulette' | 'tournaments' | 'book-clu
 
 interface HeaderPageSelectorProps {
   currentPage: PageMode;
+  isAuthorized?: boolean;
   onSelectCatalog: () => void;
   onSelectTournaments: () => void;
   onSelectRoulette: () => void;
@@ -26,6 +27,7 @@ interface PageOption {
 
 export const HeaderPageSelector = ({
   currentPage,
+  isAuthorized = false,
   onSelectCatalog,
   onSelectTournaments,
   onSelectRoulette,
@@ -208,18 +210,19 @@ export const HeaderPageSelector = ({
                       <span className={`text-xs font-bold ${isCurrent ? 'text-amber-400' : 'text-white group-hover:text-amber-300'} transition-colors`}>
                         {page.title}
                       </span>
-                      <span className="text-[10px] text-zinc-400 truncate">
-                        {/* {page.subtitle} */}
-                      </span>
                     </div>
                   </div>
 
-                  {/* Active Indicator Checkmark */}
-                  {/* {isCurrent && (
-                    <span className="text-amber-400 text-xs font-bold px-1.5 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/30 shrink-0">
-                      ✓
+                  {/* Lock indicator if unauthorized */}
+                  {!isAuthorized && page.id !== 'roulette' && (
+                    <span
+                      className="text-[10px] text-zinc-400 group-hover:text-amber-400 flex items-center gap-1 font-medium shrink-0 bg-white/5 px-2 py-0.5 rounded-md border border-white/10"
+                      title="Требуется авторизация"
+                    >
+                      <span>🔒</span>
+                      <span className="hidden sm:inline">Вход</span>
                     </span>
-                  )} */}
+                  )}
                 </button>
               );
             })}
@@ -247,15 +250,22 @@ export const HeaderPageSelector = ({
                   <span className="text-xs font-bold text-white group-hover:text-emerald-300 transition-colors">
                     Добавить фильм
                   </span>
-
                 </div>
               </div>
 
-              {currentPage === 'entry' && (
+              {!isAuthorized ? (
+                <span
+                  className="text-[10px] text-zinc-400 group-hover:text-amber-400 flex items-center gap-1 font-medium shrink-0 bg-white/5 px-2 py-0.5 rounded-md border border-white/10"
+                  title="Требуется авторизация"
+                >
+                  <span>🔒</span>
+                  <span className="hidden sm:inline">Вход</span>
+                </span>
+              ) : currentPage === 'entry' ? (
                 <span className="text-emerald-400 text-xs font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/30 shrink-0">
                   ✓
                 </span>
-              )}
+              ) : null}
             </button>
           </div>
         </div>
