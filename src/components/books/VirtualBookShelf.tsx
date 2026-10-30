@@ -39,7 +39,9 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     return (
       <div
         key={book.id}
-        className="relative group select-none cursor-pointer flex flex-col justify-end items-center"
+        className={`relative group select-none cursor-pointer flex flex-col justify-end items-center ${
+          isHovered ? 'z-50' : 'z-10'
+        }`}
         style={{
           width: bookWidth,
           height: `${heightRatio * 100}%`,
@@ -51,7 +53,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
         {/* Floating Tooltip above book on hover */}
         {isHovered && (
           <div
-            className="absolute -top-13 left-1/2 -translate-x-1/2 z-50 pointer-events-none whitespace-nowrap px-3 py-1.5 rounded-xl bg-slate-950/95 border border-amber-500/70 text-white text-xs shadow-2xl backdrop-blur-md flex flex-col items-center animate-fade-in ring-1 ring-amber-400/40"
+            className="absolute -top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none whitespace-nowrap px-3 py-1.5 rounded-xl bg-slate-950/95 border border-amber-500/70 text-white text-xs shadow-2xl backdrop-blur-md flex flex-col items-center animate-fade-in ring-1 ring-amber-400/40"
           >
             <span className="font-bold text-amber-300 drop-shadow">{book.title}</span>
             <div className="flex items-center gap-2 text-[10px] text-zinc-300">
@@ -63,15 +65,27 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
           </div>
         )}
 
-        {/* Upright Book Spine standing directly on the video's wooden shelf */}
+        {/* 
+          Upright Book Spine:
+          Instead of lifting upwards, the book slides forward out of the shelf towards the user,
+          expanding in 3D perspective and casting shadows onto neighboring books, as if taken by hand.
+        */}
         <div
-          className={`w-full h-full rounded-t-xs rounded-b-2xs shadow-md transition-all duration-200 ease-out flex flex-col justify-between py-1 px-0.5 text-center border-l border-t border-white/25 border-r border-black/50 ${
-            isHovered
-              ? '-translate-y-2.5 scale-105 shadow-[0_12px_24px_rgba(0,0,0,0.95)] ring-2 ring-amber-400 z-30'
-              : 'hover:-translate-y-1'
+          className={`w-full h-full rounded-t-xs rounded-b-2xs shadow-md flex flex-col justify-between py-1 px-0.5 text-center border-l border-t border-white/25 border-r border-black/50 ${
+            isHovered ? 'ring-2 ring-amber-400' : ''
           }`}
           style={{
             background: `linear-gradient(135deg, ${book.spineAccent} 0%, rgba(18,18,24,0.96) 80%)`,
+            transformOrigin: 'bottom center',
+            transform: isHovered
+              ? `perspective(600px) translateZ(${38 * scale}px) translateY(${5 * scale}px) scale(1.15)`
+              : 'perspective(600px) translateZ(0px) translateY(0px) scale(1)',
+            boxShadow: isHovered
+              ? '0 20px 35px rgba(0, 0, 0, 0.95), -8px 0 18px rgba(0, 0, 0, 0.7), 8px 0 18px rgba(0, 0, 0, 0.7), 0 0 18px rgba(245, 158, 11, 0.45)'
+              : undefined,
+            filter: isHovered ? 'brightness(1.12)' : 'brightness(1)',
+            transition:
+              'transform 280ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 280ms cubic-bezier(0.16, 1, 0.3, 1), filter 280ms ease',
           }}
         >
           {/* Top Decorative Spine Ribbon */}
@@ -167,11 +181,13 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
         <div
           onClick={onOpenCatalog}
           title="Открыть каталог всех 15 книг"
-          className="cursor-pointer group flex flex-col items-center justify-center rounded-xs bg-[#2e150c]/90 hover:bg-[#4a2214] border border-amber-500/50 hover:border-amber-400 shadow-md transition-all hover:scale-105 select-none"
+          className="cursor-pointer group flex flex-col items-center justify-center rounded-xs bg-[#2e150c]/90 hover:bg-[#4a2214] border border-amber-500/50 hover:border-amber-400 shadow-md select-none transition-all duration-300 hover:scale-110 hover:shadow-[0_12px_24px_rgba(0,0,0,0.9)] hover:ring-2 hover:ring-amber-400"
           style={{
             width: '21%',
             height: '50%',
             marginBottom: `${2 * scale}px`,
+            transformOrigin: 'bottom center',
+            transition: 'all 280ms cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
           <span style={{ fontSize: `${Math.max(10, Math.round(13 * scale))}px` }}>📖</span>

@@ -55,7 +55,7 @@ export const AtmosphericRoom: React.FC<AtmosphericRoomProps> = ({
 
   return (
     <div
-      className={`relative w-full h-[calc(100vh-4.25rem)] overflow-hidden bg-[#090a0f] flex items-center justify-center p-1 sm:p-2.5 transition-opacity duration-[2500ms] ease-out select-none ${
+      className={`relative w-full h-[calc(100vh-4.25rem)] overflow-hidden bg-[#090a0f] flex items-center justify-center p-1 sm:p-0 transition-opacity duration-[2500ms] ease-out select-none ${
         isFadedIn ? 'opacity-100' : 'opacity-0'
       }`}
     >
@@ -82,7 +82,7 @@ export const AtmosphericRoom: React.FC<AtmosphericRoomProps> = ({
       */}
       <div
         ref={stageRef}
-        className="relative aspect-video h-full max-w-full max-h-[calc(100vh-4.5rem)] overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.9)] rounded-xl sm:rounded-2xl border border-white/10 z-10 flex items-center justify-center"
+        className="relative aspect-video h-full max-w-full max-h-[calc(92vh-1.5rem)] overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.9)]  z-10 flex items-center justify-center"
       >
         {/* Crystal clear stabilized atmospheric room video */}
         <video
@@ -107,10 +107,11 @@ export const AtmosphericRoom: React.FC<AtmosphericRoomProps> = ({
         <div
           className="absolute z-20 pointer-events-auto"
           style={{
-            left: '3.3333%',
-            top: '10.3704%',
-            width: '9.5833%',
-            height: '71.1111%',
+                left: '6.3333%',
+                top: '10.3704%',
+                width: '13.5833%',
+                height: '70.1111%',
+                transform: 'skew(2deg, 0deg)'
           }}
         >
           <VirtualBookShelf
