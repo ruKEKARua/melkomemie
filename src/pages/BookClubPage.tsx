@@ -47,7 +47,7 @@ export const BookClubPage: React.FC<BookClubPageProps> = () => {
   };
 
   return (
-    <div className="w-full flex-1 flex flex-col">
+    <div className={`w-full flex-1 flex flex-col ${viewMode === 'room' ? 'overflow-hidden' : ''}`}>
       {viewMode === 'room' ? (
         <AtmosphericRoom
           books={books}

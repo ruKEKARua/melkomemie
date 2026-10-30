@@ -226,9 +226,9 @@ const sortMovies = <T extends SortableMedia>(movies: T[], sortOrder: SortOrder, 
 const parsePageFromHash = (hasAuth = false): PageMode => {
   const raw = window.location.hash.replace(/^#\/?/, '').toLowerCase();
   if (raw === 'roulette') return 'roulette';
-  if (raw === 'book-club' || raw === 'books' || raw === 'book') return 'book-club';
   if (hasAuth) {
     if (raw === 'tournaments' || raw === 'tournament') return 'tournaments';
+    if (raw === 'book-club' || raw === 'books' || raw === 'book') return 'book-club';
     if (raw === 'entry' || raw === 'add') return 'entry';
   }
   return 'main';
@@ -289,7 +289,7 @@ function App() {
 
   // Navigation with browser history support (Back / Forward button works without leaving the site)
   const navigateToPage = (newPage: PageMode, replace = false) => {
-    if (!isAuthorized && newPage !== 'roulette' && newPage !== 'main' && newPage !== 'book-club') {
+    if (!isAuthorized && newPage !== 'roulette' && newPage !== 'main') {
       pendingPageRef.current = newPage;
       if (newPage === 'entry') {
         setIsAddMovieRequested(true);
@@ -350,7 +350,7 @@ function App() {
   useEffect(() => {
     const handlePopState = () => {
       const p = parsePageFromHash(isAuthorized);
-      if (!isAuthorized && p !== 'roulette' && p !== 'main' && p !== 'book-club') {
+      if (!isAuthorized && p !== 'roulette' && p !== 'main') {
         setPage('main');
         window.history.replaceState({ page: 'main' }, '', window.location.pathname + window.location.search);
       } else {
@@ -368,7 +368,7 @@ function App() {
 
   // Strictly redirect away from protected pages if unauthorized
   useEffect(() => {
-    if (!isAuthorized && page !== 'roulette' && page !== 'main' && page !== 'book-club') {
+    if (!isAuthorized && page !== 'roulette' && page !== 'main') {
       setPage('main');
       window.history.replaceState({ page: 'main' }, '', window.location.pathname + window.location.search);
     }
@@ -530,7 +530,7 @@ function App() {
   }));
 
   const currentDisplayedPage: PageMode =
-    !isAuthorized && page !== 'roulette' && page !== 'book-club'
+    !isAuthorized && page !== 'roulette'
       ? 'main'
       : isAuthorized && (page === 'entry' || isAddMovieRequested)
       ? 'entry'
@@ -743,7 +743,7 @@ function App() {
             onLogin={login}
             onLogout={logout}
           />
-        ) : page === 'book-club' ? (
+        ) : isAuthorized && page === 'book-club' ? (
           <BookClubPage
             onBack={() => navigateToPage('main')}
             isAuthorized={isAuthorized}

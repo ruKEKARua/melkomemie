@@ -214,7 +214,7 @@ export const HeaderPageSelector = ({
                   </div>
 
                   {/* Lock indicator if unauthorized */}
-                  {!isAuthorized && page.id !== 'roulette' && page.id !== 'book-club' && (
+                  {!isAuthorized && page.id !== 'roulette' && (
                     <span
                       className="text-[10px] text-zinc-400 group-hover:text-amber-400 flex items-center gap-1 font-medium shrink-0 bg-white/5 px-2 py-0.5 rounded-md border border-white/10"
                       title="Требуется авторизация"
