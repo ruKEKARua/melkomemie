@@ -226,9 +226,9 @@ const sortMovies = <T extends SortableMedia>(movies: T[], sortOrder: SortOrder, 
 const parsePageFromHash = (hasAuth = false): PageMode => {
   const raw = window.location.hash.replace(/^#\/?/, '').toLowerCase();
   if (raw === 'roulette') return 'roulette';
+  if (raw === 'book-club' || raw === 'books' || raw === 'book') return 'book-club';
   if (hasAuth) {
     if (raw === 'tournaments' || raw === 'tournament') return 'tournaments';
-    if (raw === 'book-club' || raw === 'books' || raw === 'book') return 'book-club';
     if (raw === 'entry' || raw === 'add') return 'entry';
   }
   return 'main';
@@ -289,7 +289,7 @@ function App() {
 
   // Navigation with browser history support (Back / Forward button works without leaving the site)
   const navigateToPage = (newPage: PageMode, replace = false) => {
-    if (!isAuthorized && newPage !== 'roulette' && newPage !== 'main') {
+    if (!isAuthorized && newPage !== 'roulette' && newPage !== 'main' && newPage !== 'book-club') {
       pendingPageRef.current = newPage;
       if (newPage === 'entry') {
         setIsAddMovieRequested(true);
@@ -350,7 +350,7 @@ function App() {
   useEffect(() => {
     const handlePopState = () => {
       const p = parsePageFromHash(isAuthorized);
-      if (!isAuthorized && p !== 'roulette' && p !== 'main') {
+      if (!isAuthorized && p !== 'roulette' && p !== 'main' && p !== 'book-club') {
         setPage('main');
         window.history.replaceState({ page: 'main' }, '', window.location.pathname + window.location.search);
       } else {
@@ -368,7 +368,7 @@ function App() {
 
   // Strictly redirect away from protected pages if unauthorized
   useEffect(() => {
-    if (!isAuthorized && page !== 'roulette' && page !== 'main') {
+    if (!isAuthorized && page !== 'roulette' && page !== 'main' && page !== 'book-club') {
       setPage('main');
       window.history.replaceState({ page: 'main' }, '', window.location.pathname + window.location.search);
     }
@@ -530,7 +530,7 @@ function App() {
   }));
 
   const currentDisplayedPage: PageMode =
-    !isAuthorized && page !== 'roulette'
+    !isAuthorized && page !== 'roulette' && page !== 'book-club'
       ? 'main'
       : isAuthorized && (page === 'entry' || isAddMovieRequested)
       ? 'entry'
@@ -743,7 +743,7 @@ function App() {
             onLogin={login}
             onLogout={logout}
           />
-        ) : isAuthorized && page === 'book-club' ? (
+        ) : page === 'book-club' ? (
           <BookClubPage
             onBack={() => navigateToPage('main')}
             isAuthorized={isAuthorized}
@@ -1410,14 +1410,7 @@ function App() {
 
                 {/* Card 5: Книжный клуб */}
                 <div
-                  onClick={() => {
-                    if (isAuthorized) {
-                      navigateToPage('book-club');
-                    } else {
-                      pendingPageRef.current = 'book-club';
-                      login();
-                    }
-                  }}
+                  onClick={() => navigateToPage('book-club')}
                   className="flex-1 min-h-[195px] sm:min-h-[205px] flex flex-col justify-between p-5 sm:p-6 rounded-3xl bg-white/95 dark:bg-[#12141f]/90 border border-slate-200/90 dark:border-white/10 hover:border-emerald-500/40 shadow-xl backdrop-blur-xl transition-all duration-200 hover:scale-[1.02] hover:shadow-2xl hover:shadow-emerald-500/10 cursor-pointer group text-left"
                 >
                   <div>
@@ -1435,13 +1428,13 @@ function App() {
                       </div>
                     </div>
                     <p className="text-xs sm:text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
-                      Тестовая страница книг с Google Books API и оценками книги «Скотный двор».
+                      Уютная интерактивная комната с книжной полкой, каталогом и оценками клуба.
                     </p>
                   </div>
 
                   <div className="flex justify-end mt-4">
                     <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-sm">
-                      Книги →
+                      Полка книг →
                     </span>
                   </div>
                 </div>
