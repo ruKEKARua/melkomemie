@@ -455,19 +455,30 @@ export function parseBookClubCsv(csvText: string): BookClubBook[] {
     const line = lines[i];
     if (!line) continue;
 
-    // Quick CSV split supporting quoted strings
-    const match = line.match(/(?:^|,)(?:"([^"]*)"|([^",]*))/g);
-    if (!match) continue;
-
-    const cells = match.map((c) => {
-      let val = c.startsWith(',') ? c.slice(1) : c;
-      if (val.startsWith('"') && val.endsWith('"')) {
-        val = val.slice(1, -1);
+    // Robust CSV parser preserving all consecutive commas and quoted strings
+    const cells: string[] = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let c = 0; c < line.length; c++) {
+      const ch = line[c];
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+      } else if (ch === ',' && !inQuotes) {
+        cells.push(cur.trim());
+        cur = '';
+      } else {
+        cur += ch;
       }
-      return val.trim();
-    });
+    }
+    cells.push(cur.trim());
 
-    const [idStr, dateStr, authorStr, titleStr, participantName, participantScore, overallScore] = cells;
+    const idStr = cells[0] || '';
+    const dateStr = cells[1] || '';
+    const authorStr = cells[2] || '';
+    const titleStr = cells[3] || '';
+    const participantName = cells[4] || '';
+    const participantScore = cells[5] || '';
+    const overallScore = cells[6] || '';
 
     // Check if this row is a new book header
     if (idStr && !isNaN(Number(idStr)) && titleStr) {

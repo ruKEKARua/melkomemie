@@ -14,7 +14,7 @@ interface BookClubPageProps {
   userPicture?: string;
 }
 
-export const BookClubPage: React.FC<BookClubPageProps> = ({ onBack }) => {
+export const BookClubPage: React.FC<BookClubPageProps> = () => {
   const [books, setBooks] = useState<BookClubBook[]>(INITIAL_BOOK_CLUB_BOOKS);
   const [selectedBook, setSelectedBook] = useState<BookClubBook>(INITIAL_BOOK_CLUB_BOOKS[0]);
   const [viewMode, setViewMode] = useState<'room' | 'detail'>('room');
@@ -53,7 +53,6 @@ export const BookClubPage: React.FC<BookClubPageProps> = ({ onBack }) => {
           books={books}
           onSelectBook={handleSelectBookFromRoom}
           onOpenCatalog={() => setViewMode('detail')}
-          onBackToMovies={onBack}
         />
       ) : (
         <BookDetailView
@@ -61,7 +60,6 @@ export const BookClubPage: React.FC<BookClubPageProps> = ({ onBack }) => {
           selectedBook={selectedBook}
           onSelectBook={handleSelectBookInDetail}
           onBackToRoom={() => setViewMode('room')}
-          onBackToMovies={onBack}
         />
       )}
     </div>
