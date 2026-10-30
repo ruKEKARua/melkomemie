@@ -56,7 +56,7 @@ export const AtmosphericRoom: React.FC<AtmosphericRoomProps> = ({
 
   return (
     <div
-      className={`relative w-full h-[calc(100vh-4.25rem)] overflow-hidden bg-[#090a0f] flex flex-col items-center justify-start p-0 transition-opacity duration-[2500ms] ease-out select-none ${
+      className={`relative w-full h-full flex-1 min-h-0 overflow-hidden bg-[#090a0f] flex flex-col items-center justify-start p-0 transition-opacity duration-[2500ms] ease-out select-none ${
         isFadedIn ? 'opacity-100' : 'opacity-0'
       }`}
     >
@@ -106,7 +106,7 @@ export const AtmosphericRoom: React.FC<AtmosphericRoomProps> = ({
             top: '10.3704%',
             width: '13.5833%',
             height: '70.1111%',
-            transform: 'skew(2deg, 0deg)',
+            transform: 'skew(2.5deg, -1deg)',
           }}
         >
           <VirtualBookShelf

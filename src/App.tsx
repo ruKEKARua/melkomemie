@@ -529,6 +529,21 @@ function App() {
     fourth: 4,
   }));
 
+  // Lock window scroll when viewing the atmospheric book club room
+  useEffect(() => {
+    if (page === 'book-club') {
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+    };
+  }, [page]);
+
   const currentDisplayedPage: PageMode =
     !isAuthorized && page !== 'roulette'
       ? 'main'
@@ -537,7 +552,11 @@ function App() {
       : page;
 
   return (
-    <div className="min-h-screen bg-[#f4f6fa] dark:bg-[#090a0f] text-slate-900 dark:text-zinc-100 flex flex-col selection:bg-amber-500 selection:text-slate-950 transition-colors duration-200">
+    <div
+      className={`bg-[#f4f6fa] dark:bg-[#090a0f] text-slate-900 dark:text-zinc-100 flex flex-col selection:bg-amber-500 selection:text-slate-950 transition-colors duration-200 ${
+        page === 'book-club' ? 'h-screen max-h-screen overflow-hidden' : 'min-h-screen'
+      }`}
+    >
       {/* =========================================================================
           Sticky Glassmorphic Navigation Header (Unified across all pages)
           ========================================================================= */}
