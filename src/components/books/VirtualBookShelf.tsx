@@ -23,15 +23,15 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
 }) => {
   const [hoveredBookId, setHoveredBookId] = useState<number | null>(null);
 
-  // 15 books divided across the 4 wooden shelves of the cabinet:
-  // Shelf 1 (Top Cavity): books 0..3 (4 books)
-  // Shelf 2 (Second Cavity): books 4..7 (4 books)
-  // Shelf 3 (Third Cavity): books 8..11 (4 books)
-  // Shelf 4 (Bottom Cavity): books 12..14 (3 books)
-  const shelf1 = books.slice(0, 4);
-  const shelf2 = books.slice(4, 8);
-  const shelf3 = books.slice(8, 12);
-  const shelf4 = books.slice(12, 15);
+  // 6 books strictly divided across each of the 4 wooden shelves of the cabinet:
+  // Shelf 1 (Top Cavity): books 0..5 (6 books)
+  // Shelf 2 (Second Cavity): books 6..11 (6 books)
+  // Shelf 3 (Third Cavity): books 12..17 (6 books)
+  // Shelf 4 (Bottom Cavity): books 18..23 (6 books)
+  const shelf1 = books.slice(0, 6);
+  const shelf2 = books.slice(6, 12);
+  const shelf3 = books.slice(12, 18);
+  const shelf4 = books.slice(18, 24);
 
   const renderBook = (
     book: BookClubBook,
@@ -44,31 +44,30 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     const isTopShelf = shelfIndex === 0;
 
     // Organic height variations (natural library proportions)
-    const heightRatios = [0.93, 0.96, 0.90, 0.94];
+    const heightRatios = [0.93, 0.96, 0.90, 0.94, 0.92, 0.95];
     const heightRatio = heightRatios[index % heightRatios.length];
 
-    // 3D Geometry Dimensions:
+    // 3D Geometry Dimensions for 6 books per shelf:
     // 1. Front Cover (лицевая корочка слева, основная часть)
-    const coverWidthPx = Math.max(76, Math.round(86 * scale));
-    // 2. Side Spine (боковой корешок справа, ширина 14px-18px)
-    const spineWidthPx = Math.max(14, Math.round(16 * scale));
+    const coverWidthPx = Math.max(65, Math.round(74 * scale));
+    // 2. Side Spine (боковой корешок справа, ширина 14px-16px)
+    const spineWidthPx = Math.max(13, Math.round(15 * scale));
     // Total book width
     const totalBookWidthPx = coverWidthPx + spineWidthPx;
     // Top pages cut thickness
-    const topCutHeightPx = Math.max(7, Math.round(8.5 * scale));
+    const topCutHeightPx = Math.max(6.5, Math.round(7.5 * scale));
 
-    // Overlap math:
-    // In resting state, each book has negative margin-right, so the next book
-    // covers its front cover, leaving only the right spine (16px) + small edge of cover visible.
-    // The rightmost book has margin-right: 0 (its cover is fully exposed).
-    const overlapPx = coverWidthPx - Math.max(12, Math.round(16 * scale));
+    // Overlap math for 6 books:
+    // Visible step for each covered book = right spine (15px) + 11px edge of cover = ~26px.
+    const stepPx = Math.max(22, Math.round(26 * scale));
+    const overlapPx = totalBookWidthPx - stepPx;
     const restingMarginRight = isLastOnShelf ? 0 : -overlapPx;
 
     // On hover: margin-right expands, smoothly pushing all books to the right
     // and completely unveiling the front cover with the full book title!
     const hoverMarginRight = isLastOnShelf
       ? 0
-      : Math.max(8, Math.round(12 * scale));
+      : Math.max(6, Math.round(10 * scale));
 
     const marginRight = isHovered ? hoverMarginRight : restingMarginRight;
 
@@ -77,13 +76,13 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     // Hovered book immediately lifts to zIndex 50!
     const zIndex = isHovered ? 50 : index + 1;
 
-    // Typography
-    const titleFontSize = Math.max(10, Math.round(11.5 * scale));
+    // Typography (optimized for 6 books per shelf)
+    const titleFontSize = Math.max(9.5, Math.round(10.5 * scale));
 
     // Floating tooltip card dimensions
-    const cardWidth = Math.max(220, Math.round(250 * scale));
-    const coverThumbWidth = Math.max(38, Math.round(44 * scale));
-    const coverThumbHeight = Math.max(52, Math.round(60 * scale));
+    const cardWidth = Math.max(215, Math.round(245 * scale));
+    const coverThumbWidth = Math.max(36, Math.round(40 * scale));
+    const coverThumbHeight = Math.max(48, Math.round(56 * scale));
 
     const { topColor, bottomColor, accent } = parseSpineColors(book);
     const coverUrl = sanitizeGoogleBooksCover(book.coverUrl);
@@ -180,7 +179,9 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
 
             {/* If Shelves 1, 2, 3, beak points down */}
             {!isTopShelf && (
-              <div className="w-2.5 h-2.5 rotate-45 bg-amber-400/90 -mt-1.5 shadow-md border-r border-b border-black/40 z-20" />
+              <div
+                className={`w-2.5 h-2.5 rotate-45 bg-amber-400/90 -mt-1.5 shadow-md border-r border-b border-black/40 z-20`}
+              />
             )}
           </div>
         )}
@@ -188,7 +189,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
         {/* 
           3D BOOK VOLUME (ALL THREE PHYSICAL FACES ALWAYS VISIBLE):
           1. Front Cover (слева, основная часть с винтажным узором и полным названием)
-          2. Spine (справа, цилиндрический корешок 14px-18px с золотыми бинтиками)
+          2. Spine (справа, цилиндрический корешок 14px-16px с золотыми бинтиками)
           3. Top Pages Cut (сверху, бумажный срез страниц, создающий монолитную толщину книги)
         */}
         <div
@@ -246,7 +247,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
                 - Full title centered vertically without line-clamp truncation
                 ========================================================================= */}
             <div
-              className="relative h-full flex flex-col justify-between p-2 select-none border-t border-l border-b border-amber-400/35 rounded-l-[3px] overflow-hidden"
+              className="relative h-full flex flex-col justify-between p-1.5 select-none border-t border-l border-b border-amber-400/35 rounded-l-[3px] overflow-hidden"
               style={{
                 width: `${coverWidthPx}px`,
                 background: `linear-gradient(145deg, ${topColor} 0%, rgba(12,14,20,0.85) 60%, ${bottomColor} 100%)`,
@@ -269,46 +270,46 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
 
               {/* Vintage Embossed Gold Border Frame (отступ ~5px от края) */}
               <div
-                className="absolute inset-[5px] pointer-events-none border border-amber-400/40 rounded-xs z-10"
+                className="absolute inset-[4.5px] pointer-events-none border border-amber-400/40 rounded-xs z-10"
                 style={{
                   boxShadow: 'inset 0 0 4px rgba(0,0,0,0.45)',
                 }}
               >
                 {/* Secondary fine inner gold line (двойная рамка) */}
-                <div className="absolute inset-[2.5px] border border-amber-300/25 rounded-2xs" />
+                <div className="absolute inset-[2px] border border-amber-300/25 rounded-2xs" />
 
                 {/* Classic Corner Filigree Accents (фигурные золотые уголки) */}
-                <div className="absolute top-0.5 left-0.5 w-2 h-2 border-t-2 border-l-2 border-amber-300/70" />
-                <div className="absolute top-0.5 right-0.5 w-2 h-2 border-t-2 border-r-2 border-amber-300/70" />
-                <div className="absolute bottom-0.5 left-0.5 w-2 h-2 border-b-2 border-l-2 border-amber-300/70" />
-                <div className="absolute bottom-0.5 right-0.5 w-2 h-2 border-b-2 border-r-2 border-amber-300/70" />
+                <div className="absolute top-0.5 left-0.5 w-1.5 h-1.5 border-t-2 border-l-2 border-amber-300/70" />
+                <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 border-t-2 border-r-2 border-amber-300/70" />
+                <div className="absolute bottom-0.5 left-0.5 w-1.5 h-1.5 border-b-2 border-l-2 border-amber-300/70" />
+                <div className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 border-b-2 border-r-2 border-amber-300/70" />
 
                 {/* Background classical vignette watermark ornament */}
                 <div
-                  className="absolute inset-x-2 top-1/2 -translate-y-1/2 h-16 opacity-12 pointer-events-none flex items-center justify-center text-amber-300"
+                  className="absolute inset-x-1 top-1/2 -translate-y-1/2 h-14 opacity-12 pointer-events-none flex items-center justify-center text-amber-300"
                   style={{
                     backgroundImage:
                       'radial-gradient(ellipse at center, rgba(245,158,11,0.25) 0%, transparent 70%)',
                   }}
                 >
-                  <span className="text-3xl select-none font-serif">⚜</span>
+                  <span className="text-2xl select-none font-serif">⚜</span>
                 </div>
               </div>
 
               {/* Top: ONLY the rating badge (neatly aligned to the right, zero author clutter) */}
               <div className="relative z-20 w-full flex justify-end items-center">
-                <div className="shrink-0 bg-black/80 px-1.5 py-0.5 rounded border border-amber-400/50 flex items-center gap-1 shadow-sm">
-                  <span className="text-amber-400 text-[9px] font-black leading-none">★</span>
-                  <span className="text-amber-100 text-[9px] font-bold leading-none">
+                <div className="shrink-0 bg-black/80 px-1 py-0.5 rounded border border-amber-400/50 flex items-center gap-0.5 shadow-sm">
+                  <span className="text-amber-400 text-[8.5px] font-black leading-none">★</span>
+                  <span className="text-amber-100 text-[8.5px] font-bold leading-none">
                     {book.overallRating}
                   </span>
                 </div>
               </div>
 
               {/* Center Area: Full Title centered vertically without line-clamp truncation */}
-              <div className="relative z-20 flex-1 flex flex-col justify-center items-center text-center my-auto px-1 py-1">
+              <div className="relative z-20 flex-1 flex flex-col justify-center items-center text-center my-auto px-1 py-0.5">
                 <h3
-                  className="font-serif font-black text-white text-center leading-[1.16] select-none break-words line-clamp-6"
+                  className="font-serif font-black text-white text-center leading-[1.14] select-none break-words line-clamp-6"
                   style={{
                     fontSize: `${titleFontSize}px`,
                     textShadow:
@@ -320,16 +321,16 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
               </div>
 
               {/* Bottom: Published Year & Gold filigree marker */}
-              <div className="relative z-20 w-full flex items-center justify-between border-t border-amber-400/35 pt-1 mt-0.5">
-                <span className="text-[8px] text-zinc-300 font-mono">
+              <div className="relative z-20 w-full flex items-center justify-between border-t border-amber-400/35 pt-0.5 mt-0.5">
+                <span className="text-[7.5px] text-zinc-300 font-mono">
                   {book.publishedYear ? `${book.publishedYear} г.` : 'Клуб'}
                 </span>
-                <div className="w-1.5 h-1.5 rotate-45 bg-amber-400/70 shadow-xs" />
+                <div className="w-1 h-1 rotate-45 bg-amber-400/70 shadow-xs" />
               </div>
             </div>
 
             {/* =========================================================================
-                FACE 2: THE SPINE (Боковой корешок справа — 14px-18px)
+                FACE 2: THE SPINE (Боковой корешок справа — 13px-16px)
                 - Tightly adjoins the right edge of front cover
                 - Cylindrical lighting highlight (central specular sheen, shadowed edges)
                 - Horizontal transverse gold ribs (бинтики) at top and bottom
@@ -402,7 +403,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
   return (
     <div className="w-full h-full flex flex-col justify-between select-none">
       {/* 
-        SHELF 1 (Top Cavity: y = 112 to 314, height = 202px => 26.302% of cabinet)
+        SHELF 1 (Top Cavity: 6 books 0..5)
       */}
       <div
         className="w-full h-full flex items-end justify-start px-1"
@@ -415,7 +416,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
       <div style={{ height: '1.953%' }} />
 
       {/* 
-        SHELF 2 (Second Cavity: y = 329 to 508, height = 179px => 23.307% of cabinet)
+        SHELF 2 (Second Cavity: 6 books 6..11)
       */}
       <div
         className="w-full h-full flex items-end justify-start px-1"
@@ -428,7 +429,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
       <div style={{ height: '2.083%' }} />
 
       {/* 
-        SHELF 3 (Third Cavity: y = 524 to 705, height = 181px => 23.568% of cabinet)
+        SHELF 3 (Third Cavity: 6 books 12..17)
       */}
       <div
         className="w-full h-full flex items-end justify-start px-1"
@@ -441,14 +442,13 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
       <div style={{ height: '1.823%' }} />
 
       {/* 
-        SHELF 4 (Bottom Cavity: y = 718 to 879, height = 161px => 20.964% of cabinet)
-        3 Books aligned in cascade
+        SHELF 4 (Bottom Cavity: 6 books 18..23)
       */}
       <div
         className="w-full h-full flex items-end justify-start px-1"
         style={{ height: '20.964%' }}
       >
-        {shelf4.map((b, i) => renderBook(b, i, 3, 3))}
+        {shelf4.map((b, i) => renderBook(b, i, shelf4.length, 3))}
       </div>
     </div>
   );
