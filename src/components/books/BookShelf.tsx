@@ -21,7 +21,7 @@ export const BookShelf: React.FC<BookShelfProps> = ({ books, onSelectBook, onOpe
   const renderBookSpine = (book: BookClubBook, index: number) => {
     const isHovered = hoveredBookId === book.id;
     // Slight height variations for realistic library shelf feel
-    const heights = ['h-36 sm:h-40', 'h-38 sm:h-44', 'h-34 sm:h-38', 'h-37 sm:h-42', 'h-39 sm:h-43'];
+    const heights = ['h-36 sm:h-40', 'h-38 sm:h-44', 'h-35 sm:h-39', 'h-37 sm:h-42', 'h-39 sm:h-43'];
     const heightClass = heights[index % heights.length];
     const widths = ['w-7 sm:w-8.5', 'w-8 sm:w-9.5', 'w-7.5 sm:w-9', 'w-8.5 sm:w-10'];
     const widthClass = widths[index % widths.length];
@@ -36,14 +36,14 @@ export const BookShelf: React.FC<BookShelfProps> = ({ books, onSelectBook, onOpe
       >
         {/* Floating Tooltip above book on hover */}
         {isHovered && (
-          <div className="absolute -top-14 left-1/2 -translate-x-1/2 z-50 pointer-events-none whitespace-nowrap px-3 py-1.5 rounded-xl bg-slate-950/95 border border-amber-500/50 text-white text-xs shadow-2xl backdrop-blur-md flex flex-col items-center animate-fade-in">
+          <div className="absolute -top-14 left-1/2 -translate-x-1/2 z-50 pointer-events-none whitespace-nowrap px-3 py-1.5 rounded-xl bg-slate-950/95 border border-amber-500/60 text-white text-xs shadow-2xl backdrop-blur-md flex flex-col items-center animate-fade-in ring-1 ring-amber-400/30">
             <span className="font-bold text-amber-300 drop-shadow">{book.title}</span>
             <div className="flex items-center gap-2 text-[10px] text-zinc-300">
               <span>{book.author}</span>
               <span className="text-amber-400 font-bold">★ {book.overallRating}</span>
             </div>
             {/* Tooltip beak */}
-            <div className="w-2 h-2 rotate-45 bg-slate-950 border-r border-b border-amber-500/50 absolute -bottom-1" />
+            <div className="w-2 h-2 rotate-45 bg-slate-950 border-r border-b border-amber-500/60 absolute -bottom-1" />
           </div>
         )}
 
@@ -51,7 +51,7 @@ export const BookShelf: React.FC<BookShelfProps> = ({ books, onSelectBook, onOpe
         <div
           className={`relative ${widthClass} ${heightClass} rounded-t-sm rounded-b-xs shadow-lg transition-all duration-200 ease-out flex flex-col justify-between py-2 px-1 text-center border-l border-t border-white/20 border-r border-black/40 ${
             isHovered
-              ? '-translate-y-3.5 scale-105 shadow-[0_15px_30px_rgba(0,0,0,0.9)] ring-2 ring-amber-400/80 z-20'
+              ? '-translate-y-3.5 scale-105 shadow-[0_15px_30px_rgba(0,0,0,0.95)] ring-2 ring-amber-400/90 z-20'
               : 'hover:-translate-y-1'
           }`}
           style={{
@@ -103,21 +103,18 @@ export const BookShelf: React.FC<BookShelfProps> = ({ books, onSelectBook, onOpe
           </span>
         </div>
 
-        {/* "+ Открыть каталог / Выбрать книгу" */}
+        {/* "+ Добавить на полку / Каталог" */}
         <button
           onClick={onOpenCatalog}
           className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 hover:text-amber-200 border border-amber-500/40 text-xs font-bold transition shadow-sm cursor-pointer hover:scale-105"
         >
           <span>+</span>
-          <span>Каталог книг</span>
+          <span>Добавить на полку</span>
         </button>
       </div>
 
-      {/* Main Wooden Bookcase Body */}
-      <div className="relative rounded-2xl bg-gradient-to-b from-[#24140e] via-[#1c0f0a] to-[#140b07] border-[7px] border-[#381e14] shadow-[0_25px_60px_rgba(0,0,0,0.9),inset_0_2px_10px_rgba(255,200,150,0.1)] p-4 flex flex-col gap-4">
-        {/* Soft Ambient Inner Glow */}
-        <div className="pointer-events-none absolute inset-0 bg-radial from-amber-500/5 via-transparent to-black/40 rounded-xl" />
-
+      {/* Main Wooden Bookcase Body matching Screenshot 1 */}
+      <div className="relative rounded-2xl bg-gradient-to-b from-[#24140e] via-[#1c0f0a] to-[#140b07] border-[7px] border-[#381e14] shadow-[0_25px_60px_rgba(0,0,0,0.95),inset_0_2px_10px_rgba(255,200,150,0.1)] p-4 flex flex-col gap-4">
         {/* SHELF 1 (Top) */}
         <div className="relative flex flex-col justify-end pt-3">
           <div className="flex items-end justify-start gap-1.5 sm:gap-2 px-3 pb-0 min-h-[145px] sm:min-h-[160px]">
@@ -144,21 +141,21 @@ export const BookShelf: React.FC<BookShelfProps> = ({ books, onSelectBook, onOpe
               {shelf3.map(renderBookSpine)}
             </div>
 
-            {/* Right side of bottom shelf: cozy plaques */}
+            {/* Right side of bottom shelf: plaques matching Screenshot 1 */}
             <div className="flex flex-col gap-2 items-end pb-1 pr-1">
               <div
                 onClick={onOpenCatalog}
-                className="px-3 py-1 rounded-md bg-[#331c13] hover:bg-[#452619] border border-amber-500/30 text-[10px] font-bold text-amber-300 shadow-sm transition hover:scale-105 cursor-pointer flex items-center gap-1.5"
+                className="px-3 py-1 rounded-md bg-[#3a1d12] hover:bg-[#4a2618] border border-amber-500/40 text-[10px] font-bold text-amber-300 shadow-sm transition hover:scale-105 cursor-pointer flex items-center gap-1.5"
               >
-                <span>📖</span>
-                <span>Архив клуба 2026</span>
+                <span>🏆</span>
+                <span>Архив турниров 2026</span>
               </div>
               <div
                 onClick={onOpenCatalog}
-                className="px-3 py-1 rounded-md bg-[#1d2433] hover:bg-[#283247] border border-sky-500/30 text-[10px] font-bold text-sky-200 shadow-sm transition hover:scale-105 cursor-pointer flex items-center gap-1.5"
+                className="px-3 py-1 rounded-md bg-[#162136] hover:bg-[#20304e] border border-sky-500/40 text-[10px] font-bold text-sky-200 shadow-sm transition hover:scale-105 cursor-pointer flex items-center gap-1.5"
               >
-                <span>📜</span>
-                <span>15 прочитанных книг</span>
+                <span>📖</span>
+                <span>Энциклопедия Мелкомемья</span>
               </div>
             </div>
           </div>
