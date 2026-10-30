@@ -23,7 +23,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
 }) => {
   const [hoveredBookId, setHoveredBookId] = useState<number | null>(null);
 
-  // 15 books divided across the 4 wooden shelves of the cabinet:
+  // 15 books strictly divided across the 4 wooden shelves of the cabinet:
   // Shelf 1 (Top Cavity): books 0..3 (4 books)
   // Shelf 2 (Second Cavity): books 4..7 (4 books)
   // Shelf 3 (Third Cavity): books 8..11 (4 books)
@@ -43,37 +43,38 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     const isLastOnShelf = index === totalOnShelf - 1;
     const isTopShelf = shelfIndex === 0;
 
-    // Organic height variations (natural library proportions)
+    // Organic height variations (simulating real hardcovers on library shelves)
     const heightRatios = [0.93, 0.96, 0.90, 0.94];
     const heightRatio = heightRatios[index % heightRatios.length];
 
-    // Book geometry:
-    // Front Cover is on the LEFT, Spine is on the RIGHT.
-    // Total book width = coverWidth + spineWidth
-    const bookWidthPx = Math.max(90, Math.round(102 * scale));
-    const spineWidthPx = Math.max(24, Math.round(27 * scale));
-    const coverWidthPx = bookWidthPx - spineWidthPx;
+    // 3D Geometry Dimensions:
+    // Front Cover width (main face)
+    const coverWidthPx = Math.max(72, Math.round(82 * scale));
+    // Spine thickness (perpendicular 90-degree side wall)
+    const spineWidthPx = Math.max(22, Math.round(26 * scale));
 
     // Overlap math:
-    // In resting state, each book (except the last) has negative margin-right,
-    // so the next book to the right overlaps its front cover.
-    // Only the spine (and a tiny edge of cover) remains visible for covered books.
-    // The rightmost book has no book to its right, so its cover is fully visible!
-    const overlapPx = Math.max(50, Math.round(62 * scale));
-    const restingMarginRight = isLastOnShelf ? 0 : -overlapPx;
-    // On hover, margin-right expands to 6px, smoothly pushing all books to the right
+    // In resting state, each book has negative margin-right so the book to the right
+    // covers its front cover, leaving only its right spine + a small edge of cover visible.
+    // The rightmost book has margin-right: 0 (nothing covers it).
+    const restingMarginRight = isLastOnShelf
+      ? 0
+      : -Math.max(42, Math.round(52 * scale));
+
+    // On hover: margin-right expands, smoothly pushing all books to the right
     // and completely unveiling the front cover with the book title!
-    const hoverMarginRight = isLastOnShelf ? 0 : Math.max(4, Math.round(6 * scale));
+    const hoverMarginRight = isLastOnShelf
+      ? 0
+      : Math.max(6, Math.round(10 * scale));
 
     const marginRight = isHovered ? hoverMarginRight : restingMarginRight;
 
     // Stacking order:
-    // Books to the right overlap books to the left (zIndex increases from left to right: index + 1).
-    // When hovered, the hovered book lifts to zIndex 50!
-    const naturalZIndex = index + 1;
-    const zIndex = isHovered ? 50 : naturalZIndex;
+    // Right books stack above left books (zIndex = index + 1).
+    // Hovered book immediately lifts to zIndex 50!
+    const zIndex = isHovered ? 50 : index + 1;
 
-    // Dynamic typography
+    // Typography
     const titleFontSize = Math.max(10, Math.round(11.5 * scale));
     const authorFontSize = Math.max(7.5, Math.round(8.5 * scale));
     const starFontSize = Math.max(8, Math.round(9.5 * scale));
@@ -92,10 +93,11 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
         key={book.id}
         className="relative select-none cursor-pointer flex flex-col justify-end shrink-0"
         style={{
-          width: `${bookWidthPx}px`,
+          width: `${coverWidthPx}px`,
           height: `${heightRatio * 100}%`,
           marginRight: `${marginRight}px`,
           zIndex,
+          perspective: '1000px',
           transition:
             'margin-right 320ms cubic-bezier(0.16, 1, 0.3, 1), z-index 0ms',
         }}
@@ -110,7 +112,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
         {isHovered && (
           <div
             className={`absolute ${
-              isTopShelf ? 'top-[103%]' : 'bottom-[103%]'
+              isTopShelf ? 'top-[104%]' : 'bottom-[104%]'
             } left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-fade-in flex flex-col items-center`}
             style={{ width: `${cardWidth}px` }}
           >
@@ -184,204 +186,188 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
         )}
 
         {/* 
-          3D MODEL OF THE BOOK:
-          - Spine is on the RIGHT (faces forward/right towards viewer)
-          - Front Cover is on the LEFT (recedes into the shelf in perspective via rotateY(28deg))
-          - Resting: Books cascade from left to right; book to the right covers the left book's cover.
-          - Hover: The hovered book steps forward (translateZ), un-angles to rotateY(10deg) so its cover
-            faces the viewer, while expanding its margin-right to push right-hand books away!
+          TRUE 3D MONOLITHIC BOOK MODEL:
+          - transform-style: preserve-3d
+          - Resting: rotateY(-36deg) around the right edge. Viewer sees the front cover receding
+            leftwards, and the perpendicular 90-degree spine on the right.
+          - Hover: rotates to rotateY(-16deg), steps forward (translateZ), and expands margin-right
+            to smoothly part the neighboring books.
         */}
         <div
           className="relative w-full h-full select-none"
           style={{
-            perspective: '900px',
+            transformStyle: 'preserve-3d',
             transformOrigin: 'right center',
             transform: isHovered
-              ? `perspective(900px) rotateY(10deg) translateZ(${22 * scale}px) translateX(${8 * scale}px)`
-              : 'perspective(900px) rotateY(28deg) translateZ(0px) translateX(0px)',
+              ? `rotateY(-16deg) translateZ(${26 * scale}px) translateX(${10 * scale}px)`
+              : 'rotateY(-36deg) translateZ(0px) translateX(0px)',
             filter: isHovered ? 'brightness(1.15)' : 'brightness(1)',
             transition:
               'transform 320ms cubic-bezier(0.16, 1, 0.3, 1), filter 320ms ease',
           }}
         >
-          {/* Main 3D Book Assembly */}
+          {/* =========================================================================
+              FACE 1: FRONT COVER (Лицевая обложка)
+              - Recedes into the shelf in 3D perspective
+              - Clean rich leather base (NO ghosting or clipped author text)
+              - Full title centered vertically without line-clamp truncation
+              ========================================================================= */}
           <div
-            className={`relative w-full h-full flex rounded-l-[3px] rounded-r-[2px] ${
+            className={`relative w-full h-full flex flex-col justify-between px-2 py-2 select-none border-t border-l border-b border-amber-400/35 rounded-l-[3px] ${
               isHovered ? 'ring-1.5 ring-amber-400/90' : ''
             }`}
             style={{
+              background: `linear-gradient(135deg, ${topColor} 0%, ${bottomColor} 100%)`,
               boxShadow: isHovered
-                ? `-16px 14px 32px rgba(0, 0, 0, 0.95), -6px 4px 15px rgba(0, 0, 0, 0.7), 0 0 20px ${accent}44`
-                : '-4px 5px 12px rgba(0, 0, 0, 0.75), -1px 1px 3px rgba(0, 0, 0, 0.5)',
+                ? `-18px 16px 36px rgba(0, 0, 0, 0.95), -6px 4px 15px rgba(0, 0, 0, 0.7), 0 0 20px ${accent}44, inset 0 0 10px rgba(0,0,0,0.85)`
+                : '-4px 5px 12px rgba(0, 0, 0, 0.75), inset 0 0 10px rgba(0,0,0,0.85)',
               transition: 'box-shadow 320ms ease',
             }}
           >
-            {/* 
-              1. TOP PAGES CUT (Верхний срез страниц в перспективе):
-              Connects the spine on the right to the cover receding on the left!
-            */}
+            {/* Front cover surface gloss reflection */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/12 pointer-events-none rounded-l-[3px]" />
+
+            {/* Top Header on Cover: ONLY the rating badge (NO author text to avoid clutter/clipping) */}
+            <div className="relative z-10 w-full flex justify-end items-center">
+              <div className="shrink-0 bg-black/75 px-1.5 py-0.5 rounded border border-amber-400/50 flex items-center gap-1 shadow-xs">
+                <span className="text-amber-400 text-[9px] font-black leading-none">★</span>
+                <span className="text-amber-100 text-[9px] font-bold leading-none">
+                  {book.overallRating}
+                </span>
+              </div>
+            </div>
+
+            {/* Center Area: Full Title completely visible without truncation */}
+            <div className="relative z-10 flex-1 flex flex-col justify-center items-center text-center my-auto py-1">
+              <h3
+                className="font-serif font-black text-white text-center leading-[1.16] select-none break-words line-clamp-6"
+                style={{
+                  fontSize: `${titleFontSize}px`,
+                  textShadow:
+                    '0 1px 3px rgba(0,0,0,0.98), 0 0 3px rgba(0,0,0,0.9)',
+                }}
+              >
+                {book.title}
+              </h3>
+            </div>
+
+            {/* Bottom Bar: Publication Year & Decorative gold diamond */}
+            <div className="relative z-10 w-full flex items-center justify-between border-t border-amber-400/30 pt-1 mt-0.5">
+              <span className="text-[8px] text-zinc-300 font-mono">
+                {book.publishedYear ? `${book.publishedYear} г.` : 'Клуб'}
+              </span>
+              <div className="w-1.5 h-1.5 rotate-45 bg-amber-400/60" />
+            </div>
+          </div>
+
+          {/* =========================================================================
+              FACE 2: THE SPINE (Корешок — настоящая боковая грань под 90 градусов)
+              - Attached to the right edge of the front cover (left: 100%)
+              - Perpendicular: transform: rotateY(90deg), transform-origin: left center
+              - Width: spineWidthPx (~24-28px)
+              - Faces forward/right towards the room and viewer
+              ========================================================================= */}
+          <div
+            className="absolute top-0 bottom-0 flex flex-col justify-between overflow-hidden select-none border-t border-r border-b border-black/70 rounded-r-[2px]"
+            style={{
+              left: '100%',
+              width: `${spineWidthPx}px`,
+              transformOrigin: 'left center',
+              transform: 'rotateY(90deg)',
+              background: `linear-gradient(180deg, ${topColor} 0%, ${bottomColor} 100%)`,
+              boxShadow: 'inset -2px 0 4px rgba(0,0,0,0.5)',
+            }}
+          >
+            {/* 3D Convex Lighting highlight */}
             <div
-              className="absolute -top-[7px] right-0 left-[6px] h-[8px] bg-[#eae0cf] border-t border-r border-white/40 pointer-events-none z-30"
+              className="absolute inset-0 pointer-events-none z-20"
               style={{
-                transform: 'skewX(26deg)',
-                transformOrigin: 'bottom right',
-                backgroundImage:
-                  'repeating-linear-gradient(90deg, #eae0cf 0px, #cbbca5 1px, #eae0cf 2px)',
-                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3)',
+                background:
+                  'linear-gradient(90deg, rgba(0,0,0,0.65) 0%, rgba(255,255,255,0.25) 30%, rgba(0,0,0,0.15) 75%, rgba(0,0,0,0.7) 100%)',
               }}
             />
 
-            {/* 
-              2. FRONT COVER (Лицевая обложка с титульным названием):
-              - Sits on the LEFT side of the book
-              - Recedes in 3D perspective into the depth of the shelf
-              - Shows horizontal title, author, year, rating, and cover artwork
-              - When hovered, turns towards the viewer and is fully exposed!
-            */}
+            {/* Top Silk Headband (Каптал) */}
             <div
-              className="relative h-full overflow-hidden flex flex-col justify-between p-1.5 sm:p-2 select-none border-t border-l border-b border-white/15 rounded-l-[3px]"
+              className="w-full h-[2.5px] shrink-0 opacity-85 z-10"
               style={{
-                width: `${coverWidthPx}px`,
-                background: `linear-gradient(135deg, ${topColor} 0%, ${bottomColor} 100%)`,
-                boxShadow: 'inset -2px 0 6px rgba(0,0,0,0.8)',
+                background:
+                  'repeating-linear-gradient(90deg, #d4af37 0px, #d4af37 2px, #2b1810 2px, #2b1810 4px)',
               }}
-            >
-              {/* Cover image backdrop if available */}
-              {coverUrl && (
-                <img
-                  src={coverUrl}
-                  alt={book.title}
-                  className="absolute inset-0 w-full h-full object-cover pointer-events-none opacity-45 filter contrast-125"
-                  loading="eager"
-                />
-              )}
+            />
 
-              {/* High contrast gradient overlay for razor-sharp title legibility */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/75 to-black/35 pointer-events-none z-10" />
-
-              {/* Cover surface glare reflection */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/12 pointer-events-none z-10" />
-
-              {/* Top: Author & Rating */}
-              <div className="relative z-20 flex items-center justify-between gap-1">
-                <span className="text-[8.5px] font-bold uppercase tracking-wider text-amber-300 truncate">
-                  {book.author}
-                </span>
-                <span className="shrink-0 text-[8.5px] font-black text-amber-300 bg-black/60 px-1 py-0.5 rounded border border-amber-400/40 leading-none">
-                  ★ {book.overallRating}
-                </span>
-              </div>
-
-              {/* Center: Prominent Horizontal Title ("Титульное название") */}
-              <div className="relative z-20 flex flex-col gap-0.5 my-auto py-1">
-                <h3
-                  className="font-serif font-black text-white leading-tight drop-shadow-md line-clamp-3"
-                  style={{
-                    fontSize: `${titleFontSize}px`,
-                    textShadow:
-                      '0 1px 3px rgba(0,0,0,0.98), 0 0 3px rgba(0,0,0,0.9)',
-                  }}
-                >
-                  {book.title}
-                </h3>
-              </div>
-
-              {/* Bottom: Published Year & Gold filigree marker */}
-              <div className="relative z-20 flex items-center justify-between border-t border-amber-400/30 pt-1">
-                <span className="text-[8px] text-zinc-300 font-mono">
-                  {book.publishedYear ? `${book.publishedYear} г.` : 'Клуб'}
-                </span>
-                <div className="w-1.5 h-1.5 rotate-45 bg-amber-400/60" />
-              </div>
-
-              {/* Dark crease line connecting cover to the spine on the right */}
-              <div className="absolute inset-y-0 right-0 w-[1.5px] bg-black/85 z-20 pointer-events-none" />
+            {/* Author Last Name at top of spine */}
+            <div className="w-full text-center px-0.5 pt-1 z-10 shrink-0">
+              <span
+                className="font-bold tracking-widest uppercase block truncate text-amber-200/90"
+                style={{
+                  fontSize: `${authorFontSize}px`,
+                  fontFamily: 'Georgia, serif',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.95)',
+                }}
+              >
+                {authorLastName}
+              </span>
             </div>
 
-            {/* 
-              3. THE SPINE (Корешок книги):
-              - Sits on the RIGHT side of the book (facing viewer/room)
-              - Rounded right edge
-              - Authentic cylindrical lighting highlight
-              - Top/bottom silk headbands (каптал)
-              - Embossed raised ribs (бинтики)
-              - Author last name & Star rating
-            */}
-            <div
-              className="relative h-full flex flex-col justify-between overflow-hidden select-none border-r border-t border-b border-black/70 rounded-r-[2px]"
-              style={{
-                width: `${spineWidthPx}px`,
-                background: `linear-gradient(180deg, ${topColor} 0%, ${bottomColor} 100%)`,
-                boxShadow: 'inset -2px 0 4px rgba(0,0,0,0.5)',
-              }}
-            >
-              {/* 3D Convex Spine Cylindrical Lighting Sheen */}
-              <div
-                className="absolute inset-0 pointer-events-none z-20"
-                style={{
-                  background:
-                    'linear-gradient(90deg, rgba(0,0,0,0.6) 0%, rgba(255,255,255,0.25) 30%, rgba(0,0,0,0.15) 75%, rgba(0,0,0,0.7) 100%)',
-                }}
-              />
-
-              {/* Top Silk Headband (Каптал) */}
-              <div
-                className="w-full h-[2.5px] shrink-0 opacity-85 z-10"
-                style={{
-                  background:
-                    'repeating-linear-gradient(90deg, #d4af37 0px, #d4af37 2px, #2b1810 2px, #2b1810 4px)',
-                }}
-              />
-
-              {/* Author at top of spine */}
-              <div className="w-full text-center px-0.5 pt-1 z-10 shrink-0">
-                <span
-                  className="font-bold tracking-widest uppercase block truncate text-amber-200/90"
-                  style={{
-                    fontSize: `${authorFontSize}px`,
-                    fontFamily: 'Georgia, serif',
-                    textShadow: '0 1px 2px rgba(0,0,0,0.95)',
-                  }}
-                >
-                  {authorLastName}
-                </span>
-              </div>
-
-              {/* Upper Raised Band (Бинтик) */}
-              <div className="w-full px-0.5 my-0.5 shrink-0 z-10 pointer-events-none">
-                <div className="w-full h-[1.5px] bg-white/20 border-b border-black/60 shadow-xs" />
-              </div>
-
-              {/* Spine Middle Accent Strip */}
-              <div className="flex-1 flex items-center justify-center z-10">
-                <div className="w-0.5 h-full max-h-[70%] bg-amber-400/40 rounded-full" />
-              </div>
-
-              {/* Lower Raised Band (Бинтик) */}
-              <div className="w-full px-0.5 my-0.5 shrink-0 z-10 pointer-events-none">
-                <div className="w-full h-[1.5px] bg-white/20 border-b border-black/60 shadow-xs" />
-              </div>
-
-              {/* Star Rating on Spine */}
-              <div className="w-full flex items-center justify-center pb-1 pt-0.5 z-10 shrink-0">
-                <span
-                  className="text-amber-400 font-bold"
-                  style={{ fontSize: `${starFontSize}px` }}
-                >
-                  ★
-                </span>
-              </div>
-
-              {/* Bottom Silk Headband (Каптал) */}
-              <div
-                className="w-full h-[2px] shrink-0 opacity-85 z-10"
-                style={{
-                  background:
-                    'repeating-linear-gradient(90deg, #d4af37 0px, #d4af37 2px, #2b1810 2px, #2b1810 4px)',
-                }}
-              />
+            {/* Upper Raised Rib (Бинтик) */}
+            <div className="w-full px-0.5 my-0.5 shrink-0 z-10 pointer-events-none">
+              <div className="w-full h-[1.5px] bg-white/20 border-b border-black/60 shadow-xs" />
             </div>
+
+            {/* Middle Spine Accent Line */}
+            <div className="flex-1 flex items-center justify-center z-10">
+              <div className="w-0.5 h-full max-h-[70%] bg-amber-400/40 rounded-full" />
+            </div>
+
+            {/* Lower Raised Rib (Бинтик) */}
+            <div className="w-full px-0.5 my-0.5 shrink-0 z-10 pointer-events-none">
+              <div className="w-full h-[1.5px] bg-white/20 border-b border-black/60 shadow-xs" />
+            </div>
+
+            {/* Star Rating on Spine */}
+            <div className="w-full flex items-center justify-center pb-1 pt-0.5 z-10 shrink-0">
+              <span
+                className="text-amber-400 font-bold"
+                style={{ fontSize: `${starFontSize}px` }}
+              >
+                ★
+              </span>
+            </div>
+
+            {/* Bottom Silk Headband (Каптал) */}
+            <div
+              className="w-full h-[2px] shrink-0 opacity-85 z-10"
+              style={{
+                background:
+                  'repeating-linear-gradient(90deg, #d4af37 0px, #d4af37 2px, #2b1810 2px, #2b1810 4px)',
+              }}
+            />
           </div>
+
+          {/* =========================================================================
+              FACE 3: TOP PAGES CUT (Верхний срез страниц — монолитный стык под 90°)
+              - Attached to the top edge of front cover (top: 0, left: 0)
+              - Width: 100% of cover
+              - Height: spineWidthPx (book thickness)
+              - Folded back 90 degrees: transform: rotateX(-90deg), transform-origin: top center
+              - Seamlessly closes the 3D volume between front cover and perpendicular spine!
+              ========================================================================= */}
+          <div
+            className="absolute top-0 left-0 pointer-events-none z-30"
+            style={{
+              width: '100%',
+              height: `${spineWidthPx}px`,
+              transformOrigin: 'top center',
+              transform: 'rotateX(-90deg)',
+              background: '#eadecc',
+              backgroundImage:
+                'repeating-linear-gradient(90deg, #eadecc 0px, #cbbca5 1px, #eadecc 2px)',
+              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.25)',
+              borderRight: '1px solid rgba(0,0,0,0.4)',
+              borderLeft: '1px solid rgba(255,255,255,0.3)',
+            }}
+          />
         </div>
       </div>
     );
