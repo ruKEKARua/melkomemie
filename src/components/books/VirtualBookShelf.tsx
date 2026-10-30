@@ -49,7 +49,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
 
     // 3D Geometry Dimensions for 6 books per shelf:
     // 1. Front Cover (лицевая корочка слева, основная часть)
-    const coverWidthPx = Math.max(65, Math.round(74 * scale));
+    const coverWidthPx = Math.max(68, Math.round(78 * scale));
     // 2. Side Spine (боковой корешок справа, ширина 14px-16px)
     const spineWidthPx = Math.max(13, Math.round(15 * scale));
     // Total book width
@@ -63,11 +63,12 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     const overlapPx = totalBookWidthPx - stepPx;
     const restingMarginRight = isLastOnShelf ? 0 : -overlapPx;
 
-    // On hover: margin-right expands, smoothly pushing all books to the right
-    // and completely unveiling the front cover with the full book title!
+    // On hover: eliminated the gap between books completely!
+    // The next book sits snugly against the hovered book's spine with a slight 3-4px underlap.
+    // This removes the black void entirely and prevents the cursor from losing hover.
     const hoverMarginRight = isLastOnShelf
       ? 0
-      : Math.max(6, Math.round(10 * scale));
+      : -Math.max(2, Math.round(4 * scale));
 
     const marginRight = isHovered ? hoverMarginRight : restingMarginRight;
 
@@ -76,8 +77,8 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     // Hovered book immediately lifts to zIndex 50!
     const zIndex = isHovered ? 50 : index + 1;
 
-    // Typography (optimized for 6 books per shelf)
-    const titleFontSize = Math.max(9.5, Math.round(10.5 * scale));
+    // Typography: sized to fit even the longest titles without ellipsis
+    const titleFontSize = Math.max(9, Math.round(10 * scale));
 
     // Floating tooltip card dimensions
     const cardWidth = Math.max(215, Math.round(245 * scale));
@@ -98,7 +99,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
           zIndex,
           perspective: '1000px',
           transition:
-            'margin-right 320ms cubic-bezier(0.16, 1, 0.3, 1), z-index 0ms',
+            'margin-right 300ms cubic-bezier(0.16, 1, 0.3, 1), z-index 0ms',
         }}
         onMouseEnter={() => setHoveredBookId(book.id)}
         onMouseLeave={() => setHoveredBookId(null)}
@@ -106,7 +107,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
       >
         {/* 
           Hover Information Tooltip:
-          Floats above the shelf without obstructing the physical book cover
+          Floats above/below the shelf with pointer-events-none so it never interferes with cursor
         */}
         {isHovered && (
           <div
@@ -187,21 +188,21 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
         )}
 
         {/* 
-          3D BOOK VOLUME (ALL THREE PHYSICAL FACES ALWAYS VISIBLE):
-          1. Front Cover (слева, основная часть с винтажным узором и полным названием)
-          2. Spine (справа, цилиндрический корешок 14px-16px с золотыми бинтиками)
-          3. Top Pages Cut (сверху, бумажный срез страниц, создающий монолитную толщину книги)
+          3D BOOK VOLUME:
+          - Stable horizontal position (translateX: 0px) to guarantee cursor never slips off
+          - Steps forward in 3D (translateZ) and turns face towards user (rotateY: -6deg)
+          - Next book touches seamlessly against the right spine with zero gap
         */}
         <div
           className="relative w-full h-full select-none"
           style={{
             transformOrigin: 'right center',
             transform: isHovered
-              ? `perspective(1000px) rotateY(-8deg) translateZ(${22 * scale}px) translateX(${8 * scale}px) scale(1.02)`
+              ? `perspective(1000px) rotateY(-6deg) translateZ(${20 * scale}px) translateX(0px) scale(1.02)`
               : 'perspective(1000px) rotateY(-18deg) translateZ(0px) translateX(0px)',
             filter: isHovered ? 'brightness(1.15)' : 'brightness(1)',
             transition:
-              'transform 320ms cubic-bezier(0.16, 1, 0.3, 1), filter 320ms ease',
+              'transform 300ms cubic-bezier(0.16, 1, 0.3, 1), filter 300ms ease',
           }}
         >
           {/* Main Book Shell */}
@@ -213,13 +214,11 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
               boxShadow: isHovered
                 ? `-18px 16px 36px rgba(0, 0, 0, 0.95), -6px 4px 15px rgba(0, 0, 0, 0.7), 0 0 24px ${accent}44`
                 : '-5px 6px 14px rgba(0, 0, 0, 0.78), -1px 2px 4px rgba(0, 0, 0, 0.55)',
-              transition: 'box-shadow 320ms ease',
+              transition: 'box-shadow 300ms ease',
             }}
           >
             {/* =========================================================================
                 FACE 3: TOP PAGES CUT (Верхний бумажный срез страниц)
-                - Light cream parchment block with paper page striations
-                - Skewed in perspective to bridge the top of cover and spine seamlessly
                 ========================================================================= */}
             <div
               className="absolute pointer-events-none z-30"
@@ -241,10 +240,6 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
 
             {/* =========================================================================
                 FACE 1: FRONT COVER (Лицевая корочка слева — винтажный переплет)
-                - Rich leather texture with dark vignette (inset box-shadow)
-                - Embossed double gold border frame with ornate filigree corners
-                - Clean top header (ONLY the rating badge, no clipped author text)
-                - Full title centered vertically without line-clamp truncation
                 ========================================================================= */}
             <div
               className="relative h-full flex flex-col justify-between p-1.5 select-none border-t border-l border-b border-amber-400/35 rounded-l-[3px] overflow-hidden"
@@ -268,17 +263,17 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
               {/* Diagonal front cover satin sheen */}
               <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.05] to-white/[0.12] pointer-events-none" />
 
-              {/* Vintage Embossed Gold Border Frame (отступ ~5px от края) */}
+              {/* Vintage Embossed Gold Border Frame */}
               <div
                 className="absolute inset-[4.5px] pointer-events-none border border-amber-400/40 rounded-xs z-10"
                 style={{
                   boxShadow: 'inset 0 0 4px rgba(0,0,0,0.45)',
                 }}
               >
-                {/* Secondary fine inner gold line (двойная рамка) */}
+                {/* Secondary fine inner gold line */}
                 <div className="absolute inset-[2px] border border-amber-300/25 rounded-2xs" />
 
-                {/* Classic Corner Filigree Accents (фигурные золотые уголки) */}
+                {/* Classic Corner Filigree Accents */}
                 <div className="absolute top-0.5 left-0.5 w-1.5 h-1.5 border-t-2 border-l-2 border-amber-300/70" />
                 <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 border-t-2 border-r-2 border-amber-300/70" />
                 <div className="absolute bottom-0.5 left-0.5 w-1.5 h-1.5 border-b-2 border-l-2 border-amber-300/70" />
@@ -296,7 +291,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
                 </div>
               </div>
 
-              {/* Top: ONLY the rating badge (neatly aligned to the right, zero author clutter) */}
+              {/* Top: ONLY the rating badge */}
               <div className="relative z-20 w-full flex justify-end items-center">
                 <div className="shrink-0 bg-black/80 px-1 py-0.5 rounded border border-amber-400/50 flex items-center gap-0.5 shadow-sm">
                   <span className="text-amber-400 text-[8.5px] font-black leading-none">★</span>
@@ -306,10 +301,10 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
                 </div>
               </div>
 
-              {/* Center Area: Full Title centered vertically without line-clamp truncation */}
+              {/* Center Area: Full Title centered vertically without cutoffs */}
               <div className="relative z-20 flex-1 flex flex-col justify-center items-center text-center my-auto px-1 py-0.5">
                 <h3
-                  className="font-serif font-black text-white text-center leading-[1.14] select-none break-words line-clamp-6"
+                  className="font-serif font-black text-white text-center leading-[1.14] select-none break-words line-clamp-7"
                   style={{
                     fontSize: `${titleFontSize}px`,
                     textShadow:
@@ -331,10 +326,6 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
 
             {/* =========================================================================
                 FACE 2: THE SPINE (Боковой корешок справа — 13px-16px)
-                - Tightly adjoins the right edge of front cover
-                - Cylindrical lighting highlight (central specular sheen, shadowed edges)
-                - Horizontal transverse gold ribs (бинтики) at top and bottom
-                - Silk headbands (каптал) peeking out at top and bottom
                 ========================================================================= */}
             <div
               className="relative h-full flex flex-col justify-between overflow-hidden select-none border-t border-r border-b border-black/80 rounded-r-[2px]"
@@ -346,7 +337,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
                   'inset -2px 0 5px rgba(0,0,0,0.7), inset 1px 0 2px rgba(255,255,255,0.1)',
               }}
             >
-              {/* 3D Cylindrical lighting sheen (central specular highlight, shadowed sides) */}
+              {/* 3D Cylindrical lighting sheen */}
               <div
                 className="absolute inset-0 pointer-events-none z-20"
                 style={{
