@@ -26,7 +26,7 @@ export const AtmosphericRoom: React.FC<AtmosphericRoomProps> = ({
       if (stageRef.current) {
         const h = stageRef.current.clientHeight;
         if (h > 0) {
-          setScale(h / 1080);
+          setScale((h / 1080) * 1.1157);
         }
       }
     };
@@ -69,7 +69,11 @@ export const AtmosphericRoom: React.FC<AtmosphericRoomProps> = ({
           loop
           muted
           playsInline
-          className="w-full h-full object-cover filter blur-3xl opacity-35 scale-105"
+          className="w-full h-full object-cover filter blur-3xl opacity-35"
+          style={{
+            transform: 'translateY(-11.57%) scale(1.15)',
+            transformOrigin: 'top center',
+          }}
         />
         <div className="absolute inset-0 bg-radial from-transparent via-[#090a0f]/60 to-[#090a0f]" />
       </div>
@@ -84,37 +88,50 @@ export const AtmosphericRoom: React.FC<AtmosphericRoomProps> = ({
         ref={stageRef}
         className="relative aspect-video h-full max-h-full max-w-full overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.9)] z-10 flex items-center justify-center"
       >
-        {/* Crystal clear stabilized atmospheric room video */}
-        <video
-          key={`main-${videoSrc}`}
-          src={videoSrc}
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-full object-fill pointer-events-none"
-        />
-
         {/* 
-          Virtual Bookcase Overlay:
-          Tuned with user's exact coordinates and perspective skew
+          Raised Scene Plan:
+          The entire room scene is shifted upwards so the top moulding of the wooden bookcase
+          rests directly against the header with zero gap, perfectly matching the user's framing.
         */}
         <div
-          className="absolute z-20 pointer-events-auto"
+          className="relative w-full h-full"
           style={{
-            left: '6.3333%',
-            top: '10.3704%',
-            width: '13.5833%',
-            height: '70.1111%',
-            transform: 'skew(2.5deg, -1deg)',
+            transform: 'translateY(-11.57%) scale(1.1157)',
+            transformOrigin: 'top center',
           }}
         >
-          <VirtualBookShelf
-            books={books}
-            onSelectBook={onSelectBook}
-            onOpenCatalog={onOpenCatalog}
-            scale={scale}
+          {/* Crystal clear stabilized atmospheric room video */}
+          <video
+            key={`main-${videoSrc}`}
+            src={videoSrc}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-full object-fill pointer-events-none"
           />
+
+          {/* 
+            Virtual Bookcase Overlay:
+            Locked directly to the video's wooden cabinet
+          */}
+          <div
+            className="absolute z-20 pointer-events-auto"
+            style={{
+              left: '6.3333%',
+              top: '10.3704%',
+              width: '13.5833%',
+              height: '70.1111%',
+              transform: 'skew(2.5deg, -1deg)',
+            }}
+          >
+            <VirtualBookShelf
+              books={books}
+              onSelectBook={onSelectBook}
+              onOpenCatalog={onOpenCatalog}
+              scale={scale}
+            />
+          </div>
         </div>
       </div>
     </div>
