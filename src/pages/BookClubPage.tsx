@@ -4,6 +4,10 @@ import {
   fetchLiveBookClubList,
   type BookClubBook,
 } from '../api/bookClubData';
+import {
+  getCachedBookClubBooks,
+  preloadAndCacheBookCovers,
+} from '../api/bookCache';
 import AtmosphericRoom from '../components/books/AtmosphericRoom';
 import BookDetailView from '../components/books/BookDetailView';
 
@@ -15,13 +19,24 @@ interface BookClubPageProps {
 }
 
 export const BookClubPage: React.FC<BookClubPageProps> = () => {
-  const [books, setBooks] = useState<BookClubBook[]>(INITIAL_BOOK_CLUB_BOOKS);
-  const [selectedBook, setSelectedBook] = useState<BookClubBook>(INITIAL_BOOK_CLUB_BOOKS[0]);
+  // Synchronous zero-latency startup: instantly hydrate from localStorage cache if available
+  const [books, setBooks] = useState<BookClubBook[]>(() => {
+    const cached = getCachedBookClubBooks();
+    return cached && cached.length > 0 ? cached : INITIAL_BOOK_CLUB_BOOKS;
+  });
+
+  const [selectedBook, setSelectedBook] = useState<BookClubBook>(() => {
+    const cached = getCachedBookClubBooks();
+    return cached && cached.length > 0 ? cached[0] : INITIAL_BOOK_CLUB_BOOKS[0];
+  });
+
   const [viewMode, setViewMode] = useState<'room' | 'detail'>('room');
 
-  // Load latest live books from Google Sheets asynchronously on mount
+  // Background live update from Google Sheets and preload covers
   useEffect(() => {
     let isMounted = true;
+
+    // Trigger non-blocking live sync in background
     fetchLiveBookClubList().then((liveBooks) => {
       if (isMounted && liveBooks && liveBooks.length > 0) {
         setBooks(liveBooks);
@@ -29,11 +44,25 @@ export const BookClubPage: React.FC<BookClubPageProps> = () => {
           const match = liveBooks.find((b) => b.id === prev.id);
           return match || liveBooks[0];
         });
+
+        // Preload any missing covers in background
+        preloadAndCacheBookCovers(liveBooks);
       }
     });
 
+    // Handle cache reset event
+    const handleCacheCleared = () => {
+      if (isMounted) {
+        setBooks(INITIAL_BOOK_CLUB_BOOKS);
+        setSelectedBook(INITIAL_BOOK_CLUB_BOOKS[0]);
+      }
+    };
+
+    window.addEventListener('mm_books_cache_cleared', handleCacheCleared);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('mm_books_cache_cleared', handleCacheCleared);
     };
   }, []);
 

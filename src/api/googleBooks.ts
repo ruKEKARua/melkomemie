@@ -1,4 +1,9 @@
 import { sanitizeGoogleBooksCover } from './bookClubData';
+import {
+  getCachedBookDetails,
+  setCachedBookDetails,
+  type EnrichedBookDetails,
+} from './bookCache';
 
 export interface GoogleBookVolumeInfo {
   title?: string;
@@ -54,20 +59,20 @@ function cleanDescription(html?: string): string | undefined {
 
 /**
  * Searches Google Books API for extra metadata and covers without edge curl.
+ * Results are persistently cached in localStorage with 14-day TTL.
  */
 export async function fetchGoogleBookDetails(
   title: string,
   author?: string,
   apiKey?: string,
-): Promise<{
-  coverUrl?: string;
-  publisher?: string;
-  publishedYear?: string;
-  description?: string;
-  pageCount?: number;
-  categories?: string[];
-  language?: string;
-} | null> {
+  bookId?: number | string,
+): Promise<EnrichedBookDetails | null> {
+  const cacheKey = bookId ?? title;
+  const cached = getCachedBookDetails(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const envKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GOOGLE_BOOKS_API_KEY) || '';
   const effectiveKey = (apiKey || envKey).trim();
   const keyParam = effectiveKey ? `&key=${encodeURIComponent(effectiveKey)}` : '';
@@ -78,6 +83,7 @@ export async function fetchGoogleBookDetails(
   try {
     const res = await fetch(url);
     if (!res.ok) {
+      // If 429 quota reached or other status, gracefully return null without breaking the UI
       console.warn(`Google Books API status ${res.status} for query: ${title}`);
       return null;
     }
@@ -107,7 +113,7 @@ export async function fetchGoogleBookDetails(
     const cleanedDesc = cleanDescription(vi.description);
     const publishedYear = vi.publishedDate ? vi.publishedDate.slice(0, 4) : undefined;
 
-    return {
+    const result: EnrichedBookDetails = {
       coverUrl,
       publisher: vi.publisher,
       publishedYear,
@@ -116,6 +122,9 @@ export async function fetchGoogleBookDetails(
       categories: vi.categories,
       language: vi.language === 'ru' ? 'Русский' : vi.language,
     };
+
+    setCachedBookDetails(cacheKey, result);
+    return result;
   } catch (err) {
     console.warn(`Error fetching Google Books metadata for "${title}":`, err);
     return null;

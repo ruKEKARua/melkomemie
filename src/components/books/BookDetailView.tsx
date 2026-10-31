@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { BookClubBook, BookParticipant } from '../../api/bookClubData';
 import { fetchGoogleBookDetails } from '../../api/googleBooks';
+import { getCachedBookCover, getCachedBookDetails } from '../../api/bookCache';
 
 interface BookDetailViewProps {
   books: BookClubBook[];
@@ -149,17 +150,17 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
     description?: string;
     pageCount?: number;
     categories?: string[];
-  } | null>(null);
+  } | null>(() => getCachedBookDetails(selectedBook.id));
 
   const [imageError, setImageError] = useState(false);
 
   // When selectedBook changes, try background enrichment from Google Books
   useEffect(() => {
     setImageError(false);
-    setEnrichedData(null);
+    setEnrichedData(getCachedBookDetails(selectedBook.id));
 
     let isMounted = true;
-    fetchGoogleBookDetails(selectedBook.title, selectedBook.author).then((details) => {
+    fetchGoogleBookDetails(selectedBook.title, selectedBook.author, undefined, selectedBook.id).then((details) => {
       if (isMounted && details) {
         setEnrichedData(details);
       }
@@ -170,7 +171,11 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
     };
   }, [selectedBook.id, selectedBook.title, selectedBook.author]);
 
+  const cachedCover = getCachedBookCover(selectedBook.id);
   const activeCover =
+    !imageError && cachedCover
+      ? cachedCover
+      :
     !imageError && enrichedData?.coverUrl
       ? enrichedData.coverUrl
       : !imageError && selectedBook.coverUrl

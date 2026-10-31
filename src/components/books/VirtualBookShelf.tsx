@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { sanitizeGoogleBooksCover, type BookClubBook } from '../../api/bookClubData';
+import { getCachedBookCover } from '../../api/bookCache';
 
 interface VirtualBookShelfProps {
   books: BookClubBook[];
@@ -446,9 +447,9 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
                   height: `${coverThumbHeight}px`,
                 }}
               >
-                {sanitizeGoogleBooksCover(hoveredBook.coverUrl) ? (
+                {(getCachedBookCover(hoveredBook.id) || sanitizeGoogleBooksCover(hoveredBook.coverUrl)) ? (
                   <img
-                    src={sanitizeGoogleBooksCover(hoveredBook.coverUrl)}
+                    src={getCachedBookCover(hoveredBook.id) || sanitizeGoogleBooksCover(hoveredBook.coverUrl) || ''}
                     alt={hoveredBook.title}
                     className="w-full h-full object-cover block"
                     loading="eager"

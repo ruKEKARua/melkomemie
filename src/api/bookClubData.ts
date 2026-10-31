@@ -1,3 +1,8 @@
+import {
+  getCachedBookClubBooks,
+  setCachedBookClubBooks,
+} from './bookCache';
+
 export interface BookParticipant {
   name: string;
   score: string;
@@ -321,7 +326,7 @@ export const INITIAL_BOOK_CLUB_BOOKS: BookClubBook[] = [
     translator: 'С. Шаров',
     genres: ['Научная фантастика', 'Психологическая драма', 'Роман воспитания'],
     pageCount: 320,
-    coverUrl: 'https://upload.wikimedia.org/wikipedia/ru/3/30/Flowers_for_Algernon.jpg',
+    coverUrl: 'https://books.google.com/books/content?vid=ISBN9785699183067&printsec=frontcover&img=1&zoom=1',
     description:
       'Пронзительная гуманистическая трагедия о цене гениальности и природе человеческой души. 32-летний Чарли Гордон, умственно отсталый уборщик в пекарне, соглашается на экспериментальную операцию на мозге, уже успешно проведённую на лабораторной мыши по имени Элджернон. По мере взрывного роста IQ Чарли осознаёт жестокость окружающего мира, но вскоре замечает первые признаки регресса у Элджернона.',
     spineColor: 'from-[#0369a1] to-[#082f49]',
@@ -544,16 +549,28 @@ export async function fetchLiveBookClubList(): Promise<BookClubBook[]> {
   try {
     const url =
       'https://docs.google.com/spreadsheets/d/1F4z-LBQWf2tRt64x0yYhUK3-Evk1k8L9R_C93kNiZY8/export?format=csv&gid=1331064884';
-    const response = await fetch(url, { cache: 'no-cache' });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 7000);
+    const response = await fetch(url, { cache: 'no-cache', signal: controller.signal });
+    clearTimeout(timeoutId);
     if (!response.ok) {
-      console.warn('Google Sheets Book Club export response not OK, using static fallback');
-      return INITIAL_BOOK_CLUB_BOOKS;
+      console.warn('Google Sheets Book Club export response not OK, using cache/static fallback');
+      const cached = getCachedBookClubBooks();
+      return cached && cached.length > 0 ? cached : INITIAL_BOOK_CLUB_BOOKS;
+  
     }
     const csv = await response.text();
     const parsed = parseBookClubCsv(csv);
-    return parsed.length > 0 ? parsed : INITIAL_BOOK_CLUB_BOOKS;
+    if (parsed.length > 0) {
+      setCachedBookClubBooks(parsed);
+      return parsed;
+    }
+    const cached = getCachedBookClubBooks();
+    return cached && cached.length > 0 ? cached : INITIAL_BOOK_CLUB_BOOKS;
   } catch (err) {
-    console.warn('Failed to fetch live Google Sheet for Book Club, using static fallback:', err);
-    return INITIAL_BOOK_CLUB_BOOKS;
+    console.warn('Failed to fetch live Google Sheet for Book Club, using cache/static fallback:', err);
+    const cached = getCachedBookClubBooks();
+    return cached && cached.length > 0 ? cached : INITIAL_BOOK_CLUB_BOOKS;
+
   }
 }
