@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { getPopularMoviesFromSource, type NormalizedMovie } from '../api/movieSource';
+import { useState } from 'react';
+import type { NormalizedMovie } from '../api/movieSource';
 import { getMovieImageUrl } from '../api/tmdbImage';
 import type { MovieSheetEntry } from '../api/googleSheets';
-import { searchMoviesWithTmdbFallback } from './searchMoviesWithTmdbFallback';
+import { useMovieEntrySearch } from '../hooks/useMovieEntrySearch';
 
 type ParticipantScore = {
   name: string;
@@ -28,91 +28,46 @@ const createEmptyParticipant = (): ParticipantScore => ({
   score: '',
 });
 
-const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryPageProps) => {
+const MovieEntryPage = ({
+  participantNames,
+  onSave,
+  onSaveSuccess,
+}: MovieEntryPageProps) => {
   const [form, setForm] = useState<MovieEntryForm>({
     date: '',
     title: '',
     participants: [createEmptyParticipant()],
   });
-  const [results, setResults] = useState<NormalizedMovie[]>([]);
   const [searchResultsView, setSearchResultsView] = useState<SearchResultsView>('list');
-  const [isSearching, setIsSearching] = useState(false);
-  const [selectedMovie, setSelectedMovie] = useState<NormalizedMovie | null>(null);
-  const [placeholder, setPlaceholder] = useState('Например: Дурак');
-  const [errors, setErrors] = useState<{ date?: string; title?: string; participants?: string }>({});
+  const [errors, setErrors] = useState<{
+    date?: string;
+    title?: string;
+    participants?: string;
+  }>({});
   const [saveError, setSaveError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [savedMovieTitle, setSavedMovieTitle] = useState('');
-  const requestIdRef = useRef(0);
-  const searchTimeoutRef = useRef<number | undefined>(undefined);
 
-  useEffect(() => {
-    const randomPage = Math.floor(Math.random() * 5) + 1;
-
-    getPopularMoviesFromSource(randomPage)
-      .then((items) => {
-        const slice = items.slice(0, 5);
-        if (slice.length === 0) return;
-
-        const randomIndex = Math.floor(Math.random() * slice.length);
-        const sample = slice[randomIndex];
-        const title = sample.title || sample.original_title || 'Дурак';
-
-        setPlaceholder(`Например: ${title}`);
-      })
-      .catch(() => {
-        const fallbackTitles = ['Дурак', 'Операция «С Новым годом»', 'Территория', 'Вызов', 'Лето'];
-        setPlaceholder(`Например: ${fallbackTitles[Math.floor(Math.random() * fallbackTitles.length)]}`);
-      });
-  }, []);
+  const {
+    results,
+    isSearching,
+    selectedMovie,
+    setSelectedMovie,
+    placeholder,
+    searchMovies,
+    clearSearch,
+  } = useMovieEntrySearch();
 
   const handleTitleChange = (value: string) => {
-    const trimmedValue = value.trim();
-    const currentRequestId = ++requestIdRef.current;
-
     setForm((current) => ({ ...current, title: value }));
-
-    if (!trimmedValue) {
-      if (searchTimeoutRef.current !== undefined) {
-        window.clearTimeout(searchTimeoutRef.current);
-        searchTimeoutRef.current = undefined;
-      }
-      setResults([]);
-      setSelectedMovie(null);
-      setIsSearching(false);
-      return;
-    }
-
-    setIsSearching(true);
-
-    if (searchTimeoutRef.current !== undefined) {
-      window.clearTimeout(searchTimeoutRef.current);
-    }
-
-    searchTimeoutRef.current = window.setTimeout(() => {
-      searchMoviesWithTmdbFallback(trimmedValue)
-        .then((movies) => {
-          if (currentRequestId !== requestIdRef.current) return;
-          setResults(movies);
-          setSelectedMovie((current) => current ?? movies[0] ?? null);
-        })
-        .catch((error) => {
-          console.error('Ошибка поиска фильма:', error);
-          if (currentRequestId === requestIdRef.current) {
-            setResults([]);
-            setSelectedMovie(null);
-          }
-        })
-        .finally(() => {
-          if (currentRequestId === requestIdRef.current) setIsSearching(false);
-          searchTimeoutRef.current = undefined;
-        });
-    }, 450);
+    searchMovies(value);
   };
 
   const hasParticipantErrors = (participants: ParticipantScore[]) =>
-    participants.some((participant) => !participant.name.trim() || !participant.score.trim());
+    participants.some(
+      (participant) => !participant.name.trim() || !participant.score.trim()
+    );
 
   const validateForm = () => {
     const nextErrors: { date?: string; title?: string; participants?: string } = {};
@@ -126,7 +81,8 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
     }
 
     if (hasParticipantErrors(form.participants)) {
-      nextErrors.participants = 'Для каждого участника укажите имя и оценку от 0 до 10';
+      nextErrors.participants =
+        'Для каждого участника укажите имя и оценку от 0 до 10';
     }
 
     setErrors(nextErrors);
@@ -152,13 +108,14 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
         })),
       });
       setForm({ date: '', title: '', participants: [createEmptyParticipant()] });
-      setResults([]);
-      setSelectedMovie(null);
+      clearSearch();
       setErrors({});
       setSavedMovieTitle(savedTitle);
       setIsSuccessModalOpen(true);
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Не удалось сохранить запись');
+      setSaveError(
+        error instanceof Error ? error.message : 'Не удалось сохранить запись'
+      );
     } finally {
       setIsSaving(false);
     }
@@ -190,9 +147,16 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
     }));
   };
 
-  const updateParticipantRow = (index: number, field: keyof ParticipantScore, value: string) => {
-    const updatedParticipants = form.participants.map((participant, participantIndex) =>
-      participantIndex === index ? { ...participant, [field]: value } : participant,
+  const updateParticipantRow = (
+    index: number,
+    field: keyof ParticipantScore,
+    value: string
+  ) => {
+    const updatedParticipants = form.participants.map(
+      (participant, participantIndex) =>
+        participantIndex === index
+          ? { ...participant, [field]: value }
+          : participant
     );
     setForm((current) => ({
       ...current,
@@ -206,7 +170,9 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
   const removeParticipantRow = (index: number) => {
     const participants =
       form.participants.length > 1
-        ? form.participants.filter((_, participantIndex) => participantIndex !== index)
+        ? form.participants.filter(
+            (_, participantIndex) => participantIndex !== index
+          )
         : [createEmptyParticipant()];
     setForm((current) => ({
       ...current,
@@ -218,7 +184,7 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
   };
 
   const selectedParticipantNames = new Set(
-    form.participants.map((participant) => participant.name).filter(Boolean),
+    form.participants.map((participant) => participant.name).filter(Boolean)
   );
 
   return (
@@ -238,7 +204,10 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="grid gap-8 lg:grid-cols-[1.1fr_1fr] items-start">
+      <form
+        onSubmit={handleSubmit}
+        className="grid gap-8 lg:grid-cols-[1.1fr_1fr] items-start"
+      >
         {/* Left Column: Date & Live Search Results */}
         <div className="flex flex-col gap-6">
           {/* Date Picker Box */}
@@ -260,7 +229,11 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
                   Сегодня
                 </button>
               </div>
-              {errors.date && <span className="text-xs text-rose-500 dark:text-rose-400 mt-1">{errors.date}</span>}
+              {errors.date && (
+                <span className="text-xs text-rose-500 dark:text-rose-400 mt-1">
+                  {errors.date}
+                </span>
+              )}
             </label>
           </div>
 
@@ -270,7 +243,10 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
               <h2 className="text-sm font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
                 Результаты поиска фильма
               </h2>
-              <div className="flex gap-1 rounded-lg bg-slate-100 dark:bg-[#090a10] p-0.5 border border-slate-200 dark:border-white/10" role="group">
+              <div
+                className="flex gap-1 rounded-lg bg-slate-100 dark:bg-[#090a10] p-0.5 border border-slate-200 dark:border-white/10"
+                role="group"
+              >
                 <button
                   type="button"
                   onClick={() => setSearchResultsView('list')}
@@ -328,7 +304,8 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
                   : 'https://placehold.co/185x278/131620/94a3b8?text=No+Poster';
 
                 const isSelected =
-                  selectedMovie?.id === movie.id && selectedMovie?.source === movie.source;
+                  selectedMovie?.id === movie.id &&
+                  selectedMovie?.source === movie.source;
 
                 return (
                   <button
@@ -389,12 +366,17 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
               onChange={(event) => {
                 const title = event.target.value;
                 handleTitleChange(title);
-                if (title.trim()) setErrors((c) => ({ ...c, title: undefined }));
+                if (title.trim())
+                  setErrors((c) => ({ ...c, title: undefined }));
               }}
               placeholder={placeholder}
               className="rounded-xl border border-slate-300 dark:border-white/15 bg-slate-50 dark:bg-[#090a10] px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 transition"
             />
-            {errors.title && <span className="text-xs text-rose-500 dark:text-rose-400">{errors.title}</span>}
+            {errors.title && (
+              <span className="text-xs text-rose-500 dark:text-rose-400">
+                {errors.title}
+              </span>
+            )}
           </label>
 
           {/* Participants & Scores Section */}
@@ -420,19 +402,32 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
 
             <div className="flex flex-col gap-2.5 max-h-96 overflow-y-auto pr-1">
               {form.participants.map((participant, index) => (
-                <div key={index} className="grid grid-cols-[1fr_5rem_2.5rem] gap-2 items-center">
+                <div
+                  key={index}
+                  className="grid grid-cols-[1fr_5rem_2.5rem] gap-2 items-center"
+                >
                   <select
                     value={participant.name}
-                    onChange={(event) => updateParticipantRow(index, 'name', event.target.value)}
+                    onChange={(event) =>
+                      updateParticipantRow(index, 'name', event.target.value)
+                    }
                     className="rounded-xl border border-slate-300 dark:border-white/15 bg-slate-50 dark:bg-[#090a10] px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
                   >
                     <option value="">
-                      {participantNames.length > 0 ? 'Выберите участника' : 'Участники не загружены'}
+                      {participantNames.length > 0
+                        ? 'Выберите участника'
+                        : 'Участники не загружены'}
                     </option>
                     {participantNames
-                      .filter((name) => name === participant.name || !selectedParticipantNames.has(name))
+                      .filter(
+                        (name) =>
+                          name === participant.name ||
+                          !selectedParticipantNames.has(name)
+                      )
                       .map((name) => (
-                        <option key={name} value={name}>{name}</option>
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
                       ))}
                   </select>
 
@@ -442,7 +437,9 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
                     max="10"
                     step="0.1"
                     value={participant.score}
-                    onChange={(event) => updateParticipantRow(index, 'score', event.target.value)}
+                    onChange={(event) =>
+                      updateParticipantRow(index, 'score', event.target.value)
+                    }
                     placeholder="Балл"
                     className="rounded-xl border border-slate-300 dark:border-white/15 bg-slate-50 dark:bg-[#090a10] px-2 py-2 text-xs text-center font-bold text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
                   />
@@ -477,7 +474,9 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
               )}
             </button>
             {saveError && (
-              <span className="text-xs text-rose-500 dark:text-rose-400 text-center">{saveError}</span>
+              <span className="text-xs text-rose-500 dark:text-rose-400 text-center">
+                {saveError}
+              </span>
             )}
           </div>
         </div>
@@ -495,7 +494,10 @@ const MovieEntryPage = ({ participantNames, onSave, onSaveSuccess }: MovieEntryP
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mb-4 border border-emerald-500/40 text-2xl">
               ✓
             </div>
-            <h2 id="movie-save-success-title" className="text-xl font-bold text-slate-900 dark:text-white">
+            <h2
+              id="movie-save-success-title"
+              className="text-xl font-bold text-slate-900 dark:text-white"
+            >
               Фильм успешно добавлен!
             </h2>
             <p className="mt-2 text-xs text-slate-600 dark:text-zinc-300">

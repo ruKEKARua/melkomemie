@@ -539,7 +539,7 @@ export function parseBookClubCsv(csvText: string): BookClubBook[] {
     (book, index, self) => index === self.findIndex((b) => b.id === book.id)
   );
 
-  return uniqueBooks.length > 0 ? uniqueBooks : INITIAL_BOOK_CLUB_BOOKS;
+  return uniqueBooks;
 }
 
 /**

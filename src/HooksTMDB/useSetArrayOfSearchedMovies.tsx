@@ -94,6 +94,8 @@ const useSetArrayOfSearchedMovies = (titles: string[], source?: MovieSource): Us
 
       // 2. Load missing movies in sequence (Kinopoisk queue respects 250ms spacing)
       let currentLoaded = cached.size;
+      const batchSize = getResponsiveBatchSize();
+      let pendingBatchUpdates = 0;
 
       for (let i = 0; i < titles.length; i++) {
         if (cancelled) break;
@@ -115,24 +117,23 @@ const useSetArrayOfSearchedMovies = (titles: string[], source?: MovieSource): Us
               backdrop_path: resolved.backdrop_path ?? '',
             };
             currentLoaded++;
-            setLoadedCount(currentLoaded);
-            // Progressive update: update Redux state immediately so posters and hero backdrop appear without delay
-            dispatch(setFoundMovies([...movies]));
+            pendingBatchUpdates++;
+
+            // Batch updates to avoid excessive re-renders while keeping UI responsive
+            if (pendingBatchUpdates >= batchSize) {
+              pendingBatchUpdates = 0;
+              setLoadedCount(currentLoaded);
+              dispatch(setFoundMovies([...movies]));
+            }
           }
         } catch (error) {
           console.error(`[useSetArrayOfSearchedMovies] Error loading "${title}":`, error);
         }
-
-        if (cancelled) break;
-
-        if (i === titles.length - 1) {
-          dispatch(setFoundMovies([...movies]));
-        }
       }
 
       if (!cancelled) {
-        dispatch(setFoundMovies([...movies]));
         setLoadedCount(titles.length);
+        dispatch(setFoundMovies([...movies]));
         setIsLoaded(true);
       }
     }

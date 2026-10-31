@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { MovieRatings } from './useGetMovies';
 import type { MovieSheetEntry } from '../api/googleSheets';
+import { parseDateInput } from '../utils/dateFormat';
 
 type EditableParticipant = {
   name: string;
@@ -11,21 +12,6 @@ type UseEditMovieOptions = {
   movie?: MovieRatings;
   participantNames: string[];
   onSave?: (entry: MovieSheetEntry) => Promise<void>;
-};
-
-const parseDateInput = (date: string) => {
-  const isoDate = date.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-  if (isoDate) {
-    return `${isoDate[1]}-${isoDate[2].padStart(2, '0')}-${isoDate[3].padStart(2, '0')}`;
-  }
-
-  const localizedDate = date.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/);
-  if (!localizedDate) {
-    return '';
-  }
-
-  const year = localizedDate[3].length === 2 ? `20${localizedDate[3]}` : localizedDate[3];
-  return `${year}-${localizedDate[2].padStart(2, '0')}-${localizedDate[1].padStart(2, '0')}`;
 };
 
 const emptyParticipant = (): EditableParticipant => ({ name: '', score: '' });

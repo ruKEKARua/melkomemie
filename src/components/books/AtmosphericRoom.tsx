@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { BookClubBook } from '../../api/bookClubData';
 import VirtualBookShelf from './VirtualBookShelf';
+import { useStageScale } from '../../hooks/useStageScale';
 
 interface AtmosphericRoomProps {
   books: BookClubBook[];
@@ -16,32 +17,7 @@ export const AtmosphericRoom: React.FC<AtmosphericRoomProps> = ({
   const stageRef = useRef<HTMLDivElement>(null);
   // Smooth 2.5s atmospheric fade-in state
   const [isFadedIn, setIsFadedIn] = useState(false);
-  const [scale, setScale] = useState(1);
-
-  // Track the exact scale factor based on stage height vs 1080p native height
-  // Automatically scales fonts and popups proportionally on FullHD, 2K, 4K, and laptops
-  useEffect(() => {
-    const updateScale = () => {
-      if (stageRef.current) {
-        const h = stageRef.current.clientHeight;
-        if (h > 0) {
-          setScale((h / 1080) * 1.1157);
-        }
-      }
-    };
-
-    updateScale();
-    const ro = new ResizeObserver(() => updateScale());
-    if (stageRef.current) {
-      ro.observe(stageRef.current);
-    }
-    window.addEventListener('resize', updateScale);
-
-    return () => {
-      ro.disconnect();
-      window.removeEventListener('resize', updateScale);
-    };
-  }, []);
+  const scale = useStageScale(stageRef);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -122,7 +98,6 @@ export const AtmosphericRoom: React.FC<AtmosphericRoomProps> = ({
               width: '18.5833%',
               height: '70.1111%',
               transform: 'skew(1.5deg, 0deg) perspective(500px) rotateY(8deg)',
-
             }}
           >
             <VirtualBookShelf

@@ -1,5 +1,12 @@
 import type { BookClubBook } from './bookClubData';
 import { DEFAULT_BOOK_COVERS } from './bookCoversData';
+import {
+  isLocalStorageAvailable,
+  purgeExpiredStorageRecords,
+  clearStorageByPrefix,
+} from '../utils/storageCache';
+
+export { isLocalStorageAvailable };
 
 const KEY_PREFIX = 'mm_book_';
 const LIST_KEY = `${KEY_PREFIX}list`;
@@ -23,20 +30,6 @@ type CacheRecord<T> = {
   cachedAt: number;
 };
 
-export function isLocalStorageAvailable(): boolean {
-  if (typeof window === 'undefined' || !window.localStorage) {
-    return false;
-  }
-  try {
-    const testKey = '__mm_book_storage_test__';
-    window.localStorage.setItem(testKey, '1');
-    window.localStorage.removeItem(testKey);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Normalizes book title for fuzzy cache lookups
  */
@@ -52,75 +45,20 @@ export function normalizeBookKey(title: string): string {
  * Purges old/expired book cache entries if localStorage quota is tight
  */
 export function tryPurgeOldBookCache(): void {
-  if (typeof window === 'undefined' || !window.localStorage) return;
-
-  try {
-    const now = Date.now();
-    const keysToRemove: string[] = [];
-
-    for (let i = 0; i < window.localStorage.length; i++) {
-      const key = window.localStorage.key(i);
-      if (key && key.startsWith(KEY_PREFIX)) {
-        try {
-          const raw = window.localStorage.getItem(key);
-          if (raw) {
-            const parsed = JSON.parse(raw) as { cachedAt?: number };
-            if (parsed.cachedAt && now - parsed.cachedAt > CACHE_TTL_MS) {
-              keysToRemove.push(key);
-            }
-          }
-        } catch {
-          // If corrupted, mark for removal
-          keysToRemove.push(key);
-        }
-      }
-    }
-
-    for (const key of keysToRemove) {
-      window.localStorage.removeItem(key);
-    }
-  } catch (error) {
-    console.warn('[bookCache] Error during cache cleanup:', error);
-  }
+  purgeExpiredStorageRecords(KEY_PREFIX, CACHE_TTL_MS);
 }
 
 /**
- * Seeds and caches default base64 covers into localStorage.
- * Ensures instant 0ms offline availability on first load.
+ * Seeds and caches default base64 covers into localStorage if needed.
+ * Kept for backwards compatibility, not executed automatically to avoid quota bloat.
  */
 export function initializeDefaultBookCovers(): void {
-  if (typeof window === 'undefined' || !window.localStorage) return;
-
-  try {
-    for (const [idStr, dataUrl] of Object.entries(DEFAULT_BOOK_COVERS)) {
-      const id = Number(idStr);
-      const coverKey = `${COVER_PREFIX}${id}`;
-      // Only set if not already present or if we have high-quality embedded base64
-      const existing = window.localStorage.getItem(coverKey);
-      if (!existing && dataUrl) {
-        window.localStorage.setItem(
-          coverKey,
-          JSON.stringify({
-            data: dataUrl,
-            cachedAt: Date.now(),
-          }),
-        );
-      }
-    }
-  } catch (error) {
-    console.warn('[bookCache] Failed to initialize default book covers:', error);
-    tryPurgeOldBookCache();
-  }
-}
-
-// Automatically seed on module load in browser
-if (typeof window !== 'undefined') {
-  initializeDefaultBookCovers();
+  // No-op by default: DEFAULT_BOOK_COVERS is served directly from memory to save quota.
 }
 
 /**
  * Retrieves the cached base64 or URL cover for a book.
- * Falls back to embedded base64 dictionary if not in localStorage.
+ * Falls back to embedded base64 dictionary if not in localStorage without bloating storage.
  */
 export function getCachedBookCover(id: number): string | null {
   if (typeof window === 'undefined' || !window.localStorage) {
@@ -140,15 +78,8 @@ export function getCachedBookCover(id: number): string | null {
     console.warn(`[bookCache] Error reading cover for book ${id}:`, error);
   }
 
-  // Fallback to embedded default cover
-  const embedded = DEFAULT_BOOK_COVERS[id];
-  if (embedded) {
-    // Save to localStorage for future instant sync
-    setCachedBookCover(id, embedded);
-    return embedded;
-  }
-
-  return null;
+  // Fallback to embedded default cover in-memory (does not rewrite to localStorage)
+  return DEFAULT_BOOK_COVERS[id] || null;
 }
 
 /**
@@ -314,14 +245,14 @@ export async function convertAndCacheBookCover(id: number, url: string): Promise
 }
 
 /**
- * Asynchronously preloads and caches covers for all books in background
+ * Asynchronously preloads and caches covers for all books in background using small batches
  */
 export async function preloadAndCacheBookCovers(books: BookClubBook[]): Promise<void> {
-  for (const book of books) {
-    const currentCover = getCachedBookCover(book.id);
-    if (!currentCover && book.coverUrl) {
-      await convertAndCacheBookCover(book.id, book.coverUrl);
-    }
+  const batchSize = 3;
+  const missingCovers = books.filter((book) => !getCachedBookCover(book.id) && book.coverUrl);
+  for (let i = 0; i < missingCovers.length; i += batchSize) {
+    const chunk = missingCovers.slice(i, i + batchSize);
+    await Promise.allSettled(chunk.map((book) => convertAndCacheBookCover(book.id, book.coverUrl!)));
   }
 }
 
@@ -329,23 +260,8 @@ export async function preloadAndCacheBookCovers(books: BookClubBook[]): Promise<
  * Clears all Book Club related data from localStorage
  */
 export function clearBookCache(): void {
-  if (typeof window === 'undefined' || !window.localStorage) return;
-
-  try {
-    const keysToRemove: string[] = [];
-    for (let i = 0; i < window.localStorage.length; i++) {
-      const key = window.localStorage.key(i);
-      if (key && key.startsWith(KEY_PREFIX)) {
-        keysToRemove.push(key);
-      }
-    }
-
-    for (const key of keysToRemove) {
-      window.localStorage.removeItem(key);
-    }
-
+  clearStorageByPrefix(KEY_PREFIX);
+  if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('mm_books_cache_cleared'));
-  } catch (error) {
-    console.warn('[bookCache] Failed to clear book cache:', error);
   }
 }

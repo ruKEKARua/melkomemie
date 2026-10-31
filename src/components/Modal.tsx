@@ -1,19 +1,22 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useCallback, useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { closeModal } from '../store/openModal';
 import useGetMovieInfo from '../HooksTMDB/useGetMovieInfo';
 import type { MovieRatings } from '../HooksExcelMovies/useGetMovies';
-import { useEditMovie } from '../HooksExcelMovies/useEditMovie';
 import type { MovieSheetEntry } from '../api/googleSheets';
 import { getMovieImageUrl } from '../api/tmdbImage';
 import type { MovieSource } from '../api/movieSource';
+import { useEditMovie } from '../HooksExcelMovies/useEditMovie';
+import { formatDate, formatDateFromExcel } from '../utils/dateFormat';
+import { ModalOverlay } from './modals/ModalOverlay';
+import { MovieEditForm } from './modals/MovieEditForm';
+import { ParticipantRatingRow } from './shared/ParticipantRatingRow';
 
 type ModalProps = {
-  isHidden?: string;
-  movie_ID: number;
+  isHidden: string;
+  movie_ID?: number;
   source?: MovieSource;
-  ratings: MovieRatings[];
+  ratings?: MovieRatings[];
   excelMovieTitle?: string;
   fallbackTitle?: string;
   participantNames?: string[];
@@ -21,188 +24,11 @@ type ModalProps = {
   onClose?: () => void;
 };
 
-function formatDate(dateStr?: string): string {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-');
-  if (!year || !month) return dateStr;
-
-  const months = [
-    'января', 'февраля', 'марта', 'апреля',
-    'мая', 'июня', 'июля', 'августа',
-    'сентября', 'октября', 'ноября', 'декабря',
-  ];
-
-  const monthIdx = Number(month) - 1;
-  const monthName = months[monthIdx] ?? month;
-  return day ? `${Number(day)} ${monthName} ${year}` : `${monthName} ${year}`;
-}
-
-function formatDateFromExcel(date: string): string {
-  const normalizedDate = date.trim();
-  const match = normalizedDate.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/)
-    || normalizedDate.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/);
-
-  if (!match) {
-    return normalizedDate;
-  }
-
-  const [, first, second, third] = match;
-  const day = Number(first.length === 4 ? third : first);
-  const month = Number(first.length === 4 ? second : second);
-  const year = Number(first.length === 4 ? first : third);
-
-  const months = [
-    'января', 'февраля', 'марта', 'апреля',
-    'мая', 'июня', 'июля', 'августа',
-    'сентября', 'октября', 'ноября', 'декабря',
-  ];
-
-  return `${day} ${months[month - 1] ?? month} ${year}`;
-}
-
-function getRatingBadgeColor(scoreStr?: string | number) {
-  if (scoreStr === undefined || scoreStr === null || scoreStr === '') {
-    return 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border-slate-300 dark:border-zinc-700';
-  }
-  const num = typeof scoreStr === 'number' ? scoreStr : parseFloat(String(scoreStr).replace(',', '.'));
-  if (isNaN(num)) {
-    return 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border-slate-300 dark:border-zinc-700';
-  }
-
-  if (num >= 7.5) {
-    return 'bg-emerald-500/15 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 dark:border-emerald-500/40';
-  }
-  if (num >= 6.0) {
-    return 'bg-amber-500/15 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/30 dark:border-amber-500/40';
-  }
-  return 'bg-[#78350f]/15 dark:bg-[#78350f]/30 text-[#78350f] dark:text-amber-200 border-[#92400e]/30 dark:border-[#92400e]/40';
-}
-
-interface ParticipantRatingItemProps {
-  rating: {
-    userName: string;
-    scores: (string | number)[];
-  };
-  index: number;
-}
-
-const ParticipantRatingItem = ({ rating, index }: ParticipantRatingItemProps) => {
-  const [showTooltip, setShowTooltip] = useState(false);
-  const [coords, setCoords] = useState<{ top: number; left: number; placeBelow: boolean } | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const rowRef = useRef<HTMLDivElement>(null);
-
-  const rawName = rating.userName ?? '';
-  const hasAsterisk = rawName.includes('*');
-  const userInitial = rawName.trim() ? rawName.trim()[0].toUpperCase() : '?';
-
-  const handleMouseEnter = () => {
-    if (!hasAsterisk) return;
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      const rect = rowRef.current?.getBoundingClientRect();
-      if (rect) {
-        const placeBelow = rect.top < 80;
-        setCoords({
-          top: placeBelow ? rect.bottom + 8 : rect.top - 8,
-          left: rect.left + rect.width / 2,
-          placeBelow,
-        });
-        setShowTooltip(true);
-      }
-    }, 2500);
-  };
-
-  const handleMouseLeave = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    setShowTooltip(false);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!showTooltip) return;
-    const handleScroll = () => {
-      setShowTooltip(false);
-    };
-    window.addEventListener('scroll', handleScroll, true);
-    return () => {
-      window.removeEventListener('scroll', handleScroll, true);
-    };
-  }, [showTooltip]);
-
-  const rowClasses = hasAsterisk
-    ? 'bg-amber-100 hover:bg-amber-200/80 border-amber-300 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 dark:border-amber-500/40 shadow-xs'
-    : 'bg-white dark:bg-white/[0.04] hover:bg-slate-100 dark:hover:bg-white/[0.07] border-slate-200/60 dark:border-transparent';
-
-  const nameClasses = hasAsterisk
-    ? 'text-amber-950 dark:text-amber-100 font-bold'
-    : 'text-slate-800 dark:text-zinc-200 font-medium';
-
-  const avatarClasses = hasAsterisk
-    ? 'bg-amber-400/40 text-amber-950 dark:bg-amber-400/25 dark:text-amber-200 border-amber-400/70 dark:border-amber-400/40 font-black'
-    : 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30 font-bold';
-
-  const tooltipText = 'Просмотр был незадолго до или после просмотра киноклубом';
-
-  return (
-    <div
-      ref={rowRef}
-      key={`${rating.userName}-${index}`}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      className={`relative flex items-center justify-between p-2.5 rounded-xl border transition-all duration-200 ${rowClasses}`}
-    >
-      <div className="flex items-center gap-2.5 min-w-0">
-        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs border ${avatarClasses}`}>
-          {userInitial}
-        </div>
-        <span className={`text-sm truncate ${nameClasses}`}>
-          {rating.userName}
-        </span>
-      </div>
-      <span
-        className={`px-2.5 py-0.5 rounded-md text-xs font-black border ${
-          hasAsterisk ? 'bg-white/85 dark:bg-black/40 shadow-xs ' : ''
-        }${getRatingBadgeColor(rating.scores[0])}`}
-      >
-        {rating.scores[0] ?? '—'}
-      </span>
-
-      {showTooltip &&
-        coords &&
-        createPortal(
-          <div
-            style={{
-              top: coords.top,
-              left: coords.left,
-              transform: coords.placeBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
-            }}
-            className="fixed z-[9999] pointer-events-none px-3.5 py-2 rounded-xl bg-slate-900/95 dark:bg-[#141824]/95 text-amber-100 dark:text-amber-200 text-xs font-medium shadow-2xl border border-amber-500/50 backdrop-blur-md max-w-xs text-center animate-fade-in flex items-center gap-2"
-          >
-            <span className="text-amber-400 text-sm shrink-0">ℹ️</span>
-            <span className="leading-snug">{tooltipText}</span>
-          </div>,
-          document.body,
-        )}
-    </div>
-  );
-};
-
 const Modal = ({
   isHidden = 'hidden',
   movie_ID,
   source = 'tmdb',
-  ratings,
+  ratings = [],
   excelMovieTitle,
   fallbackTitle,
   participantNames = [],
@@ -211,57 +37,24 @@ const Modal = ({
 }: ModalProps) => {
   const dispatch = useDispatch();
 
-  const isFallback = fallbackTitle !== undefined && movie_ID <= 0;
+  const isFallback = fallbackTitle !== undefined && (movie_ID === undefined || movie_ID <= 0);
   const movieTitle = excelMovieTitle || fallbackTitle;
+
   const { data: movieInfo, error: movieError } = useGetMovieInfo(
-    movie_ID,
+    movie_ID ?? 0,
     source,
     !isFallback,
     movieTitle,
   );
-  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
   const isLoading = !isFallback && !movieInfo && !movieError;
 
   const isOpen = isHidden !== 'hidden';
-
-  // Lock background page scroll and prevent background interaction
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const originalBodyOverflow = document.body.style.overflow;
-    const originalHtmlOverflow = document.documentElement.style.overflow;
-    const originalPaddingRight = document.body.style.paddingRight;
-
-    // Prevent layout shift when scrollbar disappears
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-    if (scrollbarWidth > 0) {
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
-    }
-
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-
-    return () => {
-      document.body.style.overflow = originalBodyOverflow;
-      document.documentElement.style.overflow = originalHtmlOverflow;
-      document.body.style.paddingRight = originalPaddingRight;
-    };
-  }, [isOpen]);
 
   const closeModalHandler = useCallback(() => {
     dispatch(closeModal());
     onClose?.();
   }, [dispatch, onClose]);
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        closeModalHandler();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [closeModalHandler]);
 
   useEffect(() => {
     if (!isLoading) return;
@@ -297,14 +90,8 @@ const Modal = ({
 
   // Fallback modal (movie not found in TMDB / offline fallback)
   if (isFallback) {
-    return createPortal(
-      <div
-        id="modalWrapper"
-        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 dark:bg-black/85 backdrop-blur-md overflow-y-auto overscroll-contain animate-fade-in"
-        onClick={(event) => {
-          if (event.target === event.currentTarget) closeModalHandler();
-        }}
-      >
+    return (
+      <ModalOverlay isOpen={isOpen} onClose={closeModalHandler} paddingClass="p-4">
         <div className="relative w-full max-w-lg rounded-2xl bg-white dark:bg-[#131622] p-6 text-slate-900 dark:text-white shadow-2xl border border-slate-200 dark:border-white/10 animate-modal-enter">
           <button
             onClick={closeModalHandler}
@@ -337,9 +124,10 @@ const Modal = ({
             {excelRatings.length > 0 ? (
               <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
                 {excelRatings.map((rating, idx) => (
-                  <ParticipantRatingItem
+                  <ParticipantRatingRow
                     key={`${rating.userName}-${idx}`}
-                    rating={rating}
+                    name={rating.userName}
+                    score={rating.scores[0]}
                     index={idx}
                   />
                 ))}
@@ -358,21 +146,14 @@ const Modal = ({
             </button>
           </div>
         </div>
-      </div>,
-      document.body,
+      </ModalOverlay>
     );
   }
 
   // Loading state
   if (isLoading) {
-    return createPortal(
-      <div
-        id="modalWrapper"
-        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 dark:bg-black/85 backdrop-blur-md overflow-y-auto overscroll-contain animate-fade-in"
-        onClick={(event) => {
-          if (event.target === event.currentTarget) closeModalHandler();
-        }}
-      >
+    return (
+      <ModalOverlay isOpen={isOpen} onClose={closeModalHandler} paddingClass="p-4">
         <div className="relative flex w-full max-w-md flex-col items-center justify-center gap-5 rounded-2xl bg-white dark:bg-[#131622] p-8 text-center text-slate-900 dark:text-white shadow-2xl border border-slate-200 dark:border-white/10 animate-modal-enter">
           <button
             onClick={closeModalHandler}
@@ -403,8 +184,7 @@ const Modal = ({
             </div>
           )}
         </div>
-      </div>,
-      document.body,
+      </ModalOverlay>
     );
   }
 
@@ -425,17 +205,9 @@ const Modal = ({
     ? getMovieImageUrl(movieInfo.poster_path, 'w780')
     : null;
 
-  return createPortal(
-    <div
-      id="modalWrapper"
-      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 md:p-8 bg-black/60 dark:bg-black/85 backdrop-blur-md overflow-y-auto overscroll-contain animate-fade-in"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) closeModalHandler();
-      }}
-    >
-      <div
-        className="relative w-full max-w-4xl my-auto rounded-3xl bg-white dark:bg-[#12141e] border border-slate-200 dark:border-white/10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] overflow-hidden animate-modal-enter flex flex-col text-slate-900 dark:text-zinc-100 max-h-[92vh]"
-      >
+  return (
+    <ModalOverlay isOpen={isOpen} onClose={closeModalHandler}>
+      <div className="relative w-full max-w-4xl my-auto rounded-3xl bg-white dark:bg-[#12141e] border border-slate-200 dark:border-white/10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] overflow-hidden animate-modal-enter flex flex-col text-slate-900 dark:text-zinc-100 max-h-[92vh]">
         {/* Close Button */}
         <button
           onClick={closeModalHandler}
@@ -503,14 +275,18 @@ const Modal = ({
                 {/* Genre chips */}
                 {movieInfo?.genres && movieInfo.genres.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-1">
-                    {movieInfo.genres.map((g) => (
-                      <span
-                        key={g.id}
-                        className="rounded-full bg-slate-900/10 dark:bg-white/10 px-2.5 py-0.5 text-xs text-slate-700 dark:text-zinc-300 backdrop-blur-sm"
-                      >
-                        {g.name}
-                      </span>
-                    ))}
+                    {(movieInfo.genres as Array<{ id?: number; name?: string } | string>).map((g, idx) => {
+                      const gName = typeof g === 'string' ? g : g.name || '';
+                      const gKey = typeof g === 'string' ? `${g}-${idx}` : g.id ?? idx;
+                      return (
+                        <span
+                          key={gKey}
+                          className="rounded-full bg-slate-900/10 dark:bg-white/10 px-2.5 py-0.5 text-xs text-slate-700 dark:text-zinc-300 backdrop-blur-sm"
+                        >
+                          {gName}
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -616,9 +392,10 @@ const Modal = ({
                 <div className="flex flex-col gap-2 max-h-96 overflow-y-auto pr-1">
                   {excelRatings.length > 0 ? (
                     excelRatings.map((rating, index) => (
-                      <ParticipantRatingItem
+                      <ParticipantRatingRow
                         key={`${rating.userName}-${index}`}
-                        rating={rating}
+                        name={rating.userName}
+                        score={rating.scores[0]}
                         index={index}
                       />
                     ))
@@ -630,145 +407,26 @@ const Modal = ({
                 </div>
               ) : (
                 /* Edit Mode */
-                <div className="flex flex-col gap-3">
-                  <div className="flex flex-col gap-2.5 max-h-80 overflow-y-auto pr-1">
-                    {editMovie.participants.map((participant, index) => {
-                      const selectedNames = new Set(
-                        editMovie.participants.map((item) => item.name).filter(Boolean),
-                      );
-
-                      return (
-                        <div key={index} className="grid grid-cols-[1fr_4.5rem_2rem] gap-2 items-center">
-                          <select
-                            aria-label={`Участник ${index + 1}`}
-                            value={participant.name}
-                            onChange={(event) => editMovie.updateParticipant(index, 'name', event.target.value)}
-                            className="w-full rounded-lg border border-slate-300 dark:border-white/15 bg-white dark:bg-[#10121a] px-2.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
-                          >
-                            <option value="">Выберите участника</option>
-                            {participantNames
-                              .filter((name) => name === participant.name || !selectedNames.has(name))
-                              .map((name) => (
-                                <option key={name} value={name}>{name}</option>
-                              ))}
-                          </select>
-                          <input
-                            aria-label={`Оценка участника ${index + 1}`}
-                            type="number"
-                            min="0"
-                            max="10"
-                            step="0.1"
-                            value={participant.score}
-                            onChange={(event) => editMovie.updateParticipant(index, 'score', event.target.value)}
-                            placeholder="0-10"
-                            className="w-full rounded-lg border border-slate-300 dark:border-white/15 bg-white dark:bg-[#10121a] px-2.5 py-2 text-xs text-slate-900 dark:text-white text-center font-bold focus:outline-none focus:border-amber-500"
-                          />
-                          <button
-                            type="button"
-                            disabled={editMovie.participants.length === 1}
-                            onClick={() => editMovie.removeParticipant(index)}
-                            aria-label={`Удалить участника ${index + 1}`}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-rose-500/30 text-rose-500 dark:text-rose-400 hover:bg-rose-500/15 disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={editMovie.addParticipant}
-                    className="self-start text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 transition-colors py-1"
-                  >
-                    + Добавить участника
-                  </button>
-
-                  {editMovie.error && (
-                    <p role="alert" className="text-xs text-rose-500 dark:text-rose-400">
-                      {editMovie.error}
-                    </p>
-                  )}
-
-                  <div className="mt-3 flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-white/10">
-                    <button
-                      type="button"
-                      onClick={editMovie.cancelEditing}
-                      className="rounded-lg bg-slate-200 dark:bg-white/10 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-300 dark:hover:bg-white/20"
-                    >
-                      Отмена
-                    </button>
-                    <button
-                      type="button"
-                      onClick={editMovie.requestConfirmation}
-                      className="rounded-lg bg-amber-500 px-4 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-400"
-                    >
-                      Сохранить
-                    </button>
-                  </div>
-                </div>
+                <MovieEditForm
+                  participants={editMovie.participants}
+                  participantNames={participantNames}
+                  updateParticipant={editMovie.updateParticipant}
+                  addParticipant={editMovie.addParticipant}
+                  removeParticipant={editMovie.removeParticipant}
+                  error={editMovie.error}
+                  cancelEditing={editMovie.cancelEditing}
+                  requestConfirmation={editMovie.requestConfirmation}
+                  isConfirmationOpen={editMovie.isConfirmationOpen}
+                  isSaving={editMovie.isSaving}
+                  confirmSave={() => void editMovie.confirmSave()}
+                  movieTitle={excelMovie?.movie}
+                />
               )}
             </div>
           </div>
         </div>
-
-        {/* Confirmation Modal for Edit Save */}
-        {editMovie.isConfirmationOpen && excelMovie && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 dark:bg-black/75 p-4 animate-fade-in">
-            <section
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="edit-movie-confirm-title"
-              className="w-full max-w-sm rounded-2xl bg-white dark:bg-[#161925] p-6 text-center text-slate-900 dark:text-white shadow-2xl border border-slate-200 dark:border-white/15 animate-modal-enter"
-            >
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/20 text-amber-500 mb-4">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h3 id="edit-movie-confirm-title" className="text-lg font-bold">
-                Сохранить изменения?
-              </h3>
-              <p className="mt-2 text-xs text-slate-600 dark:text-zinc-300 leading-relaxed">
-                Оценки участников для фильма «{excelMovie.movie}» будут обновлены в базе киноклуба.
-              </p>
-              {editMovie.error && (
-                <p role="alert" className="mt-3 text-xs text-rose-500 dark:text-rose-400">
-                  {editMovie.error}
-                </p>
-              )}
-              <div className="mt-5 flex justify-center gap-3">
-                <button
-                  type="button"
-                  disabled={editMovie.isSaving}
-                  onClick={() => editMovie.cancelEditing()}
-                  className="rounded-xl bg-slate-100 dark:bg-white/10 px-4 py-2 text-xs font-semibold text-slate-700 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-white/20 disabled:opacity-50"
-                >
-                  Отмена
-                </button>
-                <button
-                  type="button"
-                  disabled={editMovie.isSaving}
-                  onClick={() => void editMovie.confirmSave()}
-                  className="rounded-xl bg-emerald-500 px-5 py-2 text-xs font-bold text-slate-950 hover:bg-emerald-400 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {editMovie.isSaving ? (
-                    <>
-                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />
-                      <span>Сохранение...</span>
-                    </>
-                  ) : (
-                    'Подтвердить'
-                  )}
-                </button>
-              </div>
-            </section>
-          </div>
-        )}
       </div>
-    </div>,
-    document.body,
+    </ModalOverlay>
   );
 };
 

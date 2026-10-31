@@ -1,4 +1,7 @@
 import { getActiveMovieSource, type MovieSource, type NormalizedMovie } from './movieSource';
+import { isLocalStorageAvailable, clearStorageByPrefix } from '../utils/storageCache';
+
+export { isLocalStorageAvailable };
 
 const KEY_PREFIX = 'mm_film_';
 const CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
@@ -186,20 +189,5 @@ export function getCachedMoviesBatch(titles: string[], source?: MovieSource): {
 }
 
 export function clearMovieCache(): void {
-  if (typeof window === 'undefined' || !window.localStorage) return;
-
-  try {
-    const keysToRemove: string[] = [];
-    for (let i = 0; i < window.localStorage.length; i++) {
-      const key = window.localStorage.key(i);
-      if (key && key.startsWith(KEY_PREFIX)) {
-        keysToRemove.push(key);
-      }
-    }
-    for (const key of keysToRemove) {
-      window.localStorage.removeItem(key);
-    }
-  } catch (error) {
-    console.warn('[movieCache] Failed to clear cache:', error);
-  }
+  clearStorageByPrefix(KEY_PREFIX);
 }

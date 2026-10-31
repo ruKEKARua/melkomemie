@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import type { BookClubBook, BookParticipant } from '../../api/bookClubData';
-import { fetchGoogleBookDetails } from '../../api/googleBooks';
-import { getCachedBookCover, getCachedBookDetails } from '../../api/bookCache';
+import React from 'react';
+import type { BookClubBook } from '../../api/bookClubData';
+import { ParticipantRatingRow } from '../shared/ParticipantRatingRow';
+import { useBookDetails } from '../../hooks/useBookDetails';
 
 interface BookDetailViewProps {
   books: BookClubBook[];
@@ -11,189 +10,25 @@ interface BookDetailViewProps {
   onBackToRoom: () => void;
 }
 
-function getRatingBadgeColor(scoreStr?: string | number) {
-  if (scoreStr === undefined || scoreStr === null || scoreStr === '') {
-    return 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border-slate-300 dark:border-zinc-700';
-  }
-  const num = typeof scoreStr === 'number' ? scoreStr : parseFloat(String(scoreStr).replace(',', '.'));
-  if (isNaN(num)) {
-    return 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border-slate-300 dark:border-zinc-700';
-  }
-
-  if (num >= 7.5) {
-    return 'bg-emerald-500/15 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 dark:border-emerald-500/40';
-  }
-  if (num >= 6.0) {
-    return 'bg-amber-500/15 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/30 dark:border-amber-500/40';
-  }
-  return 'bg-[#78350f]/15 dark:bg-[#78350f]/30 text-[#78350f] dark:text-amber-200 border-[#92400e]/30 dark:border-[#92400e]/40';
-}
-
-interface ParticipantRatingRowProps {
-  participant: BookParticipant;
-  index: number;
-}
-
-const ParticipantRatingRow: React.FC<ParticipantRatingRowProps> = ({ participant, index }) => {
-  const [showTooltip, setShowTooltip] = useState(false);
-  const [coords, setCoords] = useState<{ top: number; left: number; placeBelow: boolean } | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const rowRef = useRef<HTMLDivElement>(null);
-
-  const rawName = participant.name ?? '';
-  const hasAsterisk = participant.hasAsterisk || rawName.includes('*');
-  const userInitial = rawName.trim() ? rawName.trim()[0].toUpperCase() : '?';
-
-  const handleMouseEnter = () => {
-    if (!hasAsterisk) return;
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      const rect = rowRef.current?.getBoundingClientRect();
-      if (rect) {
-        const placeBelow = rect.top < 80;
-        setCoords({
-          top: placeBelow ? rect.bottom + 8 : rect.top - 8,
-          left: rect.left + rect.width / 2,
-          placeBelow,
-        });
-        setShowTooltip(true);
-      }
-    }, 2500);
-  };
-
-  const handleMouseLeave = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    setShowTooltip(false);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-    };
-  }, []);
-
-  const rowClasses = hasAsterisk
-    ? 'bg-amber-100 hover:bg-amber-200/80 border-amber-300 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 dark:border-amber-500/40 shadow-xs'
-    : 'bg-white dark:bg-white/[0.04] hover:bg-slate-100 dark:hover:bg-white/[0.07] border-slate-200/60 dark:border-white/5';
-
-  const nameClasses = hasAsterisk
-    ? 'text-amber-950 dark:text-amber-100 font-bold'
-    : 'text-slate-800 dark:text-zinc-200 font-medium';
-
-  const avatarClasses = hasAsterisk
-    ? 'bg-amber-400/40 text-amber-950 dark:bg-amber-400/25 dark:text-amber-200 border-amber-400/70 dark:border-amber-400/40 font-black'
-    : 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30 font-bold';
-
-  const tooltipText = 'Прочтение было незадолго до или после обсуждения книжным клубом';
-
-  return (
-    <div
-      ref={rowRef}
-      key={`${participant.name}-${index}`}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      className={`relative flex items-center justify-between p-2 rounded-xl border transition-all duration-200 ${rowClasses}`}
-    >
-      <div className="flex items-center gap-2.5 min-w-0">
-        <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] border ${avatarClasses}`}>
-          {userInitial}
-        </div>
-        <span className={`text-xs truncate ${nameClasses}`}>
-          {participant.name}
-        </span>
-      </div>
-
-      <span
-        className={`px-2 py-0.5 rounded-md text-xs font-black border ${
-          hasAsterisk ? 'bg-white/85 dark:bg-black/40 shadow-xs ' : ''
-        }${getRatingBadgeColor(participant.score)}`}
-      >
-        {participant.score ?? '—'}
-      </span>
-
-      {showTooltip &&
-        coords &&
-        createPortal(
-          <div
-            style={{
-              top: coords.top,
-              left: coords.left,
-              transform: coords.placeBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
-            }}
-            className="fixed z-[9999] pointer-events-none px-3 py-1.5 rounded-xl bg-slate-900/95 dark:bg-[#141824]/95 text-amber-100 dark:text-amber-200 text-xs font-medium shadow-2xl border border-amber-500/50 backdrop-blur-md max-w-xs text-center animate-fade-in flex items-center gap-2"
-          >
-            <span className="text-amber-400 text-sm shrink-0">ℹ️</span>
-            <span className="leading-snug">{tooltipText}</span>
-          </div>,
-          document.body,
-        )}
-    </div>
-  );
-};
-
 export const BookDetailView: React.FC<BookDetailViewProps> = ({
   books,
   selectedBook,
   onSelectBook,
   onBackToRoom,
 }) => {
-  // Enriched live details cache
-  const [enrichedData, setEnrichedData] = useState<{
-    coverUrl?: string;
-    publisher?: string;
-    publishedYear?: string;
-    description?: string;
-    pageCount?: number;
-    categories?: string[];
-  } | null>(() => getCachedBookDetails(selectedBook.id));
-
-  const [imageError, setImageError] = useState(false);
-
-  // When selectedBook changes, try background enrichment from Google Books
-  useEffect(() => {
-    setImageError(false);
-    setEnrichedData(getCachedBookDetails(selectedBook.id));
-
-    let isMounted = true;
-    fetchGoogleBookDetails(selectedBook.title, selectedBook.author, undefined, selectedBook.id).then((details) => {
-      if (isMounted && details) {
-        setEnrichedData(details);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedBook.id, selectedBook.title, selectedBook.author]);
-
-  const cachedCover = getCachedBookCover(selectedBook.id);
-  const activeCover =
-    !imageError && cachedCover
-      ? cachedCover
-      :
-    !imageError && enrichedData?.coverUrl
-      ? enrichedData.coverUrl
-      : !imageError && selectedBook.coverUrl
-      ? selectedBook.coverUrl
-      : 'https://upload.wikimedia.org/wikipedia/commons/f/fb/Animal_Farm_-_1st_edition.jpg';
-
-  const publisherDisplay = enrichedData?.publisher || selectedBook.publisher || 'Издательство классической литературы';
-  const publishedYearDisplay = enrichedData?.publishedYear || selectedBook.publishedYear || selectedBook.date;
-  const descriptionDisplay = enrichedData?.description || selectedBook.description;
-  const pageCountDisplay = enrichedData?.pageCount || selectedBook.pageCount;
-  const genresDisplay =
-    enrichedData?.categories && enrichedData.categories.length > 0
-      ? enrichedData.categories
-      : selectedBook.genres;
+  const {
+    activeCover,
+    onCoverError,
+    publisherDisplay,
+    publishedYearDisplay,
+    descriptionDisplay,
+    pageCountDisplay,
+    genresDisplay,
+  } = useBookDetails(selectedBook);
 
   return (
     <div className="flex-1 w-full max-w-7xl 2xl:max-w-[1700px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex flex-col gap-6 animate-fade-in text-white">
-      {/* Top Navigation Bar: ONLY clean back to room button (Point 2: extra "К фильмам" removed) */}
+      {/* Top Navigation Bar: ONLY clean back to room button */}
       <div className="flex items-center justify-between gap-4 pb-3 border-b border-white/10">
         <button
           onClick={onBackToRoom}
@@ -216,7 +51,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
         {/* =========================================================================
             LEFT MAIN CONTENT AREA:
             - Left sub-column: Metadata, Edition, and Full Description
-            - Right sub-column: Compact Book Cover (Point 4) + Full Ratings (Point 3)
+            - Right sub-column: Compact Book Cover + Full Ratings
             ========================================================================= */}
         <section className="rounded-3xl bg-[#0f121d]/90 border border-white/10 p-6 sm:p-8 md:p-9 shadow-2xl backdrop-blur-xl flex flex-col gap-8 relative overflow-hidden">
           {/* Subtle Ambient Background Hue based on book theme */}
@@ -324,7 +159,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
             </div>
 
             {/* -------------------------------------------------------------
-                RIGHT SUB-COLUMN: Compact Cover (Point 4) & Full Ratings (Point 3)
+                RIGHT SUB-COLUMN: Compact Cover & Full Ratings
                 ------------------------------------------------------------- */}
             <div className="flex flex-col gap-4 order-1 md:order-2 items-center md:items-stretch w-full max-w-[220px] mx-auto">
               {/* Cover Image: Reduced size (max 200px) for razor-sharp quality */}
@@ -333,7 +168,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
                   <img
                     src={activeCover}
                     alt={selectedBook.title}
-                    onError={() => setImageError(true)}
+                    onError={onCoverError}
                     className="w-full h-full object-cover object-center opacity-100"
                   />
 
@@ -367,8 +202,11 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
                   {selectedBook.participants.map((participant, idx) => (
                     <ParticipantRatingRow
                       key={`${participant.name}-${idx}`}
-                      participant={participant}
+                      name={participant.name}
+                      score={participant.score}
                       index={idx}
+                      hasAsterisk={participant.hasAsterisk}
+                      variant="book"
                     />
                   ))}
                 </div>
@@ -378,9 +216,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
         </section>
 
         {/* =========================================================================
-            RIGHT COLUMN: STACK OF HORIZONTAL BOOK SPINES (Point 2)
-            Generous width (380-450px) + left padding so the pulled-out book
-            is 100% COMPLETELY visible without any clipping!
+            RIGHT COLUMN: STACK OF HORIZONTAL BOOK SPINES
             ========================================================================= */}
         <aside className="w-full flex flex-col gap-3">
           <div className="flex items-center justify-between px-2 pb-1">

@@ -45,7 +45,7 @@ export interface GoogleBooksResponse {
 function cleanDescription(html?: string): string | undefined {
   if (!html) return undefined;
   return html
-    .replace(/<br\s*[\/]?>/gi, '\n')
+    .replace(/<br\s*[/]?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
     .replace(/<[^>]+>/g, '')
     .replace(/&quot;/g, '"')
