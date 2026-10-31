@@ -89,13 +89,14 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     return (
       <div
         key={book.id}
-        className="relative select-none cursor-pointer flex flex-col justify-end shrink-0"
+        className="relative select-none cursor-pointer flex flex-col justify-end shrink-0 opacity-100"
         style={{
           width: `${totalBookWidthPx}px`,
           height: `${heightRatio * 100}%`,
           marginRight: `${marginRight}px`,
           zIndex,
           perspective: '1000px',
+          opacity: 1,
           transition:
             'margin-right 300ms cubic-bezier(0.16, 1, 0.3, 1), z-index 0ms',
         }}
@@ -192,23 +193,25 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
           - Next book touches seamlessly against the right spine with zero gap
         */}
         <div
-          className="relative w-full h-full select-none"
+          className="relative w-full h-full select-none opacity-100"
           style={{
             transformOrigin: 'right center',
             transform: isHovered
               ? `perspective(1000px) rotateY(-6deg) translateZ(${20 * scale}px) translateX(0px) scale(1.02)`
               : 'perspective(1000px) rotateY(-18deg) translateZ(0px) translateX(0px)',
             filter: isHovered ? 'brightness(1.15)' : 'brightness(1)',
+            opacity: 1,
             transition:
               'transform 300ms cubic-bezier(0.16, 1, 0.3, 1), filter 300ms ease',
           }}
         >
           {/* Main Book Shell */}
           <div
-            className={`relative w-full h-full flex rounded-l-[3px] rounded-r-[2px] ${
+            className={`relative w-full h-full flex rounded-l-[3px] rounded-r-[2px] opacity-100 ${
               isHovered ? 'ring-1.5 ring-amber-400/90' : ''
             }`}
             style={{
+              opacity: 1,
               boxShadow: isHovered
                 ? `-18px 16px 36px rgba(0, 0, 0, 0.95), -6px 4px 15px rgba(0, 0, 0, 0.7), 0 0 24px ${accent}44`
                 : '-5px 6px 14px rgba(0, 0, 0, 0.78), -1px 2px 4px rgba(0, 0, 0, 0.55)',
@@ -219,10 +222,11 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
                 FACE 1: FRONT COVER (Лицевая корочка слева — винтажный переплет)
                 ========================================================================= */}
             <div
-              className="relative h-full flex flex-col justify-between p-1.5 select-none border-t border-l border-b border-amber-400/35 rounded-l-[3px] overflow-hidden"
+              className="relative h-full flex flex-col justify-between p-1.5 select-none border-t border-l border-b border-amber-400/35 rounded-l-[3px] overflow-hidden opacity-100"
               style={{
                 width: `${coverWidthPx}px`,
-                background: `linear-gradient(145deg, ${topColor} 0%, rgba(12,14,20,0.85) 60%, ${bottomColor} 100%)`,
+                opacity: 1,
+                background: `linear-gradient(145deg, ${topColor} 0%, #0c0e14 60%, ${bottomColor} 100%)`,
                 boxShadow:
                   'inset 0 0 16px rgba(0, 0, 0, 0.92), inset 2px 2px 3px rgba(255, 255, 255, 0.12), inset -2px -2px 3px rgba(0, 0, 0, 0.75)',
               }}
@@ -305,10 +309,11 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
                 FACE 2: THE SPINE (Боковой корешок справа — 13px-16px)
                 ========================================================================= */}
             <div
-              className="relative h-full flex flex-col justify-between overflow-hidden select-none border-t border-r border-b border-black/80 rounded-r-[2px]"
+              className="relative h-full flex flex-col justify-between overflow-hidden select-none border-t border-r border-b border-black/80 rounded-r-[2px] opacity-100"
               style={{
                 width: `${spineWidthPx}px`,
-                background: `linear-gradient(180deg, ${bottomColor} 0%, rgba(10,10,16,0.98) 100%)`,
+                opacity: 1,
+                background: `linear-gradient(180deg, ${bottomColor} 0%, #0a0a10 100%)`,
                 borderLeft: '1px solid rgba(0, 0, 0, 0.95)',
                 boxShadow:
                   'inset -2px 0 5px rgba(0,0,0,0.7), inset 1px 0 2px rgba(255,255,255,0.1)',

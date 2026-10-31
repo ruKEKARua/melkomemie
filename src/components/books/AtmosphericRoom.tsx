@@ -14,9 +14,6 @@ export const AtmosphericRoom: React.FC<AtmosphericRoomProps> = ({
   onOpenCatalog,
 }) => {
   const stageRef = useRef<HTMLDivElement>(null);
-
-  // Smooth 2.5s atmospheric fade-in state
-  const [isFadedIn, setIsFadedIn] = useState(false);
   const [scale, setScale] = useState(1);
 
   // Track the exact scale factor based on stage height vs 1080p native height
@@ -44,21 +41,14 @@ export const AtmosphericRoom: React.FC<AtmosphericRoomProps> = ({
     };
   }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsFadedIn(true);
-    }, 50);
-    return () => clearTimeout(timer);
-  }, []);
+
 
   // Correct URL respecting Vite base URL (/movies/)
   const videoSrc = `${import.meta.env.BASE_URL}book-club-bg.mp4`;
 
   return (
     <div
-      className={`relative w-full h-full flex-1 min-h-0 overflow-hidden bg-[#090a0f] flex flex-col items-center justify-start p-0 transition-opacity duration-[2500ms] ease-out select-none ${
-        isFadedIn ? 'opacity-100' : 'opacity-0'
-      }`}
+      className="relative w-full h-full flex-1 min-h-0 overflow-hidden bg-[#090a0f] flex flex-col items-center justify-start p-0 select-none opacity-100"
     >
       {/* Ambient glow backdrop for ultra-wide monitors (no black void, smooth blurred room extension) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none -z-0">
@@ -96,7 +86,7 @@ export const AtmosphericRoom: React.FC<AtmosphericRoomProps> = ({
         <div
           className="relative w-full h-full"
           style={{
-            transform: 'translateY(-11.57%) scale(1.1157)',
+            transform: 'translateY(-8.57%) scale(1)',
             transformOrigin: 'top center',
           }}
         >
@@ -120,7 +110,7 @@ export const AtmosphericRoom: React.FC<AtmosphericRoomProps> = ({
             style={{
               left: '6.3333%',
               top: '10.3704%',
-              width: '13.5833%',
+              width: '20.5833%',
               height: '70.1111%',
               transform: 'skew(2.5deg, -1deg)',
             }}

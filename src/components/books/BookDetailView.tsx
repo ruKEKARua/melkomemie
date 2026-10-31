@@ -329,7 +329,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
                     src={activeCover}
                     alt={selectedBook.title}
                     onError={() => setImageError(true)}
-                    className="w-full h-full object-cover object-center"
+                    className="w-full h-full object-cover object-center opacity-100"
                   />
 
                   {/* Realistic Book Spine Edge Shadow on the Left */}
