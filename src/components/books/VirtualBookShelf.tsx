@@ -114,7 +114,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
         <div
           className="relative w-full select-none"
           style={{
-            height: `${heightRatio * 100}%`,
+            height: `calc(${heightRatio * 100}% - ${Math.max(8, Math.round(10 * scale))}px)`,
             transformStyle: 'preserve-3d',
             transformOrigin: 'left center',
             transform: isHovered
