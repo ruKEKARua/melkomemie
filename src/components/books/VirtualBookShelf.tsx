@@ -16,12 +16,35 @@ function parseSpineColors(book: BookClubBook) {
   return { topColor, bottomColor, accent };
 }
 
+function formatRating(rating: string | number | undefined): string {
+  if (rating === undefined || rating === null || rating === '') return '0.00';
+  const num = typeof rating === 'number' ? rating : parseFloat(String(rating).replace(',', '.'));
+  if (isNaN(num)) return String(rating);
+  return num.toFixed(2);
+}
+
 export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
   books,
   onSelectBook,
   scale,
 }) => {
   const [hoveredBookId, setHoveredBookId] = useState<number | null>(null);
+
+  // Proportional dimensions:
+  // 1. Spine (корешок) — ~36px width, visible in resting state
+  const spineWidthPx = Math.max(32, Math.round(36 * scale));
+  // 2. Protruding leather hinge/joint on the left of front cover ("выпирающая корочка")
+  const hingeWidthPx = Math.max(7, Math.round(8 * scale));
+  // 3. Front Cover (лицевая обложка) — ~80px width, revealed on hover
+  const coverWidthPx = Math.max(72, Math.round(80 * scale));
+  // Total physical width when book is opened on hover
+  const totalExpandedWidthPx = hingeWidthPx + coverWidthPx;
+  const gapPx = Math.max(2, Math.round(3 * scale));
+
+  // Floating tooltip card dimensions
+  const cardWidth = Math.max(205, Math.round(235 * scale));
+  const coverThumbWidth = Math.max(34, Math.round(38 * scale));
+  const coverThumbHeight = Math.max(46, Math.round(52 * scale));
 
   // 6 books strictly divided across each of the 4 wooden shelves of the cabinet:
   // Shelf 1 (Top Cavity): books 0..5 (6 books)
@@ -37,27 +60,14 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     book: BookClubBook,
     index: number,
     totalOnShelf: number,
-    shelfIndex: number
+    _shelfIndex: number
   ) => {
     const isHovered = hoveredBookId === book.id;
     const isLastOnShelf = index === totalOnShelf - 1;
-    const isTopShelf = shelfIndex === 0;
 
     // Organic height variations (natural library proportions)
     const heightRatios = [0.93, 0.96, 0.90, 0.94, 0.92, 0.95];
     const heightRatio = heightRatios[index % heightRatios.length];
-
-    // Proportional dimensions:
-    // 1. Spine (корешок) — ~36px width, visible in resting state
-    const spineWidthPx = Math.max(32, Math.round(36 * scale));
-    // 2. Protruding leather hinge/joint on the left of front cover ("выпирающая корочка")
-    const hingeWidthPx = Math.max(7, Math.round(8 * scale));
-    // 3. Front Cover (лицевая обложка) — ~80px width, revealed on hover
-    const coverWidthPx = Math.max(72, Math.round(80 * scale));
-    // Total physical width when book is opened on hover
-    const totalExpandedWidthPx = hingeWidthPx + coverWidthPx;
-
-    const gapPx = Math.max(2, Math.round(3 * scale));
 
     // Stacking order:
     // Hovered book lifts to zIndex 50 so its elevated 3D cover floats cleanly over everything
@@ -67,29 +77,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     const titleFontSize = Math.max(9, Math.round(10.5 * scale));
     const spineTitleFontSize = Math.max(9, Math.round(10 * scale));
 
-    // Floating tooltip card dimensions
-    const cardWidth = Math.max(205, Math.round(235 * scale));
-    const coverThumbWidth = Math.max(34, Math.round(38 * scale));
-    const coverThumbHeight = Math.max(46, Math.round(52 * scale));
-
-    // Strict boundary containment for tooltip:
-    // Left books align flush-left, right books flush-right, middle books center
-    const tooltipAlignClass =
-      index <= 1
-        ? 'left-0'
-        : index >= totalOnShelf - 2
-        ? 'right-0'
-        : 'left-1/2 -translate-x-1/2';
-
-    const pointerBeakAlignClass =
-      index <= 1
-        ? 'left-4'
-        : index >= totalOnShelf - 2
-        ? 'right-4'
-        : 'left-1/2 -translate-x-1/2';
-
     const { topColor, bottomColor, accent } = parseSpineColors(book);
-    const coverUrl = sanitizeGoogleBooksCover(book.coverUrl);
 
     // Dynamic slot width seamlessly includes gapPx without dead zones between hitboxes
     const slotWidth =
@@ -114,90 +102,6 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
         onMouseEnter={() => setHoveredBookId(book.id)}
         onClick={() => onSelectBook(book)}
       >
-        {/* 
-          Hover Information Tooltip:
-          Floats above/below the shelf with pointer-events-none so it never interferes with cursor
-        */}
-        {isHovered && (
-          <div
-            className={`absolute ${
-              isTopShelf ? 'top-[104%]' : 'bottom-[104%]'
-            } ${tooltipAlignClass} z-50 pointer-events-none animate-fade-in flex flex-col items-center`}
-            style={{ width: `${cardWidth}px` }}
-          >
-            {/* If Shelf 0, beak points up */}
-            {isTopShelf && (
-              <div
-                className={`w-2.5 h-2.5 rotate-45 bg-amber-400/90 -mb-1.5 shadow-md border-l border-t border-black/40 z-20 ${pointerBeakAlignClass}`}
-              />
-            )}
-
-            {/* Tooltip Card */}
-            <div className="relative w-full rounded-xl overflow-hidden border border-amber-400/90 shadow-[0_20px_45px_rgba(0,0,0,0.98)] ring-2 ring-black/80 bg-slate-950/95 backdrop-blur-md flex items-center gap-2.5 p-2 sm:p-2.5">
-              <div
-                className="relative rounded-md overflow-hidden shrink-0 shadow-md border border-white/20 bg-slate-900"
-                style={{
-                  width: `${coverThumbWidth}px`,
-                  height: `${coverThumbHeight}px`,
-                }}
-              >
-                {coverUrl ? (
-                  <img
-                    src={coverUrl}
-                    alt={book.title}
-                    className="w-full h-full object-cover block"
-                    loading="eager"
-                  />
-                ) : (
-                  <div
-                    className="w-full h-full flex flex-col items-center justify-center p-1 text-center"
-                    style={{
-                      background: `linear-gradient(135deg, ${topColor} 0%, #0a0a14 100%)`,
-                    }}
-                  >
-                    <span className="text-sm">📖</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex-1 flex flex-col justify-between min-w-0 text-left py-0.5">
-                <div className="flex items-start justify-between gap-1.5">
-                  <span className="font-black text-white text-xs leading-snug line-clamp-2 drop-shadow">
-                    {book.title}
-                  </span>
-                  <div className="shrink-0 bg-amber-500/20 border border-amber-400/60 rounded px-1.5 py-0.5 flex items-center gap-1 shadow-xs">
-                    <span className="text-amber-400 text-[10px] font-black leading-none">★</span>
-                    <span className="text-amber-100 text-[10px] font-bold leading-none">
-                      {book.overallRating}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1 text-[11px] text-zinc-300 mt-0.5">
-                  <span className="text-amber-300 font-semibold truncate">{book.author}</span>
-                  {book.publishedYear && (
-                    <span className="text-[10px] text-zinc-400 shrink-0 font-mono">
-                      ({book.publishedYear} г.)
-                    </span>
-                  )}
-                </div>
-
-                <div className="mt-1 text-[9px] text-amber-400/80 font-medium flex items-center gap-1">
-                  <span>Нажмите для подробностей</span>
-                  <span>→</span>
-                </div>
-              </div>
-            </div>
-
-            {/* If Shelves 1, 2, 3, beak points down */}
-            {!isTopShelf && (
-              <div
-                className={`w-2.5 h-2.5 rotate-45 bg-amber-400/90 -mt-1.5 shadow-md border-r border-b border-black/40 z-20 ${pointerBeakAlignClass}`}
-              />
-            )}
-          </div>
-        )}
-
         {/* 
           3D BOOK VOLUME:
           - Both Spine and Front Cover exist simultaneously in true 3D (transform-style: preserve-3d)
@@ -301,11 +205,11 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
               <div className="w-full h-[1.5px] bg-amber-400/80 shadow-xs rounded-xs" />
             </div>
 
-            {/* Снизу: компактный горизонтальный бейдж с рейтингом книги (вместо постера) */}
-            <div className="shrink-0 bg-black/85 border border-amber-400/70 rounded px-1.5 py-0.5 flex items-center justify-center gap-1 shadow-sm mb-1 z-10">
-              <span className="text-amber-400 text-[8.5px] font-black leading-none">★</span>
-              <span className="text-amber-100 text-[8.5px] font-bold leading-none font-mono">
-                {book.overallRating}
+            {/* Снизу: чёткий контрастный бейдж с округлённым до 2 знаков рейтингом */}
+            <div className="shrink-0 bg-black/90 border border-amber-400/80 rounded px-1.5 py-0.5 flex items-center justify-center gap-0.5 shadow-md mb-1 z-10">
+              <span className="text-amber-400 text-[9.5px] font-black leading-none drop-shadow">★</span>
+              <span className="text-amber-100 text-[10px] font-black leading-none font-mono tracking-tight drop-shadow">
+                {formatRating(book.overallRating)}
               </span>
             </div>
 
@@ -421,20 +325,20 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
               </div>
             </div>
 
-            {/* Top: ONLY the rating badge */}
+            {/* Top: Увеличенный чёткий бейдж с рейтингом при наведении */}
             <div className="relative z-20 w-full flex justify-end items-center">
-              <div className="shrink-0 bg-black/80 px-1 py-0.5 rounded border border-amber-400/50 flex items-center gap-0.5 shadow-sm">
-                <span className="text-amber-400 text-[8.5px] font-black leading-none">★</span>
-                <span className="text-amber-100 text-[8.5px] font-bold leading-none">
-                  {book.overallRating}
+              <div className="shrink-0 bg-black/90 px-1.5 py-0.5 rounded-md border border-amber-400/80 flex items-center gap-1 shadow-md">
+                <span className="text-amber-400 text-[10.5px] font-black leading-none drop-shadow">★</span>
+                <span className="text-amber-100 text-[11px] font-black leading-none font-mono tracking-tight drop-shadow">
+                  {formatRating(book.overallRating)}
                 </span>
               </div>
             </div>
 
-            {/* Center Area: Full Title centered vertically without cutoffs */}
+            {/* Center Area: Full Title centered vertically with more room */}
             <div className="relative z-20 flex-1 flex flex-col justify-center items-center text-center my-auto px-1 py-0.5">
               <h3
-                className="font-serif font-black text-white text-center leading-[1.14] select-none break-words line-clamp-7"
+                className="font-serif font-black text-white text-center leading-[1.16] select-none break-words line-clamp-7"
                 style={{
                   fontSize: `${titleFontSize}px`,
                   textShadow:
@@ -445,40 +349,180 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
               </h3>
             </div>
 
-            {/* Bottom: Published Year & Gold filigree marker */}
-            <div className="relative z-20 w-full flex items-center justify-between border-t border-amber-400/35 pt-0.5 mt-0.5">
-              <span className="text-[7.5px] text-zinc-300 font-mono">
-                {book.publishedYear ? `${book.publishedYear} г.` : 'Клуб'}
-              </span>
-              <div className="w-1 h-1 rotate-45 bg-amber-400/70 shadow-xs" />
+            {/* Bottom: Элегантный декоративный золотой разделитель (год убран для чистоты дизайна) */}
+            <div className="relative z-20 w-full flex items-center justify-center pt-1 mt-0.5 border-t border-amber-400/35">
+              <div className="w-full flex items-center justify-center gap-1.5 opacity-60">
+                <div className="flex-1 h-[1px] bg-gradient-to-r from-transparent to-amber-400/70" />
+                <span className="text-[9px] text-amber-300 select-none">❖</span>
+                <div className="flex-1 h-[1px] bg-gradient-to-l from-transparent to-amber-400/70" />
+              </div>
             </div>
           </div>
         </div>
       </div>
     );
   };
-  return (
-    <div className="w-full h-full flex flex-col justify-between select-none">
-      {/* 
-        SHELF 1 (Top Cavity: 6 books 0..5)
-        Strict containment: max-width 100%, box-sizing border-box, padding 0 12px
-      */}
+
+  const renderShelfRow = (
+    shelfBooks: BookClubBook[],
+    shelfIndex: number,
+    heightPercent: string
+  ) => {
+    // Check if currently hovered book is on this shelf
+    const hoveredIdx = shelfBooks.findIndex((b) => b.id === hoveredBookId);
+    const hoveredBook = hoveredIdx !== -1 ? shelfBooks[hoveredIdx] : null;
+
+    let tooltipLeft = 0;
+    let beakLeft = 0;
+    // Only bottom shelf (Shelf 4, index 3) pops UP; shelves 0, 1, 2 drop DOWN
+    const isBottomShelf = shelfIndex === 3;
+
+    if (hoveredBook && hoveredIdx !== -1) {
+      // Books before hovered book are resting: hoveredIdx * (spineWidthPx + gapPx)
+      const bookLeft = hoveredIdx * (spineWidthPx + gapPx);
+      const bookCenter = bookLeft + totalExpandedWidthPx / 2;
+
+      // Available inner shelf width (~332px inside cabinet)
+      const shelfInnerWidth = Math.max(280, Math.round(332 * scale));
+      const maxLeft = Math.max(0, shelfInnerWidth - cardWidth);
+      const idealLeft = bookCenter - cardWidth / 2;
+
+      tooltipLeft = Math.max(0, Math.min(maxLeft, idealLeft));
+      // Beak points directly at the book center relative to the card's left edge
+      beakLeft = Math.max(16, Math.min(cardWidth - 16, bookCenter - tooltipLeft));
+    }
+
+    return (
       <div
-        className="w-full max-w-full box-border flex items-end justify-start select-none"
+        className="w-full max-w-full box-border flex items-end justify-start select-none relative"
         style={{
-          height: '26.302%',
+          height: heightPercent,
           padding: '0 12px',
           maxWidth: '100%',
           boxSizing: 'border-box',
+          zIndex: hoveredBook ? 50 : 10,
         }}
       >
         <div
           className="flex items-end h-full select-none"
           onMouseLeave={() => setHoveredBookId(null)}
         >
-          {shelf1.map((b, i) => renderBook(b, i, shelf1.length, 0))}
+          {shelfBooks.map((b, i) => renderBook(b, i, shelfBooks.length, shelfIndex))}
         </div>
+
+        {/* 
+          Hover Information Tooltip:
+          Positioned strictly at shelf-level with mathematically clamped boundaries
+        */}
+        {hoveredBook && (
+          <div
+            className={`absolute ${
+              isBottomShelf ? 'bottom-[calc(100%+6px)]' : 'top-[calc(100%+6px)]'
+            } z-50 pointer-events-none animate-fade-in flex flex-col items-center`}
+            style={{
+              left: `${tooltipLeft + 12}px`,
+              width: `${cardWidth}px`,
+            }}
+          >
+            {/* If dropping DOWN (Shelves 0, 1, 2): beak on top, pointing UP at the hovered book */}
+            {!isBottomShelf && (
+              <div
+                className="w-2.5 h-2.5 rotate-45 bg-slate-950 border-l border-t border-amber-400/90 shadow-md z-20 pointer-events-none"
+                style={{
+                  position: 'absolute',
+                  top: '-5px',
+                  left: `${beakLeft}px`,
+                  transform: 'translateX(-50%) rotate(45deg)',
+                }}
+              />
+            )}
+
+            {/* Tooltip Card Body */}
+            <div className="relative w-full rounded-xl overflow-hidden border border-amber-400/90 shadow-[0_20px_45px_rgba(0,0,0,0.98)] ring-2 ring-black/80 bg-slate-950/95 backdrop-blur-md flex items-center gap-2.5 p-2 sm:p-2.5">
+              <div
+                className="relative rounded-md overflow-hidden shrink-0 shadow-md border border-white/20 bg-slate-900"
+                style={{
+                  width: `${coverThumbWidth}px`,
+                  height: `${coverThumbHeight}px`,
+                }}
+              >
+                {sanitizeGoogleBooksCover(hoveredBook.coverUrl) ? (
+                  <img
+                    src={sanitizeGoogleBooksCover(hoveredBook.coverUrl)}
+                    alt={hoveredBook.title}
+                    className="w-full h-full object-cover block"
+                    loading="eager"
+                  />
+                ) : (
+                  <div
+                    className="w-full h-full flex flex-col items-center justify-center p-1 text-center"
+                    style={{
+                      background: `linear-gradient(135deg, ${
+                        parseSpineColors(hoveredBook).topColor
+                      } 0%, #0a0a14 100%)`,
+                    }}
+                  >
+                    <span className="text-sm">📖</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1 flex flex-col justify-between min-w-0 text-left py-0.5">
+                <div className="flex items-start justify-between gap-1.5">
+                  <span className="font-black text-white text-xs leading-snug line-clamp-2 drop-shadow">
+                    {hoveredBook.title}
+                  </span>
+                  <div className="shrink-0 bg-amber-500/20 border border-amber-400/70 rounded px-1.5 py-0.5 flex items-center gap-1 shadow-xs">
+                    <span className="text-amber-400 text-[10px] font-black leading-none">★</span>
+                    <span className="text-amber-100 text-[10.5px] font-black leading-none font-mono">
+                      {formatRating(hoveredBook.overallRating)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 text-[11px] text-zinc-300 mt-0.5">
+                  <span className="text-amber-300 font-semibold truncate">
+                    {hoveredBook.author}
+                  </span>
+                  {hoveredBook.publishedYear && (
+                    <span className="text-[10px] text-zinc-400 shrink-0 font-mono">
+                      ({hoveredBook.publishedYear} г.)
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-1 text-[9px] text-amber-400/80 font-medium flex items-center gap-1">
+                  <span>Нажмите для подробностей</span>
+                  <span>→</span>
+                </div>
+              </div>
+            </div>
+
+            {/* If popping UP (Shelf 3 - Bottom Shelf): beak on bottom, pointing DOWN at the hovered book */}
+            {isBottomShelf && (
+              <div
+                className="w-2.5 h-2.5 rotate-45 bg-slate-950 border-r border-b border-amber-400/90 shadow-md z-20 pointer-events-none"
+                style={{
+                  position: 'absolute',
+                  bottom: '-5px',
+                  left: `${beakLeft}px`,
+                  transform: 'translateX(-50%) rotate(45deg)',
+                }}
+              />
+            )}
+          </div>
+        )}
       </div>
+    );
+  };
+
+  return (
+    <div className="w-full h-full flex flex-col justify-between select-none">
+      {/* 
+        SHELF 1 (Top Cavity: 6 books 0..5)
+        Strict containment: max-width 100%, box-sizing border-box, padding 0 12px
+      */}
+      {renderShelfRow(shelf1, 0, '26.302%')}
 
       {/* Spacing for shelf divider 1: thickness = 15px => 1.953% */}
       <div style={{ height: '1.953%' }} />
@@ -486,22 +530,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
       {/* 
         SHELF 2 (Second Cavity: 6 books 6..11)
       */}
-      <div
-        className="w-full max-w-full box-border flex items-end justify-start select-none"
-        style={{
-          height: '23.307%',
-          padding: '0 12px',
-          maxWidth: '100%',
-          boxSizing: 'border-box',
-        }}
-      >
-        <div
-          className="flex items-end h-full select-none"
-          onMouseLeave={() => setHoveredBookId(null)}
-        >
-          {shelf2.map((b, i) => renderBook(b, i, shelf2.length, 1))}
-        </div>
-      </div>
+      {renderShelfRow(shelf2, 1, '23.307%')}
 
       {/* Spacing for shelf divider 2: thickness = 16px => 2.083% */}
       <div style={{ height: '2.083%' }} />
@@ -509,22 +538,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
       {/* 
         SHELF 3 (Third Cavity: 6 books 12..17)
       */}
-      <div
-        className="w-full max-w-full box-border flex items-end justify-start select-none"
-        style={{
-          height: '23.568%',
-          padding: '0 12px',
-          maxWidth: '100%',
-          boxSizing: 'border-box',
-        }}
-      >
-        <div
-          className="flex items-end h-full select-none"
-          onMouseLeave={() => setHoveredBookId(null)}
-        >
-          {shelf3.map((b, i) => renderBook(b, i, shelf3.length, 2))}
-        </div>
-      </div>
+      {renderShelfRow(shelf3, 2, '23.568%')}
 
       {/* Spacing for shelf divider 3: thickness = 14px => 1.823% */}
       <div style={{ height: '1.823%' }} />
@@ -532,22 +546,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
       {/* 
         SHELF 4 (Bottom Cavity: 6 books 18..23)
       */}
-      <div
-        className="w-full max-w-full box-border flex items-end justify-start select-none"
-        style={{
-          height: '20.964%',
-          padding: '0 12px',
-          maxWidth: '100%',
-          boxSizing: 'border-box',
-        }}
-      >
-        <div
-          className="flex items-end h-full select-none"
-          onMouseLeave={() => setHoveredBookId(null)}
-        >
-          {shelf4.map((b, i) => renderBook(b, i, shelf4.length, 3))}
-        </div>
-      </div>
+      {renderShelfRow(shelf4, 3, '20.964%')}
     </div>
   );
 };
