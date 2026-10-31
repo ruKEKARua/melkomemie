@@ -247,21 +247,13 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
               }}
             />
 
-            {/* 1. Сверху: компактный горизонтальный бейдж с рейтингом */}
-            <div className="shrink-0 bg-black/85 border border-amber-400/70 rounded px-1.5 py-0.5 flex items-center justify-center gap-1 shadow-sm mt-1 z-10">
-              <span className="text-amber-400 text-[8.5px] font-black leading-none">★</span>
-              <span className="text-amber-100 text-[8.5px] font-bold leading-none font-mono">
-                {book.overallRating}
-              </span>
-            </div>
-
             {/* Upper Transverse Gold Rib (Бинтик) */}
-            <div className="w-full px-0.5 mt-1 mb-0.5 shrink-0 z-10 pointer-events-none flex flex-col gap-[1px]">
+            <div className="w-full px-0.5 mt-1.5 mb-1 shrink-0 z-10 pointer-events-none flex flex-col gap-[1px]">
               <div className="w-full h-[1.5px] bg-amber-400/80 shadow-xs" />
               <div className="w-full h-[1px] bg-amber-300/50" />
             </div>
 
-            {/* 2. По центру: название книги вертикально (writing-mode: vertical-rl) */}
+            {/* По центру: название книги вертикально (writing-mode: vertical-rl) с максимальным вертикальным пространством */}
             <div className="flex-1 flex items-center justify-center overflow-hidden py-1 px-0.5 z-10">
               <span
                 className="select-none font-serif font-black text-white leading-none text-center"
@@ -283,33 +275,17 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
             </div>
 
             {/* Lower Transverse Gold Rib (Бинтик) */}
-            <div className="w-full px-0.5 mb-1 mt-0.5 shrink-0 z-10 pointer-events-none flex flex-col gap-[1px]">
+            <div className="w-full px-0.5 mb-1 mt-1 shrink-0 z-10 pointer-events-none flex flex-col gap-[1px]">
               <div className="w-full h-[1px] bg-amber-300/50" />
               <div className="w-full h-[1.5px] bg-amber-400/80 shadow-xs" />
             </div>
 
-            {/* 3. Снизу: микро-превью постера книги (26x26px, rounded 4px) */}
-            <div
-              className="shrink-0 mb-1 rounded-[4px] overflow-hidden border border-amber-400/60 shadow-md bg-slate-900 z-10"
-              style={{ width: '26px', height: '26px' }}
-            >
-              {coverUrl ? (
-                <img
-                  src={coverUrl}
-                  alt={book.title}
-                  className="w-full h-full object-cover block"
-                  loading="eager"
-                />
-              ) : (
-                <div
-                  className="w-full h-full flex items-center justify-center text-[11px]"
-                  style={{
-                    background: `linear-gradient(135deg, ${topColor} 0%, #0a0a14 100%)`,
-                  }}
-                >
-                  📖
-                </div>
-              )}
+            {/* Снизу: компактный горизонтальный бейдж с рейтингом книги (вместо постера) */}
+            <div className="shrink-0 bg-black/85 border border-amber-400/70 rounded px-1.5 py-0.5 flex items-center justify-center gap-1 shadow-sm mb-1 z-10">
+              <span className="text-amber-400 text-[8.5px] font-black leading-none">★</span>
+              <span className="text-amber-100 text-[8.5px] font-bold leading-none font-mono">
+                {book.overallRating}
+              </span>
             </div>
 
             {/* Bottom Silk Headband (Каптал) */}
