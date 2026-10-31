@@ -438,233 +438,6 @@ export const INITIAL_BOOK_CLUB_BOOKS: BookClubBook[] = [
       { name: 'Тлен', score: '8', hasAsterisk: false },
     ],
   },
-  {
-    id: 16,
-    date: '01.11.2026',
-    author: 'Михаил Булгаков',
-    title: 'Мастер и Маргарита',
-    overallRating: '8,9',
-    subtitle: 'Фантастический мистический роман',
-    publisher: 'Художественная литература',
-    publishedYear: '1967',
-    language: 'Русский (оригинал)',
-    translator: 'Оригинал',
-    genres: ['Мистика', 'Сатира', 'Русская классика', 'Философский роман'],
-    pageCount: 384,
-    coverUrl: 'https://covers.openlibrary.org/b/id/10523366-L.jpg',
-    description:
-      'Бессмертный шедевр Михаила Булгакова. В Москву 1930-х годов прибывает Воланд со своей инфернальной свитой, обнажая пороки и лицемерие советского общества. Параллельно разворачивается библейская драма суда Понтия Пилата над Иешуа Га-Ноцри и пронзительная история любви Мастера и его верной Маргариты.',
-    spineColor: 'from-[#312e81] to-[#1e1b4b]',
-    spineAccent: '#818cf8',
-    spineTextColor: '#e0e7ff',
-    participants: [
-      { name: 'Никита', score: '9', hasAsterisk: false },
-      { name: 'Маша', score: '9,5', hasAsterisk: false },
-      { name: 'Дима', score: '9', hasAsterisk: false },
-      { name: 'Олег*', score: '8,5', hasAsterisk: true },
-    ],
-  },
-  {
-    id: 17,
-    date: '15.11.2026',
-    author: 'Олдос Хаксли',
-    title: 'О дивный новый мир',
-    overallRating: '7,8',
-    subtitle: 'Антиутопический сатирический роман',
-    publisher: 'Chatto & Windus / АСТ',
-    publishedYear: '1932',
-    language: 'Русский (перевод с английского)',
-    translator: 'О. Сорока',
-    genres: ['Антиутопия', 'Фантастика', 'Зарубежная классика'],
-    pageCount: 288,
-    coverUrl: 'https://covers.openlibrary.org/b/id/8775431-L.jpg',
-    description:
-      'Классика мировой антиутопии. Общество будущего, где потребление и удовольствие возведены в абсолют, люди выращиваются в пробирках и делятся на касты, а любые страдания устраняются приемом наркотика сомы. До тех пор, пока в этот стерильный мир не попадает Дикарь Джон.',
-    spineColor: 'from-[#065f46] to-[#022c22]',
-    spineAccent: '#34d399',
-    spineTextColor: '#ecfdf5',
-    participants: [
-      { name: 'Маша', score: '8', hasAsterisk: false },
-      { name: 'Дима', score: '7,5', hasAsterisk: false },
-      { name: 'Тлен', score: '8', hasAsterisk: false },
-    ],
-  },
-  {
-    id: 18,
-    date: '29.11.2026',
-    author: 'Фёдор Достоевский',
-    title: 'Преступление и наказание',
-    overallRating: '8,4',
-    subtitle: 'Социально-философский роман',
-    publisher: 'Русский вестник / Эксмо',
-    publishedYear: '1866',
-    language: 'Русский (оригинал)',
-    translator: 'Оригинал',
-    genres: ['Русская классика', 'Психологический роман', 'Философия'],
-    pageCount: 560,
-    coverUrl: 'https://covers.openlibrary.org/b/id/8231856-L.jpg',
-    description:
-      'Грандиозное исследование человеческой души, вины и искупления. Бывший студент Родион Раскольников создает теорию о делении людей на «тварей дрожащих» и «право имеющих» и решается на убийство процентщицы, чтобы проверить себя.',
-    spineColor: 'from-[#881337] to-[#4c0519]',
-    spineAccent: '#fb7185',
-    spineTextColor: '#fff1f2',
-    participants: [
-      { name: 'Никита', score: '8', hasAsterisk: false },
-      { name: 'Катя', score: '9', hasAsterisk: false },
-      { name: 'Дима', score: '8,5', hasAsterisk: false },
-    ],
-  },
-  {
-    id: 19,
-    date: '13.12.2026',
-    author: 'Оскар Уайльд',
-    title: 'Портрет Дориана Грея',
-    overallRating: '8,1',
-    subtitle: 'Эстетский философский роман',
-    publisher: 'Lippincott’s Monthly Magazine / Азбука',
-    publishedYear: '1890',
-    language: 'Русский (перевод с английского)',
-    translator: 'М. Абкина',
-    genres: ['Классика', 'Эстетизм', 'Мистика', 'Философия'],
-    pageCount: 320,
-    coverUrl: 'https://covers.openlibrary.org/b/id/8431952-L.jpg',
-    description:
-      'Единственный опубликованный роман Оскара Уайльда. Необыкновенно красивый юноша Дориан Грей под влиянием гедонистических идей лорда Генри мечтает навсегда остаться молодым. Его желание сбывается: стареет и несет следы всех его пороков лишь его тайный портрет.',
-    spineColor: 'from-[#581c87] to-[#2e1065]',
-    spineAccent: '#c084fc',
-    spineTextColor: '#faf5ff',
-    participants: [
-      { name: 'Маша', score: '8,5', hasAsterisk: false },
-      { name: 'Никита', score: '7,5', hasAsterisk: false },
-      { name: 'Тлен', score: '8', hasAsterisk: false },
-    ],
-  },
-  {
-    id: 20,
-    date: '27.12.2026',
-    author: 'Антуан де Сент-Экзюпери',
-    title: 'Маленький принц',
-    overallRating: '9,1',
-    subtitle: 'Аллегорическая повесть-сказка',
-    publisher: 'Reynal & Hitchcock / Эксмо',
-    publishedYear: '1943',
-    language: 'Русский (перевод с французского)',
-    translator: 'Нора Галь',
-    genres: ['Сказка-притча', 'Философия', 'Французская классика'],
-    pageCount: 96,
-    coverUrl: 'https://covers.openlibrary.org/b/id/10389332-L.jpg',
-    description:
-      'Трогательная философская сказка о самом важном: любви, дружбе, верности и ответственности за тех, кого мы приручили. Маленький мальчик с золотыми волосами путешествует по крошечным астероидам и знакомится со взрослым миром.',
-    spineColor: 'from-[#854d0e] to-[#422006]',
-    spineAccent: '#facc15',
-    spineTextColor: '#fefce8',
-    participants: [
-      { name: 'Маша', score: '10', hasAsterisk: false },
-      { name: 'Дима', score: '9', hasAsterisk: false },
-      { name: 'Катя', score: '9', hasAsterisk: false },
-      { name: 'Никита', score: '8,5', hasAsterisk: false },
-    ],
-  },
-  {
-    id: 21,
-    date: '10.01.2027',
-    author: 'Фрэнсис Скотт Фицджеральд',
-    title: 'Великий Гэтсби',
-    overallRating: '7,9',
-    subtitle: 'Роман эпохи джаза',
-    publisher: 'Charles Scribner’s Sons / АСТ',
-    publishedYear: '1925',
-    language: 'Русский (перевод с английского)',
-    translator: 'Е. Калашникова',
-    genres: ['Американская классика', 'Драма', 'Эпоха джаза'],
-    pageCount: 256,
-    coverUrl: 'https://covers.openlibrary.org/b/id/8431876-L.jpg',
-    description:
-      'Пронзительная история эпохи «века джаза» и краха американской мечты. Загадочный миллионер Джей Гэтсби закатывает роскошные вечеринки на Лонг-Айленде ради одной-единственной цели — вернуть любовь прекрасной Дейзи Бьюкенен.',
-    spineColor: 'from-[#1e3a8a] to-[#0f172a]',
-    spineAccent: '#60a5fa',
-    spineTextColor: '#eff6ff',
-    participants: [
-      { name: 'Дима', score: '8', hasAsterisk: false },
-      { name: 'Маша', score: '8', hasAsterisk: false },
-      { name: 'Тлен', score: '7,5', hasAsterisk: false },
-    ],
-  },
-  {
-    id: 22,
-    date: '24.01.2027',
-    author: 'Чак Паланик',
-    title: 'Бойцовский клуб',
-    overallRating: '8,2',
-    subtitle: 'Культовый контркультурный роман',
-    publisher: 'W. W. Norton & Company / АСТ',
-    publishedYear: '1996',
-    language: 'Русский (перевод с английского)',
-    translator: 'И. Кормильцев',
-    genres: ['Контркультура', 'Психологический триллер', 'Постмодернизм'],
-    pageCount: 256,
-    coverUrl: 'https://covers.openlibrary.org/b/id/8235112-L.jpg',
-    description:
-      'Бескомпромиссный манифест поколения потребителей. Безымянный клерк, страдающий бессонницей, встречает харизматичного продавца мыла Тайлера Дёрдена и создает подпольный клуб, где мужчины избивают друг друга, чтобы почувствовать себя живыми.',
-    spineColor: 'from-[#7f1d1d] to-[#450a0a]',
-    spineAccent: '#f87171',
-    spineTextColor: '#fef2f2',
-    participants: [
-      { name: 'Никита', score: '8,5', hasAsterisk: false },
-      { name: 'Дима', score: '8,5', hasAsterisk: false },
-      { name: 'Тлен', score: '7,5', hasAsterisk: false },
-    ],
-  },
-  {
-    id: 23,
-    date: '07.02.2027',
-    author: 'Эрих Мария Ремарк',
-    title: 'Три товарища',
-    overallRating: '8,6',
-    subtitle: 'Роман о «потерянном поколении»',
-    publisher: 'Querido Verlag / АСТ',
-    publishedYear: '1936',
-    language: 'Русский (перевод с немецкого)',
-    translator: 'И. Шрайбер',
-    genres: ['Зарубежная классика', 'Роман о дружбе и любви', 'Драма'],
-    pageCount: 480,
-    coverUrl: 'https://covers.openlibrary.org/b/id/8315243-L.jpg',
-    description:
-      'Одна из самых пронзительных книг о мужской дружбе и настоящей любви. Трое фронтовых друзей — Роберт Локамп, Отто Кестер и Готтфрид Ленц — пытаются найти себя в кризисной Веймарской Германии, пока в жизнь Роберта не входит Патриция Хольман.',
-    spineColor: 'from-[#0f766e] to-[#115e59]',
-    spineAccent: '#2dd4bf',
-    spineTextColor: '#f0fdfa',
-    participants: [
-      { name: 'Маша', score: '9', hasAsterisk: false },
-      { name: 'Дима', score: '8', hasAsterisk: false },
-      { name: 'Катя', score: '9', hasAsterisk: false },
-    ],
-  },
-  {
-    id: 24,
-    date: '21.02.2027',
-    author: 'Харпер Ли',
-    title: 'Убить пересмешника',
-    overallRating: '8,7',
-    subtitle: 'Американский воспитательный роман',
-    publisher: 'J. B. Lippincott & Co. / АСТ',
-    publishedYear: '1960',
-    language: 'Русский (перевод с английского)',
-    translator: 'Н. Галь, Р. Облонская',
-    genres: ['Американская классика', 'Судебная драма', 'Роман воспитания'],
-    pageCount: 416,
-    coverUrl: 'https://covers.openlibrary.org/b/id/8225261-L.jpg',
-    description:
-      'Удостоенный Пулитцеровской премии роман, рассказанный от лица девочки по прозвищу Глазастик. Ее отец, адвокат Аттикус Финч, берется защищать чернокожего жителя южного городка Мейкомб, несправедливо обвиненного в преступлении.',
-    spineColor: 'from-[#78350f] to-[#451a03]',
-    spineAccent: '#fbbf24',
-    spineTextColor: '#fefce8',
-    participants: [
-      { name: 'Никита', score: '9', hasAsterisk: false },
-      { name: 'Маша', score: '9', hasAsterisk: false },
-      { name: 'Дима', score: '8', hasAsterisk: false },
-    ],
-  },
 ];
 
 /**
@@ -756,7 +529,12 @@ export function parseBookClubCsv(csvText: string): BookClubBook[] {
     });
   }
 
-  return books.length > 0 ? books : INITIAL_BOOK_CLUB_BOOKS;
+  // Deduplicate by ID to guarantee no duplicates ever appear
+  const uniqueBooks = books.filter(
+    (book, index, self) => index === self.findIndex((b) => b.id === book.id)
+  );
+
+  return uniqueBooks.length > 0 ? uniqueBooks : INITIAL_BOOK_CLUB_BOOKS;
 }
 
 /**
@@ -773,13 +551,7 @@ export async function fetchLiveBookClubList(): Promise<BookClubBook[]> {
     }
     const csv = await response.text();
     const parsed = parseBookClubCsv(csv);
-    if (parsed.length > 0) {
-      if (parsed.length < INITIAL_BOOK_CLUB_BOOKS.length) {
-        return [...parsed, ...INITIAL_BOOK_CLUB_BOOKS.slice(parsed.length)];
-      }
-      return parsed;
-    }
-    return INITIAL_BOOK_CLUB_BOOKS;
+    return parsed.length > 0 ? parsed : INITIAL_BOOK_CLUB_BOOKS;
   } catch (err) {
     console.warn('Failed to fetch live Google Sheet for Book Club, using static fallback:', err);
     return INITIAL_BOOK_CLUB_BOOKS;

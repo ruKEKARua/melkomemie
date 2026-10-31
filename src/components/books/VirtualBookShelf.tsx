@@ -54,8 +54,6 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     const spineWidthPx = Math.max(13, Math.round(15 * scale));
     // Total book width
     const totalBookWidthPx = coverWidthPx + spineWidthPx;
-    // Top pages cut thickness
-    const topCutHeightPx = Math.max(6.5, Math.round(7.5 * scale));
 
     // Overlap math for 6 books:
     // Visible step for each covered book = right spine (15px) + 11px edge of cover = ~26px.
@@ -217,27 +215,6 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
               transition: 'box-shadow 300ms ease',
             }}
           >
-            {/* =========================================================================
-                FACE 3: TOP PAGES CUT (Верхний бумажный срез страниц)
-                ========================================================================= */}
-            <div
-              className="absolute pointer-events-none z-30"
-              style={{
-                top: `-${topCutHeightPx - 1}px`,
-                left: '2px',
-                right: '2px',
-                height: `${topCutHeightPx}px`,
-                transform: 'skewX(-28deg)',
-                transformOrigin: 'bottom left',
-                background: '#ede3d2',
-                backgroundImage:
-                  'repeating-linear-gradient(90deg, #ede3d2 0px, #d6c6b3 1px, #ede3d2 2px)',
-                borderTop: '1px solid rgba(255, 255, 255, 0.45)',
-                borderLeft: '1px solid rgba(255, 255, 255, 0.35)',
-                boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.25)',
-              }}
-            />
-
             {/* =========================================================================
                 FACE 1: FRONT COVER (Лицевая корочка слева — винтажный переплет)
                 ========================================================================= */}
