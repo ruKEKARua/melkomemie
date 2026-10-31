@@ -91,22 +91,27 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     const { topColor, bottomColor, accent } = parseSpineColors(book);
     const coverUrl = sanitizeGoogleBooksCover(book.coverUrl);
 
+    // Dynamic slot width seamlessly includes gapPx without dead zones between hitboxes
+    const slotWidth =
+      (isHovered ? totalExpandedWidthPx : spineWidthPx) + (isLastOnShelf ? 0 : gapPx);
+
     return (
       <div
         key={book.id}
-        className="relative select-none cursor-pointer flex flex-col justify-end shrink-0 opacity-100"
+        className="relative select-none cursor-pointer flex flex-col justify-end shrink-0 opacity-100 box-border"
         style={{
-          width: isHovered ? `${totalExpandedWidthPx}px` : `${spineWidthPx}px`,
-          height: `${heightRatio * 100}%`,
-          marginRight: isLastOnShelf ? 0 : `${gapPx}px`,
+          width: `${slotWidth}px`,
+          height: '100%',
+          paddingRight: isLastOnShelf ? 0 : `${gapPx}px`,
           zIndex,
           perspective: '1000px',
           opacity: 1,
-          transition:
-            'width 350ms cubic-bezier(0.16, 1, 0.3, 1), z-index 0ms',
+          willChange: 'width',
+          transition: isHovered
+            ? 'width 180ms cubic-bezier(0.2, 0, 0, 1), z-index 0ms'
+            : 'width 160ms cubic-bezier(0.25, 1, 0.5, 1), z-index 0ms',
         }}
         onMouseEnter={() => setHoveredBookId(book.id)}
-        onMouseLeave={() => setHoveredBookId(null)}
         onClick={() => onSelectBook(book)}
       >
         {/* 
@@ -203,8 +208,9 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
           - Accordion: outer container widens to coverWidth, smoothly pushing neighbor books to the right
         */}
         <div
-          className="relative w-full h-full select-none"
+          className="relative w-full select-none"
           style={{
+            height: `${heightRatio * 100}%`,
             transformStyle: 'preserve-3d',
             transformOrigin: 'left center',
             transform: isHovered
@@ -214,8 +220,10 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
             boxShadow: isHovered
               ? `-14px 12px 28px rgba(0, 0, 0, 0.95), -4px 4px 12px rgba(0, 0, 0, 0.7), 0 0 20px ${accent}44`
               : 'none',
-            transition:
-              'transform 350ms cubic-bezier(0.16, 1, 0.3, 1), filter 350ms ease, box-shadow 350ms ease',
+            willChange: 'transform',
+            transition: isHovered
+              ? 'transform 180ms cubic-bezier(0.2, 0, 0, 1), box-shadow 180ms ease, filter 180ms ease'
+              : 'transform 160ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 160ms ease, filter 160ms ease',
           }}
         >
           {/* =========================================================================
@@ -235,8 +243,10 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
                 ? 'inset -2px 0 5px rgba(0,0,0,0.7), inset 1px 0 2px rgba(255,255,255,0.1)'
                 : 'inset 3px 0 6px rgba(0, 0, 0, 0.8), inset -3px 0 6px rgba(0, 0, 0, 0.8), inset 0 0 2px rgba(255, 255, 255, 0.18), -2px 3px 8px rgba(0,0,0,0.85)',
               padding: '2px 2px',
-              transition:
-                'transform 350ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 350ms ease',
+              willChange: 'transform',
+              transition: isHovered
+                ? 'transform 180ms cubic-bezier(0.2, 0, 0, 1), box-shadow 180ms ease'
+                : 'transform 160ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 160ms ease',
             }}
           >
             {/* 3D Cylindrical lighting sheen with smooth radial convex falloff */}
@@ -332,8 +342,10 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
               background: `linear-gradient(145deg, ${topColor} 0%, #0c0e14 60%, ${bottomColor} 100%)`,
               boxShadow:
                 'inset 0 0 16px rgba(0, 0, 0, 0.92), inset 2px 2px 3px rgba(255, 255, 255, 0.12), inset -2px -2px 3px rgba(0, 0, 0, 0.75)',
-              transition:
-                'transform 350ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 350ms ease',
+              willChange: 'transform',
+              transition: isHovered
+                ? 'transform 180ms cubic-bezier(0.2, 0, 0, 1), box-shadow 180ms ease'
+                : 'transform 160ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 160ms ease',
             }}
           >
             {/* Слева: слегка выпирающая закруглённая корочка/рубчик переплёта, как у настоящих книг */}
@@ -445,7 +457,6 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
       </div>
     );
   };
-
   return (
     <div className="w-full h-full flex flex-col justify-between select-none">
       {/* 
@@ -453,7 +464,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
         Strict containment: max-width 100%, box-sizing border-box, padding 0 12px
       */}
       <div
-        className="w-full max-w-full box-border flex items-end justify-start gap-1 select-none"
+        className="w-full max-w-full box-border flex items-end justify-start select-none"
         style={{
           height: '26.302%',
           padding: '0 12px',
@@ -461,7 +472,12 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
           boxSizing: 'border-box',
         }}
       >
-        {shelf1.map((b, i) => renderBook(b, i, shelf1.length, 0))}
+        <div
+          className="flex items-end h-full select-none"
+          onMouseLeave={() => setHoveredBookId(null)}
+        >
+          {shelf1.map((b, i) => renderBook(b, i, shelf1.length, 0))}
+        </div>
       </div>
 
       {/* Spacing for shelf divider 1: thickness = 15px => 1.953% */}
@@ -471,7 +487,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
         SHELF 2 (Second Cavity: 6 books 6..11)
       */}
       <div
-        className="w-full max-w-full box-border flex items-end justify-start gap-1 select-none"
+        className="w-full max-w-full box-border flex items-end justify-start select-none"
         style={{
           height: '23.307%',
           padding: '0 12px',
@@ -479,7 +495,12 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
           boxSizing: 'border-box',
         }}
       >
-        {shelf2.map((b, i) => renderBook(b, i, shelf2.length, 1))}
+        <div
+          className="flex items-end h-full select-none"
+          onMouseLeave={() => setHoveredBookId(null)}
+        >
+          {shelf2.map((b, i) => renderBook(b, i, shelf2.length, 1))}
+        </div>
       </div>
 
       {/* Spacing for shelf divider 2: thickness = 16px => 2.083% */}
@@ -489,7 +510,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
         SHELF 3 (Third Cavity: 6 books 12..17)
       */}
       <div
-        className="w-full max-w-full box-border flex items-end justify-start gap-1 select-none"
+        className="w-full max-w-full box-border flex items-end justify-start select-none"
         style={{
           height: '23.568%',
           padding: '0 12px',
@@ -497,7 +518,12 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
           boxSizing: 'border-box',
         }}
       >
-        {shelf3.map((b, i) => renderBook(b, i, shelf3.length, 2))}
+        <div
+          className="flex items-end h-full select-none"
+          onMouseLeave={() => setHoveredBookId(null)}
+        >
+          {shelf3.map((b, i) => renderBook(b, i, shelf3.length, 2))}
+        </div>
       </div>
 
       {/* Spacing for shelf divider 3: thickness = 14px => 1.823% */}
@@ -507,7 +533,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
         SHELF 4 (Bottom Cavity: 6 books 18..23)
       */}
       <div
-        className="w-full max-w-full box-border flex items-end justify-start gap-1 select-none"
+        className="w-full max-w-full box-border flex items-end justify-start select-none"
         style={{
           height: '20.964%',
           padding: '0 12px',
@@ -515,7 +541,12 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
           boxSizing: 'border-box',
         }}
       >
-        {shelf4.map((b, i) => renderBook(b, i, shelf4.length, 3))}
+        <div
+          className="flex items-end h-full select-none"
+          onMouseLeave={() => setHoveredBookId(null)}
+        >
+          {shelf4.map((b, i) => renderBook(b, i, shelf4.length, 3))}
+        </div>
       </div>
     </div>
   );
