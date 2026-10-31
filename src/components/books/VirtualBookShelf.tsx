@@ -40,7 +40,6 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     shelfIndex: number
   ) => {
     const isHovered = hoveredBookId === book.id;
-    const isFirstOnShelf = index === 0;
     const isLastOnShelf = index === totalOnShelf - 1;
     const isTopShelf = shelfIndex === 0;
 
@@ -48,19 +47,23 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     const heightRatios = [0.93, 0.96, 0.90, 0.94, 0.92, 0.95];
     const heightRatio = heightRatios[index % heightRatios.length];
 
-    // 3D Geometry Dimensions:
-    // 1. Spine (корешок) — 38px width, visible by default facing the user (rotateY(0deg))
-    const spineWidthPx = Math.max(34, Math.round(38 * scale));
-    // 2. Front Cover (лицевая карточка) — 110px-125px wide, hidden perpendicular in shelf (rotateY(90deg))
-    const coverWidthPx = Math.max(105, Math.round(120 * scale));
+    // Proportional dimensions:
+    // 1. Spine (корешок слева) — ~36px width, visible in resting state
+    const spineWidthPx = Math.max(32, Math.round(36 * scale));
+    // 2. Front Cover (лицевая обложка справа) — ~78px width, unveiled on hover
+    const coverWidthPx = Math.max(70, Math.round(78 * scale));
+    // Total book width when expanded on hover
+    const totalBookWidthPx = spineWidthPx + coverWidthPx;
+
+    const gapPx = Math.max(2, Math.round(3 * scale));
 
     // Stacking order:
-    // Hovered book lifts to zIndex 50 so its open cover floats cleanly over neighbor spines!
+    // Hovered book lifts to zIndex 50 so its elevated 3D cover floats cleanly over everything
     const zIndex = isHovered ? 50 : index + 1;
 
     // Typography
-    const titleFontSize = Math.max(9.5, Math.round(11 * scale));
-    const spineTitleFontSize = Math.max(9.5, Math.round(10.5 * scale));
+    const titleFontSize = Math.max(9, Math.round(10.5 * scale));
+    const spineTitleFontSize = Math.max(9, Math.round(10 * scale));
 
     // Floating tooltip card dimensions
     const cardWidth = Math.max(205, Math.round(235 * scale));
@@ -86,44 +89,23 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     const { topColor, bottomColor, accent } = parseSpineColors(book);
     const coverUrl = sanitizeGoogleBooksCover(book.coverUrl);
 
-    // Strict boundary containment for 3D rotation:
-    // If the book is the last on the shelf, anchor its hinge on the right edge so the cover
-    // swings inwards to the left (avoiding the right wooden cabinet frame).
-    // If the book is the first on the shelf, anchor on the left edge and shift slightly inwards (+4px).
-    const transformOrigin = isLastOnShelf ? 'right center' : 'left center';
-
-    const containerTransform = isHovered
-      ? isLastOnShelf
-        ? `rotateY(90deg) translateZ(${28 * scale}px) translateX(-${Math.round(4 * scale)}px)`
-        : isFirstOnShelf
-        ? `rotateY(-90deg) translateZ(${28 * scale}px) translateX(${Math.round(4 * scale)}px)`
-        : `rotateY(-90deg) translateZ(${28 * scale}px)`
-      : 'rotateY(0deg) translateZ(0px)';
-
-    const coverStyle: React.CSSProperties = isLastOnShelf
-      ? {
-          right: 0,
-          width: `${coverWidthPx}px`,
-          transformOrigin: 'right center',
-          transform: 'rotateY(-90deg)',
-        }
-      : {
-          left: 0,
-          width: `${coverWidthPx}px`,
-          transformOrigin: 'left center',
-          transform: 'rotateY(90deg)',
-        };
-
     return (
       <div
         key={book.id}
-        className="relative select-none flex flex-col justify-end shrink-0"
+        className="relative select-none cursor-pointer flex flex-col justify-end shrink-0 opacity-100"
         style={{
-          width: `${spineWidthPx}px`,
+          width: isHovered ? `${totalBookWidthPx}px` : `${spineWidthPx}px`,
           height: `${heightRatio * 100}%`,
+          marginRight: isLastOnShelf ? 0 : `${gapPx}px`,
           zIndex,
           perspective: '1000px',
+          opacity: 1,
+          transition:
+            'width 320ms cubic-bezier(0.16, 1, 0.3, 1), z-index 0ms',
         }}
+        onMouseEnter={() => setHoveredBookId(book.id)}
+        onMouseLeave={() => setHoveredBookId(null)}
+        onClick={() => onSelectBook(book)}
       >
         {/* 
           Hover Information Tooltip:
@@ -210,40 +192,35 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
         )}
 
         {/* 
-          3D BOOK OBJECT (transform-style: preserve-3d)
-          - Stable hitbox: listeners on this container ensure cursor never flickers on rotation
-          - Transition: transform 0.35s cubic-bezier(0.25, 0.8, 0.25, 1)
-          - On hover: rotates 90° so coverFace faces viewer, translates forward in Z,
-            overlapping neighbor spines without shifting the shelf row.
+          3D BOOK VOLUME:
+          - Stable physical footprint: outer element expands so hover NEVER drops when moving cursor across book
+          - On hover: smoothly rotates -6°, translateZ steps forward, neighbor books slide right to unveil cover
+          - Left: 38px Spine with vertical typography & thumbnail
+          - Right: 92px Front Cover with vintage gold border & full title
         */}
         <div
-          className="relative h-full select-none cursor-pointer"
+          className="relative w-full h-full select-none flex rounded-[3px] opacity-100"
           style={{
-            width: `${spineWidthPx}px`,
             transformStyle: 'preserve-3d',
-            transformOrigin,
-            transform: containerTransform,
-            transition: 'transform 0.35s cubic-bezier(0.25, 0.8, 0.25, 1), filter 0.35s ease',
-            filter: isHovered ? 'brightness(1.12)' : 'brightness(1)',
+            transformOrigin: 'left center',
+            transform: isHovered
+              ? `perspective(1000px) rotateY(-6deg) translateZ(${22 * scale}px) scale(1.02)`
+              : 'perspective(1000px) rotateY(0deg) translateZ(0px)',
+            filter: isHovered ? 'brightness(1.15)' : 'brightness(1)',
+            boxShadow: isHovered
+              ? `-16px 14px 34px rgba(0, 0, 0, 0.95), -6px 4px 15px rgba(0, 0, 0, 0.7), 0 0 24px ${accent}44`
+              : 'none',
+            transition:
+              'transform 320ms cubic-bezier(0.16, 1, 0.3, 1), filter 320ms ease, box-shadow 320ms ease',
           }}
-          onMouseEnter={() => setHoveredBookId(book.id)}
-          onMouseLeave={() => setHoveredBookId(null)}
-          onClick={() => onSelectBook(book)}
         >
           {/* =========================================================================
-              GRAN 1: THE SPINE (Корешок — виден по умолчанию при rotateY(0deg))
-              - Ширина 38px, высота под размер полки
-              - Сверху: компактный горизонтальный бейдж с рейтингом ★
-              - По центру: название вертикально (writing-mode: vertical-rl, text-orientation: mixed)
-              - Снизу: микро-превью постера книги 26x26px
-              - Золотые рамки и аутентичная палитра переплета
+              GRAN 1: THE SPINE (Корешок слева — 38px, виден всегда в обычном состоянии)
               ========================================================================= */}
           <div
-            className="absolute top-0 left-0 h-full flex flex-col justify-between items-center overflow-hidden select-none border border-amber-400/50 rounded-[3px] opacity-100"
+            className="relative h-full flex flex-col justify-between items-center overflow-hidden select-none border border-amber-400/50 rounded-l-[3px] opacity-100 shrink-0"
             style={{
               width: `${spineWidthPx}px`,
-              backfaceVisibility: 'hidden',
-              transform: 'rotateY(0deg)',
               background: `linear-gradient(180deg, ${topColor} 0%, #0c0e14 60%, ${bottomColor} 100%)`,
               boxShadow: isHovered
                 ? 'inset -2px 0 5px rgba(0,0,0,0.7), inset 1px 0 2px rgba(255,255,255,0.1)'
@@ -347,23 +324,21 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
           </div>
 
           {/* =========================================================================
-              GRAN 2: FRONT COVER (Лицевая обложка — скрыта по умолчанию при rotateY(90deg))
-              - Широкая карточка книги (текущий винтажный дизайн)
-              - При наведении поворачивается фронтально к зрителю
+              GRAN 2: FRONT COVER (Лицевая обложка справа — 92px, раскрывается при наведении)
               ========================================================================= */}
           <div
-            className={`absolute top-0 h-full flex flex-col justify-between p-2 select-none border border-amber-400/60 rounded-[4px] overflow-hidden opacity-100 ${
+            className={`relative h-full flex flex-col justify-between p-2 select-none border-t border-r border-b border-amber-400/60 rounded-r-[3px] overflow-hidden shrink-0 ${
               isHovered ? 'ring-1.5 ring-amber-400/90' : ''
             }`}
             style={{
-              ...coverStyle,
-              opacity: 1,
-              backfaceVisibility: 'hidden',
+              width: `${coverWidthPx}px`,
+              opacity: isHovered ? 1 : 0,
+              pointerEvents: isHovered ? 'auto' : 'none',
               background: `linear-gradient(145deg, ${topColor} 0%, #0c0e14 60%, ${bottomColor} 100%)`,
-              boxShadow: isHovered
-                ? `-18px 16px 36px rgba(0, 0, 0, 0.95), -6px 4px 15px rgba(0, 0, 0, 0.7), 0 0 24px ${accent}44, inset 0 0 16px rgba(0, 0, 0, 0.92), inset 2px 2px 3px rgba(255, 255, 255, 0.12), inset -2px -2px 3px rgba(0, 0, 0, 0.75)`
-                : 'inset 0 0 16px rgba(0, 0, 0, 0.92)',
-              transition: 'box-shadow 0.35s ease',
+              borderLeft: '1px solid rgba(0, 0, 0, 0.95)',
+              boxShadow:
+                'inset 0 0 16px rgba(0, 0, 0, 0.92), inset 2px 2px 3px rgba(255, 255, 255, 0.12), inset -2px -2px 3px rgba(0, 0, 0, 0.75)',
+              transition: 'opacity 240ms ease, box-shadow 320ms ease',
             }}
           >
             {/* Micro-texture stippled leather grain */}
