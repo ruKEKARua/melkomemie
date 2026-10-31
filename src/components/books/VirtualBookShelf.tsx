@@ -48,12 +48,10 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     const heightRatio = heightRatios[index % heightRatios.length];
 
     // Proportional dimensions:
-    // 1. Spine (корешок слева) — ~36px width, visible in resting state
+    // 1. Spine (корешок) — ~36px width, visible in resting state
     const spineWidthPx = Math.max(32, Math.round(36 * scale));
-    // 2. Front Cover (лицевая обложка справа) — ~78px width, unveiled on hover
-    const coverWidthPx = Math.max(70, Math.round(78 * scale));
-    // Total book width when expanded on hover
-    const totalBookWidthPx = spineWidthPx + coverWidthPx;
+    // 2. Front Cover (лицевая обложка) — ~84px width, revealed on hover
+    const coverWidthPx = Math.max(76, Math.round(84 * scale));
 
     const gapPx = Math.max(2, Math.round(3 * scale));
 
@@ -94,14 +92,14 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
         key={book.id}
         className="relative select-none cursor-pointer flex flex-col justify-end shrink-0 opacity-100"
         style={{
-          width: isHovered ? `${totalBookWidthPx}px` : `${spineWidthPx}px`,
+          width: isHovered ? `${coverWidthPx}px` : `${spineWidthPx}px`,
           height: `${heightRatio * 100}%`,
           marginRight: isLastOnShelf ? 0 : `${gapPx}px`,
           zIndex,
           perspective: '1000px',
           opacity: 1,
           transition:
-            'width 320ms cubic-bezier(0.16, 1, 0.3, 1), z-index 0ms',
+            'width 350ms cubic-bezier(0.16, 1, 0.3, 1), z-index 0ms',
         }}
         onMouseEnter={() => setHoveredBookId(book.id)}
         onMouseLeave={() => setHoveredBookId(null)}
@@ -193,39 +191,48 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
 
         {/* 
           3D BOOK VOLUME:
-          - Stable physical footprint: outer element expands so hover NEVER drops when moving cursor across book
-          - On hover: smoothly rotates -6°, translateZ steps forward, neighbor books slide right to unveil cover
-          - Left: 38px Spine with vertical typography & thumbnail
-          - Right: 92px Front Cover with vintage gold border & full title
+          - Both Spine and Front Cover exist simultaneously in true 3D (transform-style: preserve-3d)
+          - In resting state: Spine (0deg) faces forward, Front Cover (90deg) is perpendicular in shelf depth
+          - On hover: Spine turns away (-90deg) and naturally disappears into the shelf depth (backface-hidden),
+            while Front Cover swings forward (0deg) facing the viewer!
+          - The book volume elevates slightly forward (-5deg isometric tilt, translateZ) with rich drop shadow
+          - Accordion: outer container widens to coverWidth, smoothly pushing neighbor books to the right
         */}
         <div
-          className="relative w-full h-full select-none flex rounded-[3px] opacity-100"
+          className="relative w-full h-full select-none"
           style={{
             transformStyle: 'preserve-3d',
             transformOrigin: 'left center',
             transform: isHovered
-              ? `perspective(1000px) rotateY(-6deg) translateZ(${22 * scale}px) scale(1.02)`
-              : 'perspective(1000px) rotateY(0deg) translateZ(0px)',
+              ? `rotateY(-5deg) translateZ(${14 * scale}px) scale(1.02)`
+              : 'rotateY(0deg) translateZ(0px)',
             filter: isHovered ? 'brightness(1.15)' : 'brightness(1)',
             boxShadow: isHovered
-              ? `-16px 14px 34px rgba(0, 0, 0, 0.95), -6px 4px 15px rgba(0, 0, 0, 0.7), 0 0 24px ${accent}44`
+              ? `-14px 12px 28px rgba(0, 0, 0, 0.95), -4px 4px 12px rgba(0, 0, 0, 0.7), 0 0 20px ${accent}44`
               : 'none',
             transition:
-              'transform 320ms cubic-bezier(0.16, 1, 0.3, 1), filter 320ms ease, box-shadow 320ms ease',
+              'transform 350ms cubic-bezier(0.16, 1, 0.3, 1), filter 350ms ease, box-shadow 350ms ease',
           }}
         >
           {/* =========================================================================
-              GRAN 1: THE SPINE (Корешок слева — 38px, виден всегда в обычном состоянии)
+              FACE 1: THE SPINE (Корешок — виден в обычном состоянии при rotateY(0deg),
+              при наведении поворачивается на -90deg вглубь полки и скрывается)
               ========================================================================= */}
           <div
-            className="relative h-full flex flex-col justify-between items-center overflow-hidden select-none border border-amber-400/50 rounded-l-[3px] opacity-100 shrink-0"
+            className="absolute top-0 left-0 h-full flex flex-col justify-between items-center overflow-hidden select-none border border-amber-400/50 rounded-l-[3px] opacity-100"
             style={{
               width: `${spineWidthPx}px`,
+              transformOrigin: 'left center',
+              transform: isHovered ? 'rotateY(-90deg)' : 'rotateY(0deg)',
+              backfaceVisibility: 'hidden',
+              pointerEvents: isHovered ? 'none' : 'auto',
               background: `linear-gradient(180deg, ${topColor} 0%, #0c0e14 60%, ${bottomColor} 100%)`,
               boxShadow: isHovered
                 ? 'inset -2px 0 5px rgba(0,0,0,0.7), inset 1px 0 2px rgba(255,255,255,0.1)'
                 : '-2px 3px 6px rgba(0,0,0,0.75), inset -2px 0 5px rgba(0,0,0,0.7), inset 1px 0 2px rgba(255,255,255,0.1)',
               padding: '2px 2px',
+              transition:
+                'transform 350ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 350ms ease',
             }}
           >
             {/* 3D Cylindrical lighting sheen */}
@@ -300,21 +307,25 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
           </div>
 
           {/* =========================================================================
-              GRAN 2: FRONT COVER (Лицевая обложка справа — 92px, раскрывается при наведении)
+              FACE 2: FRONT COVER (Лицевая обложка — в обычном состоянии перпендикулярно в глубине,
+              при наведении плавно поворачивается лицом к зрителю)
               ========================================================================= */}
           <div
-            className={`relative h-full flex flex-col justify-between p-2 select-none border-t border-r border-b border-amber-400/60 rounded-r-[3px] overflow-hidden shrink-0 ${
+            className={`absolute top-0 left-0 h-full flex flex-col justify-between p-2 select-none border border-amber-400/60 rounded-[3px] overflow-hidden ${
               isHovered ? 'ring-1.5 ring-amber-400/90' : ''
             }`}
             style={{
               width: `${coverWidthPx}px`,
-              opacity: isHovered ? 1 : 0,
+              transformOrigin: 'left center',
+              transform: isHovered ? 'rotateY(0deg)' : 'rotateY(90deg)',
+              backfaceVisibility: 'hidden',
               pointerEvents: isHovered ? 'auto' : 'none',
               background: `linear-gradient(145deg, ${topColor} 0%, #0c0e14 60%, ${bottomColor} 100%)`,
               borderLeft: '1px solid rgba(0, 0, 0, 0.95)',
               boxShadow:
                 'inset 0 0 16px rgba(0, 0, 0, 0.92), inset 2px 2px 3px rgba(255, 255, 255, 0.12), inset -2px -2px 3px rgba(0, 0, 0, 0.75)',
-              transition: 'opacity 240ms ease, box-shadow 320ms ease',
+              transition:
+                'transform 350ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 350ms ease',
             }}
           >
             {/* Micro-texture stippled leather grain */}
