@@ -50,8 +50,12 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     // Proportional dimensions:
     // 1. Spine (корешок) — ~36px width, visible in resting state
     const spineWidthPx = Math.max(32, Math.round(36 * scale));
-    // 2. Front Cover (лицевая обложка) — ~84px width, revealed on hover
-    const coverWidthPx = Math.max(76, Math.round(84 * scale));
+    // 2. Protruding leather hinge/joint on the left of front cover ("выпирающая корочка")
+    const hingeWidthPx = Math.max(7, Math.round(8 * scale));
+    // 3. Front Cover (лицевая обложка) — ~80px width, revealed on hover
+    const coverWidthPx = Math.max(72, Math.round(80 * scale));
+    // Total physical width when book is opened on hover
+    const totalExpandedWidthPx = hingeWidthPx + coverWidthPx;
 
     const gapPx = Math.max(2, Math.round(3 * scale));
 
@@ -92,7 +96,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
         key={book.id}
         className="relative select-none cursor-pointer flex flex-col justify-end shrink-0 opacity-100"
         style={{
-          width: isHovered ? `${coverWidthPx}px` : `${spineWidthPx}px`,
+          width: isHovered ? `${totalExpandedWidthPx}px` : `${spineWidthPx}px`,
           height: `${heightRatio * 100}%`,
           marginRight: isLastOnShelf ? 0 : `${gapPx}px`,
           zIndex,
@@ -216,10 +220,10 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
         >
           {/* =========================================================================
               FACE 1: THE SPINE (Корешок — виден в обычном состоянии при rotateY(0deg),
-              при наведении поворачивается на -90deg вглубь полки и скрывается)
+              естественное цилиндрическое закругление, при наведении скрывается на -90deg)
               ========================================================================= */}
           <div
-            className="absolute top-0 left-0 h-full flex flex-col justify-between items-center overflow-hidden select-none border border-amber-400/50 rounded-l-[3px] opacity-100"
+            className="absolute top-0 left-0 h-full flex flex-col justify-between items-center overflow-hidden select-none border border-amber-400/50 rounded-[4px] opacity-100"
             style={{
               width: `${spineWidthPx}px`,
               transformOrigin: 'left center',
@@ -229,24 +233,24 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
               background: `linear-gradient(180deg, ${topColor} 0%, #0c0e14 60%, ${bottomColor} 100%)`,
               boxShadow: isHovered
                 ? 'inset -2px 0 5px rgba(0,0,0,0.7), inset 1px 0 2px rgba(255,255,255,0.1)'
-                : '-2px 3px 6px rgba(0,0,0,0.75), inset -2px 0 5px rgba(0,0,0,0.7), inset 1px 0 2px rgba(255,255,255,0.1)',
+                : 'inset 3px 0 6px rgba(0, 0, 0, 0.8), inset -3px 0 6px rgba(0, 0, 0, 0.8), inset 0 0 2px rgba(255, 255, 255, 0.18), -2px 3px 8px rgba(0,0,0,0.85)',
               padding: '2px 2px',
               transition:
                 'transform 350ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 350ms ease',
             }}
           >
-            {/* 3D Cylindrical lighting sheen */}
+            {/* 3D Cylindrical lighting sheen with smooth radial convex falloff */}
             <div
-              className="absolute inset-0 pointer-events-none z-20"
+              className="absolute inset-0 pointer-events-none z-20 rounded-[4px]"
               style={{
                 background:
-                  'linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(255,255,255,0.22) 26%, rgba(255,255,255,0.06) 60%, rgba(0,0,0,0.65) 100%)',
+                  'linear-gradient(90deg, rgba(0,0,0,0.65) 0%, rgba(255,255,255,0.24) 28%, rgba(255,255,255,0.07) 55%, rgba(0,0,0,0.7) 100%)',
               }}
             />
 
             {/* Top Silk Headband (Каптал) */}
             <div
-              className="w-full h-[2px] shrink-0 opacity-90 z-10"
+              className="w-full h-[2.5px] shrink-0 opacity-90 z-10 rounded-t-[2px]"
               style={{
                 background:
                   'repeating-linear-gradient(90deg, #d4af37 0px, #d4af37 2px, #2b1810 2px, #2b1810 4px)',
@@ -256,7 +260,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
 
             {/* Upper Transverse Gold Rib (Бинтик) */}
             <div className="w-full px-0.5 mt-1.5 mb-1 shrink-0 z-10 pointer-events-none flex flex-col gap-[1px]">
-              <div className="w-full h-[1.5px] bg-amber-400/80 shadow-xs" />
+              <div className="w-full h-[1.5px] bg-amber-400/80 shadow-xs rounded-xs" />
               <div className="w-full h-[1px] bg-amber-300/50" />
             </div>
 
@@ -284,7 +288,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
             {/* Lower Transverse Gold Rib (Бинтик) */}
             <div className="w-full px-0.5 mb-1 mt-1 shrink-0 z-10 pointer-events-none flex flex-col gap-[1px]">
               <div className="w-full h-[1px] bg-amber-300/50" />
-              <div className="w-full h-[1.5px] bg-amber-400/80 shadow-xs" />
+              <div className="w-full h-[1.5px] bg-amber-400/80 shadow-xs rounded-xs" />
             </div>
 
             {/* Снизу: компактный горизонтальный бейдж с рейтингом книги (вместо постера) */}
@@ -297,7 +301,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
 
             {/* Bottom Silk Headband (Каптал) */}
             <div
-              className="w-full h-[2px] shrink-0 opacity-90 z-10"
+              className="w-full h-[2.5px] shrink-0 opacity-90 z-10 rounded-b-[2px]"
               style={{
                 background:
                   'repeating-linear-gradient(90deg, #d4af37 0px, #d4af37 2px, #2b1810 2px, #2b1810 4px)',
@@ -307,27 +311,63 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
           </div>
 
           {/* =========================================================================
-              FACE 2: FRONT COVER (Лицевая обложка — в обычном состоянии перпендикулярно в глубине,
-              при наведении плавно поворачивается лицом к зрителю)
+              FACE 2: FRONT COVER (Лицевая обложка)
+              - Примыкает к правой части книжки в обычном состоянии
+              - При наведении поворачивается лицом к зрителю
+              - Слева слегка выпирает закруглённая корочка/рубчик, как у настоящих книг
               ========================================================================= */}
           <div
-            className={`absolute top-0 left-0 h-full flex flex-col justify-between p-2 select-none border border-amber-400/60 rounded-[3px] overflow-hidden ${
+            className={`absolute top-0 h-full flex flex-col justify-between p-2 select-none border border-amber-400/60 rounded-r-[3px] rounded-l-[1px] overflow-visible ${
               isHovered ? 'ring-1.5 ring-amber-400/90' : ''
             }`}
             style={{
+              left: `${hingeWidthPx}px`,
               width: `${coverWidthPx}px`,
               transformOrigin: 'left center',
-              transform: isHovered ? 'rotateY(0deg)' : 'rotateY(90deg)',
+              transform: isHovered
+                ? 'translateX(0px) rotateY(0deg)'
+                : `translateX(${spineWidthPx - hingeWidthPx}px) rotateY(90deg)`,
               backfaceVisibility: 'hidden',
               pointerEvents: isHovered ? 'auto' : 'none',
               background: `linear-gradient(145deg, ${topColor} 0%, #0c0e14 60%, ${bottomColor} 100%)`,
-              borderLeft: '1px solid rgba(0, 0, 0, 0.95)',
               boxShadow:
                 'inset 0 0 16px rgba(0, 0, 0, 0.92), inset 2px 2px 3px rgba(255, 255, 255, 0.12), inset -2px -2px 3px rgba(0, 0, 0, 0.75)',
               transition:
                 'transform 350ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 350ms ease',
             }}
           >
+            {/* Слева: слегка выпирающая закруглённая корочка/рубчик переплёта, как у настоящих книг */}
+            <div
+              className="absolute top-0 pointer-events-none z-10 rounded-l-[4px] flex flex-col justify-between"
+              style={{
+                left: `-${hingeWidthPx}px`,
+                width: `${hingeWidthPx}px`,
+                height: '100%',
+                background: `linear-gradient(90deg, rgba(0,0,0,0.85) 0%, ${topColor} 45%, #080a0f 100%)`,
+                borderTop: '1px solid rgba(245, 158, 11, 0.5)',
+                borderLeft: '1px solid rgba(245, 158, 11, 0.75)',
+                borderBottom: '1px solid rgba(245, 158, 11, 0.5)',
+                boxShadow:
+                  '-3px 0 6px rgba(0,0,0,0.9), inset 1px 0 2px rgba(255,255,255,0.22)',
+              }}
+            >
+              {/* Верхний каптал на выпирающей корочке */}
+              <div
+                className="w-full h-[2.5px] rounded-tl-[2px] opacity-90"
+                style={{
+                  background:
+                    'repeating-linear-gradient(90deg, #d4af37 0px, #d4af37 2px, #2b1810 2px, #2b1810 4px)',
+                }}
+              />
+              {/* Нижний каптал на выпирающей корочке */}
+              <div
+                className="w-full h-[2.5px] rounded-bl-[2px] opacity-90"
+                style={{
+                  background:
+                    'repeating-linear-gradient(90deg, #d4af37 0px, #d4af37 2px, #2b1810 2px, #2b1810 4px)',
+                }}
+              />
+            </div>
             {/* Micro-texture stippled leather grain */}
             <div
               className="absolute inset-0 opacity-20 pointer-events-none"
