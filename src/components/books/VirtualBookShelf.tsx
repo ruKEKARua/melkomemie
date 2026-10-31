@@ -48,25 +48,23 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     const heightRatio = heightRatios[index % heightRatios.length];
 
     // 3D Geometry Dimensions for 6 books per shelf:
-    // 1. Front Cover (лицевая корочка слева, основная часть)
+    // 1. Front Cover (лицевая корочка)
     const coverWidthPx = Math.max(68, Math.round(78 * scale));
-    // 2. Side Spine (боковой корешок справа, ширина 14px-16px)
-    const spineWidthPx = Math.max(13, Math.round(15 * scale));
+    // 2. Side Spine (боковой корешок под 90° к обложке)
+    const spineWidthPx = Math.max(18, Math.round(22 * scale));
     // Total book width
     const totalBookWidthPx = coverWidthPx + spineWidthPx;
 
-    // Overlap math for 6 books:
-    // Visible step for each covered book = right spine (15px) + 11px edge of cover = ~26px.
-    const stepPx = Math.max(22, Math.round(26 * scale));
-    const overlapPx = totalBookWidthPx - stepPx;
-    const restingMarginRight = isLastOnShelf ? 0 : -overlapPx;
+    const gapPx = Math.max(1, Math.round(2 * scale));
 
-    // On hover: eliminated the gap between books completely!
-    // The next book sits snugly against the hovered book's spine with a slight 3-4px underlap.
-    // This removes the black void entirely and prevents the cursor from losing hover.
-    const hoverMarginRight = isLastOnShelf
-      ? 0
-      : -Math.max(2, Math.round(4 * scale));
+    // Initial resting state: only the spine (корешок) is visible facing the user (0°).
+    // The book occupies spineWidthPx + gapPx layout width via negative margin-right.
+    const restingMarginRight = -coverWidthPx + gapPx;
+
+    // Hover state: the book smoothly rotates ~85° to reveal its front cover.
+    // Margin-right expands to -spineWidthPx so the element takes exactly coverWidthPx layout space,
+    // and neighboring books slide to the right with zero empty gap.
+    const hoverMarginRight = isLastOnShelf ? 0 : -spineWidthPx;
 
     const marginRight = isHovered ? hoverMarginRight : restingMarginRight;
 
@@ -83,13 +81,28 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     const coverThumbWidth = Math.max(36, Math.round(40 * scale));
     const coverThumbHeight = Math.max(48, Math.round(56 * scale));
 
+    // Edge-aware tooltip card alignment to avoid clipping near borders
+    const tooltipAlignClass =
+      index === 0
+        ? 'left-0'
+        : index >= totalOnShelf - 2
+        ? 'right-0'
+        : 'left-1/2 -translate-x-1/2';
+
+    const pointerBeakAlignClass =
+      index === 0
+        ? 'left-8'
+        : index >= totalOnShelf - 2
+        ? 'right-8'
+        : 'left-1/2 -translate-x-1/2';
+
     const { topColor, bottomColor, accent } = parseSpineColors(book);
     const coverUrl = sanitizeGoogleBooksCover(book.coverUrl);
 
     return (
       <div
         key={book.id}
-        className="relative select-none cursor-pointer flex flex-col justify-end shrink-0 opacity-100"
+        className="relative select-none flex flex-col justify-end shrink-0 opacity-100 pointer-events-none"
         style={{
           width: `${totalBookWidthPx}px`,
           height: `${heightRatio * 100}%`,
@@ -98,11 +111,8 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
           perspective: '1000px',
           opacity: 1,
           transition:
-            'margin-right 300ms cubic-bezier(0.16, 1, 0.3, 1), z-index 0ms',
+            'margin-right 320ms cubic-bezier(0.16, 1, 0.3, 1), z-index 0ms',
         }}
-        onMouseEnter={() => setHoveredBookId(book.id)}
-        onMouseLeave={() => setHoveredBookId(null)}
-        onClick={() => onSelectBook(book)}
       >
         {/* 
           Hover Information Tooltip:
@@ -112,12 +122,14 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
           <div
             className={`absolute ${
               isTopShelf ? 'top-[104%]' : 'bottom-[104%]'
-            } left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-fade-in flex flex-col items-center`}
+            } ${tooltipAlignClass} z-50 pointer-events-none animate-fade-in flex flex-col items-center`}
             style={{ width: `${cardWidth}px` }}
           >
             {/* If Shelf 0, beak points up */}
             {isTopShelf && (
-              <div className="w-2.5 h-2.5 rotate-45 bg-amber-400/90 -mb-1.5 shadow-md border-l border-t border-black/40 z-20" />
+              <div
+                className={`w-2.5 h-2.5 rotate-45 bg-amber-400/90 -mb-1.5 shadow-md border-l border-t border-black/40 z-20 ${pointerBeakAlignClass}`}
+              />
             )}
 
             {/* Tooltip Card */}
@@ -180,7 +192,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
             {/* If Shelves 1, 2, 3, beak points down */}
             {!isTopShelf && (
               <div
-                className={`w-2.5 h-2.5 rotate-45 bg-amber-400/90 -mt-1.5 shadow-md border-r border-b border-black/40 z-20`}
+                className={`w-2.5 h-2.5 rotate-45 bg-amber-400/90 -mt-1.5 shadow-md border-r border-b border-black/40 z-20 ${pointerBeakAlignClass}`}
               />
             )}
           </div>
@@ -188,137 +200,140 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
 
         {/* 
           3D BOOK VOLUME:
-          - Stable horizontal position (translateX: 0px) to guarantee cursor never slips off
-          - Steps forward in 3D (translateZ) and turns face towards user (rotateY: -6deg)
-          - Next book touches seamlessly against the right spine with zero gap
+          - Initial resting state (0°): Spine (корешок) faces forward at the viewer.
+            Front cover extends into the cabinet (-88° perpendicular).
+            Viewer sees authentic book spines standing side-by-side like real books in a bookcase.
+          - On hover (~90°): Book rotates smoothly ~85°, swinging front cover forward to face the user (-6°).
+            Layout margin-right expands, sliding neighboring books to the right to reveal the full cover.
         */}
         <div
-          className="relative w-full h-full select-none opacity-100"
+          className="relative w-full h-full select-none pointer-events-auto cursor-pointer opacity-100"
           style={{
-            transformOrigin: 'right center',
+            transformStyle: 'preserve-3d',
+            transformOrigin: `${coverWidthPx}px center`,
             transform: isHovered
-              ? `perspective(1000px) rotateY(-6deg) translateZ(${20 * scale}px) translateX(0px) scale(1.02)`
-              : 'perspective(1000px) rotateY(-18deg) translateZ(0px) translateX(0px)',
+              ? `perspective(1000px) translateX(0px) rotateY(-6deg) translateZ(${22 * scale}px) scale(1.02)`
+              : `perspective(1000px) translateX(-${coverWidthPx}px) rotateY(-88deg) translateZ(0px)`,
             filter: isHovered ? 'brightness(1.15)' : 'brightness(1)',
             opacity: 1,
             transition:
-              'transform 300ms cubic-bezier(0.16, 1, 0.3, 1), filter 300ms ease',
+              'transform 320ms cubic-bezier(0.16, 1, 0.3, 1), filter 320ms ease',
           }}
+          onMouseEnter={() => setHoveredBookId(book.id)}
+          onMouseLeave={() => setHoveredBookId(null)}
+          onClick={() => onSelectBook(book)}
         >
-          {/* Main Book Shell */}
+          {/* =========================================================================
+              FACE 1: FRONT COVER (Лицевая корочка слева — винтажный переплет)
+              ========================================================================= */}
           <div
-            className={`relative w-full h-full flex rounded-l-[3px] rounded-r-[2px] opacity-100 ${
+            className={`absolute top-0 left-0 h-full flex flex-col justify-between p-1.5 select-none border-t border-l border-b border-amber-400/35 rounded-l-[3px] overflow-hidden opacity-100 ${
               isHovered ? 'ring-1.5 ring-amber-400/90' : ''
             }`}
             style={{
+              width: `${coverWidthPx}px`,
               opacity: 1,
+              backfaceVisibility: 'hidden',
+              background: `linear-gradient(145deg, ${topColor} 0%, #0c0e14 60%, ${bottomColor} 100%)`,
               boxShadow: isHovered
-                ? `-18px 16px 36px rgba(0, 0, 0, 0.95), -6px 4px 15px rgba(0, 0, 0, 0.7), 0 0 24px ${accent}44`
-                : '-5px 6px 14px rgba(0, 0, 0, 0.78), -1px 2px 4px rgba(0, 0, 0, 0.55)',
-              transition: 'box-shadow 300ms ease',
+                ? `-18px 16px 36px rgba(0, 0, 0, 0.95), -6px 4px 15px rgba(0, 0, 0, 0.7), 0 0 24px ${accent}44, inset 0 0 16px rgba(0, 0, 0, 0.92), inset 2px 2px 3px rgba(255, 255, 255, 0.12), inset -2px -2px 3px rgba(0, 0, 0, 0.75)`
+                : 'inset 0 0 16px rgba(0, 0, 0, 0.92), inset 2px 2px 3px rgba(255, 255, 255, 0.12), inset -2px -2px 3px rgba(0, 0, 0, 0.75)',
+              transition: 'box-shadow 320ms ease',
             }}
           >
-            {/* =========================================================================
-                FACE 1: FRONT COVER (Лицевая корочка слева — винтажный переплет)
-                ========================================================================= */}
+            {/* Micro-texture stippled leather grain */}
             <div
-              className="relative h-full flex flex-col justify-between p-1.5 select-none border-t border-l border-b border-amber-400/35 rounded-l-[3px] overflow-hidden opacity-100"
+              className="absolute inset-0 opacity-20 pointer-events-none"
               style={{
-                width: `${coverWidthPx}px`,
-                opacity: 1,
-                background: `linear-gradient(145deg, ${topColor} 0%, #0c0e14 60%, ${bottomColor} 100%)`,
-                boxShadow:
-                  'inset 0 0 16px rgba(0, 0, 0, 0.92), inset 2px 2px 3px rgba(255, 255, 255, 0.12), inset -2px -2px 3px rgba(0, 0, 0, 0.75)',
+                backgroundImage:
+                  'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.15) 1px, transparent 1px), radial-gradient(circle at 0% 0%, rgba(0,0,0,0.3) 1px, transparent 1px)',
+                backgroundSize: '3px 3px, 4px 4px',
+              }}
+            />
+
+            {/* Diagonal front cover satin sheen */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.05] to-white/[0.12] pointer-events-none" />
+
+            {/* Vintage Embossed Gold Border Frame */}
+            <div
+              className="absolute inset-[4.5px] pointer-events-none border border-amber-400/40 rounded-xs z-10"
+              style={{
+                boxShadow: 'inset 0 0 4px rgba(0,0,0,0.45)',
               }}
             >
-              {/* Micro-texture stippled leather grain */}
+              {/* Secondary fine inner gold line */}
+              <div className="absolute inset-[2px] border border-amber-300/25 rounded-2xs" />
+
+              {/* Classic Corner Filigree Accents */}
+              <div className="absolute top-0.5 left-0.5 w-1.5 h-1.5 border-t-2 border-l-2 border-amber-300/70" />
+              <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 border-t-2 border-r-2 border-amber-300/70" />
+              <div className="absolute bottom-0.5 left-0.5 w-1.5 h-1.5 border-b-2 border-l-2 border-amber-300/70" />
+              <div className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 border-b-2 border-r-2 border-amber-300/70" />
+
+              {/* Background classical vignette watermark ornament */}
               <div
-                className="absolute inset-0 opacity-20 pointer-events-none"
+                className="absolute inset-x-1 top-1/2 -translate-y-1/2 h-14 opacity-12 pointer-events-none flex items-center justify-center text-amber-300"
                 style={{
                   backgroundImage:
-                    'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.15) 1px, transparent 1px), radial-gradient(circle at 0% 0%, rgba(0,0,0,0.3) 1px, transparent 1px)',
-                  backgroundSize: '3px 3px, 4px 4px',
-                }}
-              />
-
-              {/* Diagonal front cover satin sheen */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.05] to-white/[0.12] pointer-events-none" />
-
-              {/* Vintage Embossed Gold Border Frame */}
-              <div
-                className="absolute inset-[4.5px] pointer-events-none border border-amber-400/40 rounded-xs z-10"
-                style={{
-                  boxShadow: 'inset 0 0 4px rgba(0,0,0,0.45)',
+                    'radial-gradient(ellipse at center, rgba(245,158,11,0.25) 0%, transparent 70%)',
                 }}
               >
-                {/* Secondary fine inner gold line */}
-                <div className="absolute inset-[2px] border border-amber-300/25 rounded-2xs" />
-
-                {/* Classic Corner Filigree Accents */}
-                <div className="absolute top-0.5 left-0.5 w-1.5 h-1.5 border-t-2 border-l-2 border-amber-300/70" />
-                <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 border-t-2 border-r-2 border-amber-300/70" />
-                <div className="absolute bottom-0.5 left-0.5 w-1.5 h-1.5 border-b-2 border-l-2 border-amber-300/70" />
-                <div className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 border-b-2 border-r-2 border-amber-300/70" />
-
-                {/* Background classical vignette watermark ornament */}
-                <div
-                  className="absolute inset-x-1 top-1/2 -translate-y-1/2 h-14 opacity-12 pointer-events-none flex items-center justify-center text-amber-300"
-                  style={{
-                    backgroundImage:
-                      'radial-gradient(ellipse at center, rgba(245,158,11,0.25) 0%, transparent 70%)',
-                  }}
-                >
-                  <span className="text-2xl select-none font-serif">⚜</span>
-                </div>
-              </div>
-
-              {/* Top: ONLY the rating badge */}
-              <div className="relative z-20 w-full flex justify-end items-center">
-                <div className="shrink-0 bg-black/80 px-1 py-0.5 rounded border border-amber-400/50 flex items-center gap-0.5 shadow-sm">
-                  <span className="text-amber-400 text-[8.5px] font-black leading-none">★</span>
-                  <span className="text-amber-100 text-[8.5px] font-bold leading-none">
-                    {book.overallRating}
-                  </span>
-                </div>
-              </div>
-
-              {/* Center Area: Full Title centered vertically without cutoffs */}
-              <div className="relative z-20 flex-1 flex flex-col justify-center items-center text-center my-auto px-1 py-0.5">
-                <h3
-                  className="font-serif font-black text-white text-center leading-[1.14] select-none break-words line-clamp-7"
-                  style={{
-                    fontSize: `${titleFontSize}px`,
-                    textShadow:
-                      '0 1px 3px rgba(0,0,0,0.98), 0 0 3px rgba(0,0,0,0.9)',
-                  }}
-                >
-                  {book.title}
-                </h3>
-              </div>
-
-              {/* Bottom: Published Year & Gold filigree marker */}
-              <div className="relative z-20 w-full flex items-center justify-between border-t border-amber-400/35 pt-0.5 mt-0.5">
-                <span className="text-[7.5px] text-zinc-300 font-mono">
-                  {book.publishedYear ? `${book.publishedYear} г.` : 'Клуб'}
-                </span>
-                <div className="w-1 h-1 rotate-45 bg-amber-400/70 shadow-xs" />
+                <span className="text-2xl select-none font-serif">⚜</span>
               </div>
             </div>
 
-            {/* =========================================================================
-                FACE 2: THE SPINE (Боковой корешок справа — 13px-16px)
-                ========================================================================= */}
-            <div
-              className="relative h-full flex flex-col justify-between overflow-hidden select-none border-t border-r border-b border-black/80 rounded-r-[2px] opacity-100"
-              style={{
-                width: `${spineWidthPx}px`,
-                opacity: 1,
-                background: `linear-gradient(180deg, ${bottomColor} 0%, #0a0a10 100%)`,
-                borderLeft: '1px solid rgba(0, 0, 0, 0.95)',
-                boxShadow:
-                  'inset -2px 0 5px rgba(0,0,0,0.7), inset 1px 0 2px rgba(255,255,255,0.1)',
-              }}
-            >
+            {/* Top: ONLY the rating badge */}
+            <div className="relative z-20 w-full flex justify-end items-center">
+              <div className="shrink-0 bg-black/80 px-1 py-0.5 rounded border border-amber-400/50 flex items-center gap-0.5 shadow-sm">
+                <span className="text-amber-400 text-[8.5px] font-black leading-none">★</span>
+                <span className="text-amber-100 text-[8.5px] font-bold leading-none">
+                  {book.overallRating}
+                </span>
+              </div>
+            </div>
+
+            {/* Center Area: Full Title centered vertically without cutoffs */}
+            <div className="relative z-20 flex-1 flex flex-col justify-center items-center text-center my-auto px-1 py-0.5">
+              <h3
+                className="font-serif font-black text-white text-center leading-[1.14] select-none break-words line-clamp-7"
+                style={{
+                  fontSize: `${titleFontSize}px`,
+                  textShadow:
+                    '0 1px 3px rgba(0,0,0,0.98), 0 0 3px rgba(0,0,0,0.9)',
+                }}
+              >
+                {book.title}
+              </h3>
+            </div>
+
+            {/* Bottom: Published Year & Gold filigree marker */}
+            <div className="relative z-20 w-full flex items-center justify-between border-t border-amber-400/35 pt-0.5 mt-0.5">
+              <span className="text-[7.5px] text-zinc-300 font-mono">
+                {book.publishedYear ? `${book.publishedYear} г.` : 'Клуб'}
+              </span>
+              <div className="w-1 h-1 rotate-45 bg-amber-400/70 shadow-xs" />
+            </div>
+          </div>
+
+          {/* =========================================================================
+              FACE 2: THE SPINE (Боковой корешок под углом 90 градусов к обложке)
+              ========================================================================= */}
+          <div
+            className="absolute top-0 h-full flex flex-col justify-between overflow-hidden select-none border-t border-r border-b border-black/80 rounded-r-[2px] opacity-100"
+            style={{
+              left: `${coverWidthPx}px`,
+              width: `${spineWidthPx}px`,
+              opacity: 1,
+              transformOrigin: 'left center',
+              transform: 'rotateY(90deg)',
+              backfaceVisibility: 'hidden',
+              background: `linear-gradient(180deg, ${bottomColor} 0%, #0a0a10 100%)`,
+              borderLeft: '1px solid rgba(0, 0, 0, 0.95)',
+              boxShadow: isHovered
+                ? 'inset -2px 0 5px rgba(0,0,0,0.7), inset 1px 0 2px rgba(255,255,255,0.1)'
+                : '-4px 4px 10px rgba(0,0,0,0.85), inset -2px 0 5px rgba(0,0,0,0.7), inset 1px 0 2px rgba(255,255,255,0.1)',
+            }}
+          >
               {/* 3D Cylindrical lighting sheen */}
               <div
                 className="absolute inset-0 pointer-events-none z-20"
@@ -369,7 +384,6 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
             </div>
           </div>
         </div>
-      </div>
     );
   };
 
