@@ -117,11 +117,12 @@ export const AtmosphericRoom: React.FC<AtmosphericRoomProps> = ({
           <div
             className="absolute z-20 pointer-events-auto"
             style={{
-              left: '6.3333%',
+              left: '5.3333%',
               top: '10.3704%',
-              width: '20.5833%',
+              width: '18.5833%',
               height: '70.1111%',
-              transform: 'skew(2.5deg, -1deg)',
+              transform: 'skew(1.5deg, 0deg) perspective(500px) rotateY(8deg)',
+
             }}
           >
             <VirtualBookShelf
