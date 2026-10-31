@@ -92,9 +92,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
           height: '100%',
           paddingRight: isLastOnShelf ? 0 : `${gapPx}px`,
           zIndex,
-          perspective: '1000px',
           opacity: 1,
-          willChange: 'width',
           transition: isHovered
             ? 'width 180ms cubic-bezier(0.2, 0, 0, 1), z-index 0ms'
             : 'width 160ms cubic-bezier(0.25, 1, 0.5, 1), z-index 0ms',
@@ -120,14 +118,12 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
             transform: isHovered
               ? `rotateY(-5deg) translateZ(${14 * scale}px) scale(1.02)`
               : 'rotateY(0deg) translateZ(0px)',
-            filter: isHovered ? 'brightness(1.15)' : 'brightness(1)',
             boxShadow: isHovered
               ? `-14px 12px 28px rgba(0, 0, 0, 0.95), -4px 4px 12px rgba(0, 0, 0, 0.7), 0 0 20px ${accent}44`
               : 'none',
-            willChange: 'transform',
             transition: isHovered
-              ? 'transform 180ms cubic-bezier(0.2, 0, 0, 1), box-shadow 180ms ease, filter 180ms ease'
-              : 'transform 160ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 160ms ease, filter 160ms ease',
+              ? 'transform 180ms cubic-bezier(0.2, 0, 0, 1), box-shadow 180ms ease'
+              : 'transform 160ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 160ms ease',
           }}
         >
           {/* =========================================================================
@@ -147,7 +143,6 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
                 ? 'inset -2px 0 5px rgba(0,0,0,0.7), inset 1px 0 2px rgba(255,255,255,0.1)'
                 : 'inset 3px 0 6px rgba(0, 0, 0, 0.8), inset -3px 0 6px rgba(0, 0, 0, 0.8), inset 0 0 2px rgba(255, 255, 255, 0.18), -2px 3px 8px rgba(0,0,0,0.85)',
               padding: '2px 2px',
-              willChange: 'transform',
               transition: isHovered
                 ? 'transform 180ms cubic-bezier(0.2, 0, 0, 1), box-shadow 180ms ease'
                 : 'transform 160ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 160ms ease',
@@ -181,7 +176,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
             {/* По центру: название книги вертикально (writing-mode: vertical-rl) с максимальным вертикальным пространством */}
             <div className="flex-1 flex items-center justify-center overflow-hidden py-1 px-0.5 z-10">
               <span
-                className="select-none font-serif font-black text-white leading-none text-center"
+                className="select-none font-sans font-bold text-white leading-none text-center"
                 style={{
                   writingMode: 'vertical-rl',
                   textOrientation: 'mixed',
@@ -190,8 +185,11 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
                   textOverflow: 'ellipsis',
                   maxHeight: '100%',
                   fontSize: `${spineTitleFontSize}px`,
-                  letterSpacing: '0.04em',
-                  textShadow: '0 1px 2px rgba(0,0,0,0.98), 0 0 3px rgba(0,0,0,0.9)',
+                  letterSpacing: '0.05em',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.95)',
+                  WebkitFontSmoothing: 'antialiased',
+                  MozOsxFontSmoothing: 'grayscale',
+                  textRendering: 'geometricPrecision',
                 }}
                 title={book.title}
               >
@@ -208,7 +206,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
             {/* Снизу: чёткий контрастный бейдж с округлённым до 2 знаков рейтингом */}
             <div className="shrink-0 bg-black/90 border border-amber-400/80 rounded px-1.5 py-0.5 flex items-center justify-center gap-0.5 shadow-md mb-1 z-10">
               <span className="text-amber-400 text-[9.5px] font-black leading-none drop-shadow">★</span>
-              <span className="text-amber-100 text-[10px] font-black leading-none font-mono tracking-tight drop-shadow">
+              <span className="text-amber-100 text-[10px] font-bold leading-none font-mono tracking-tight drop-shadow">
                 {formatRating(book.overallRating)}
               </span>
             </div>
@@ -246,7 +244,6 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
               background: `linear-gradient(145deg, ${topColor} 0%, #0c0e14 60%, ${bottomColor} 100%)`,
               boxShadow:
                 'inset 0 0 16px rgba(0, 0, 0, 0.92), inset 2px 2px 3px rgba(255, 255, 255, 0.12), inset -2px -2px 3px rgba(0, 0, 0, 0.75)',
-              willChange: 'transform',
               transition: isHovered
                 ? 'transform 180ms cubic-bezier(0.2, 0, 0, 1), box-shadow 180ms ease'
                 : 'transform 160ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 160ms ease',
@@ -335,14 +332,17 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
               </div>
             </div>
 
-            {/* Center Area: Full Title centered vertically with more room */}
+            {/* Center Area: Full Title centered vertically with more room and crystal clear rendering */}
             <div className="relative z-20 flex-1 flex flex-col justify-center items-center text-center my-auto px-1 py-0.5">
               <h3
-                className="font-serif font-black text-white text-center leading-[1.16] select-none break-words line-clamp-7"
+                className="font-sans font-bold text-white text-center leading-[1.22] select-none break-words line-clamp-7"
                 style={{
                   fontSize: `${titleFontSize}px`,
-                  textShadow:
-                    '0 1px 3px rgba(0,0,0,0.98), 0 0 3px rgba(0,0,0,0.9)',
+                  letterSpacing: '0.01em',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.95)',
+                  WebkitFontSmoothing: 'antialiased',
+                  MozOsxFontSmoothing: 'grayscale',
+                  textRendering: 'geometricPrecision',
                 }}
               >
                 {book.title}
