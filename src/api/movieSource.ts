@@ -36,20 +36,18 @@ export type MovieImage = { file_path: string };
 
 const STORAGE_SOURCE_KEY = 'melkomemie_active_source';
 
-// Read initial source from persistent localStorage first, then session cache
-function getInitialSource(): MovieSource {
-  if (typeof window !== 'undefined') {
-    try {
-      const saved =
-        window.localStorage.getItem(STORAGE_SOURCE_KEY) ??
-        window.sessionStorage?.getItem(STORAGE_SOURCE_KEY);
-      if (saved === 'tmdb' || saved === 'kinopoisk') {
-        return saved;
-      }
-    } catch {
-      // ignore
-    }
+// Clean up any stale localStorage persistence from past versions so TMDB is always checked
+if (typeof window !== 'undefined') {
+  try {
+    window.localStorage.removeItem(STORAGE_SOURCE_KEY);
+  } catch {
+    // ignore
   }
+}
+
+// Initial priority on entering the site is ALWAYS TMDB.
+// Kinopoisk is only turned on when connection to TMDB fails.
+function getInitialSource(): MovieSource {
   return 'tmdb';
 }
 
@@ -76,7 +74,6 @@ export function setActiveMovieSource(source: MovieSource): void {
     activeSource = source;
     if (typeof window !== 'undefined') {
       try {
-        window.localStorage.setItem(STORAGE_SOURCE_KEY, source);
         window.sessionStorage?.setItem(STORAGE_SOURCE_KEY, source);
       } catch {
         // ignore
@@ -101,26 +98,27 @@ export function onSourceChange(listener: (source: MovieSource) => void): () => v
 
 /**
  * Checks TMDB availability and selects the active database.
- * If TMDB is blocked (e.g. in Russia), smoothly switches to Kinopoisk.
+ * Priority is ALWAYS TMDB upon visiting the site.
+ * Kinopoisk is only activated when TMDB cannot be reached.
  */
 export async function detectMovieSource(forceRecheck = false): Promise<MovieSource> {
-  // If already checked in this session and Kinopoisk was active, preserve it unless forced
-  if (!forceRecheck && activeSource === 'kinopoisk') {
-    return 'kinopoisk';
-  }
-
   if (detectionPromise && !forceRecheck) {
     return detectionPromise;
   }
 
   detectionPromise = (async () => {
-    const isTmdbHealthy = await checkTmdbHealth(2500);
+    const isTmdbHealthy = await checkTmdbHealth(3500);
     const source: MovieSource = isTmdbHealthy ? 'tmdb' : 'kinopoisk';
     setActiveMovieSource(source);
     return source;
   })();
 
   return detectionPromise;
+}
+
+// Eagerly initiate TMDB health check as soon as possible on site visit
+if (typeof window !== 'undefined') {
+  void detectMovieSource();
 }
 
 export function normalizeKinopoiskFilm(film: KinopoiskFilm): NormalizedMovie {
@@ -201,12 +199,13 @@ export async function searchMoviesFromSource(query: string, source?: MovieSource
 /**
  * Fetches popular movies using the active source with automatic fallback.
  */
-export async function getPopularMoviesFromSource(page: number): Promise<NormalizedMovie[]> {
-  if (activeSource === 'tmdb') {
+export async function getPopularMoviesFromSource(page: number, source?: MovieSource): Promise<NormalizedMovie[]> {
+  const targetSource = source ?? activeSource;
+  if (targetSource === 'tmdb') {
     try {
       const response = await fetchTmdb<{ results: Omit<NormalizedMovie, 'source'>[] }>(
         `/movie/popular?language=ru-RU&page=${page}`,
-        { timeoutMs: 3000 },
+        { timeoutMs: 5000 },
       );
       return response.results.map(normalizeTmdbMovie);
     } catch (error) {

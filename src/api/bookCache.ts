@@ -1,0 +1,302 @@
+import { type BookClubBook } from './bookClubData';
+import { DEFAULT_BOOK_COVERS } from './bookCoversData';
+import {
+  isLocalStorageAvailable,
+  purgeExpiredStorageRecords,
+  clearStorageByPrefix,
+} from '../utils/storageCache';
+
+export { isLocalStorageAvailable };
+
+const KEY_PREFIX = 'mm_book_';
+const LIST_KEY = `${KEY_PREFIX}list`;
+const DETAILS_PREFIX = `${KEY_PREFIX}details_`;
+const COVER_PREFIX = `${KEY_PREFIX}cover_`;
+const VERSION_KEY = `${KEY_PREFIX}cache_version`;
+const CURRENT_VERSION = 'v6_clean_russian_descriptions';
+const CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 days TTL, matching movie cache
+
+// One-time migration: purge any old low-res cached covers so new HD covers apply instantly
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    const savedVer = window.localStorage.getItem(VERSION_KEY);
+    if (savedVer !== CURRENT_VERSION) {
+      for (let i = 1; i <= 30; i++) {
+        window.localStorage.removeItem(`${COVER_PREFIX}${i}`);
+        window.localStorage.removeItem(`${DETAILS_PREFIX}${i}`);
+      }
+      window.localStorage.removeItem(LIST_KEY);
+      window.localStorage.setItem(VERSION_KEY, CURRENT_VERSION);
+    }
+  } catch {
+    // ignore storage access errors
+  }
+}
+
+export type EnrichedBookDetails = {
+  coverUrl?: string;
+  publisher?: string;
+  publishedYear?: string;
+  description?: string;
+  pageCount?: number;
+  categories?: string[];
+  language?: string;
+  cachedAt?: number;
+};
+
+type CacheRecord<T> = {
+  data: T;
+  cachedAt: number;
+};
+
+/**
+ * Normalizes book title for fuzzy cache lookups
+ */
+export function normalizeBookKey(title: string): string {
+  return title
+    .toLocaleLowerCase('ru-RU')
+    .replace(/[«»"'`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Purges old/expired book cache entries if localStorage quota is tight
+ */
+export function tryPurgeOldBookCache(): void {
+  purgeExpiredStorageRecords(KEY_PREFIX, CACHE_TTL_MS);
+}
+
+/**
+ * Seeds and caches default base64 covers into localStorage if needed.
+ * Kept for backwards compatibility, not executed automatically to avoid quota bloat.
+ */
+export function initializeDefaultBookCovers(): void {
+  // No-op by default: DEFAULT_BOOK_COVERS is served directly from memory to save quota.
+}
+
+/**
+ * Retrieves the cached base64 or URL cover for a book.
+ * Falls back to embedded base64 dictionary if not in localStorage without bloating storage.
+ */
+export function getCachedBookCover(id: number): string | null {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return DEFAULT_BOOK_COVERS[id] || null;
+  }
+
+  const key = `${COVER_PREFIX}${id}`;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (raw) {
+      const record = JSON.parse(raw) as CacheRecord<string>;
+      if (record?.data) {
+        return record.data;
+      }
+    }
+  } catch (error) {
+    console.warn(`[bookCache] Error reading cover for book ${id}:`, error);
+  }
+
+  // Fallback to embedded default cover in-memory (does not rewrite to localStorage)
+  return DEFAULT_BOOK_COVERS[id] || null;
+}
+
+/**
+ * Stores a cover (Data URL or clean URL) into localStorage
+ */
+export function setCachedBookCover(id: number, coverDataUrlOrUrl: string): void {
+  if (typeof window === 'undefined' || !window.localStorage || !coverDataUrlOrUrl) return;
+
+  const key = `${COVER_PREFIX}${id}`;
+  try {
+    const payload: CacheRecord<string> = {
+      data: coverDataUrlOrUrl,
+      cachedAt: Date.now(),
+    };
+    window.localStorage.setItem(key, JSON.stringify(payload));
+  } catch (error) {
+    console.warn(`[bookCache] Failed to save cover for book ${id}:`, error);
+    tryPurgeOldBookCache();
+  }
+}
+
+/**
+ * Retrieves cached Book Club books list
+ */
+export function getCachedBookClubBooks(): BookClubBook[] | null {
+  if (typeof window === 'undefined' || !window.localStorage) return null;
+
+  try {
+    const raw = window.localStorage.getItem(LIST_KEY);
+    if (!raw) return null;
+
+    const record = JSON.parse(raw) as CacheRecord<BookClubBook[]>;
+    if (!record || !Array.isArray(record.data) || record.data.length === 0) {
+      return null;
+    }
+
+    if (Date.now() - (record.cachedAt ?? 0) > CACHE_TTL_MS) {
+      return null;
+    }
+
+    // Attach cached covers if available
+    return record.data.map((book) => {
+      const cachedCover = getCachedBookCover(book.id);
+      return cachedCover
+        ? { ...book, coverUrl: cachedCover }
+        : book;
+    });
+  } catch (error) {
+    console.warn('[bookCache] Error reading book club list cache:', error);
+    return null;
+  }
+}
+
+/**
+ * Saves Book Club books list to localStorage
+ */
+export function setCachedBookClubBooks(books: BookClubBook[]): void {
+  if (typeof window === 'undefined' || !window.localStorage || !books || books.length === 0) return;
+
+  try {
+    const record: CacheRecord<BookClubBook[]> = {
+      data: books,
+      cachedAt: Date.now(),
+    };
+    window.localStorage.setItem(LIST_KEY, JSON.stringify(record));
+
+    // Also populate individual book entries and covers
+    for (const book of books) {
+      if (book.coverUrl && !book.coverUrl.startsWith('data:')) {
+        // If not already base64, save whatever cover URL we have
+        const existingCover = getCachedBookCover(book.id);
+        if (!existingCover) {
+          setCachedBookCover(book.id, book.coverUrl);
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('[bookCache] Failed to save book club list cache:', error);
+    tryPurgeOldBookCache();
+  }
+}
+
+/**
+ * Retrieves cached enriched book metadata (Google Books details)
+ */
+export function getCachedBookDetails(bookId: number | string): EnrichedBookDetails | null {
+  if (typeof window === 'undefined' || !window.localStorage) return null;
+
+  const key = `${DETAILS_PREFIX}${bookId}`;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+
+    const record = JSON.parse(raw) as CacheRecord<EnrichedBookDetails>;
+    if (!record || !record.data) return null;
+
+    if (Date.now() - (record.cachedAt ?? 0) > CACHE_TTL_MS) {
+      window.localStorage.removeItem(key);
+      return null;
+    }
+
+    return record.data;
+  } catch (error) {
+    console.warn(`[bookCache] Error reading details for book ${bookId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Saves enriched book metadata into localStorage
+ */
+export function setCachedBookDetails(bookId: number | string, details: EnrichedBookDetails): void {
+  if (typeof window === 'undefined' || !window.localStorage || !details) return;
+
+  const key = `${DETAILS_PREFIX}${bookId}`;
+  try {
+    const record: CacheRecord<EnrichedBookDetails> = {
+      data: details,
+      cachedAt: Date.now(),
+    };
+    window.localStorage.setItem(key, JSON.stringify(record));
+  } catch (error) {
+    console.warn(`[bookCache] Failed to save details for book ${bookId}:`, error);
+    tryPurgeOldBookCache();
+  }
+}
+
+/**
+ * Converts an external image URL to base64 Data URL and saves to localStorage.
+ * Non-blocking, fails gracefully on CORS.
+ */
+export async function convertAndCacheBookCover(id: number, url: string): Promise<string | null> {
+  const existing = getCachedBookCover(id);
+  if (existing && existing.startsWith('data:')) {
+    return existing;
+  }
+
+  if (!url || typeof window === 'undefined') return null;
+
+  try {
+    const response = await fetch(url, { mode: 'cors' });
+    if (!response.ok) return null;
+
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        if (base64 && base64.startsWith('data:')) {
+          setCachedBookCover(id, base64);
+          resolve(base64);
+        } else {
+          resolve(null);
+        }
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    // CORS or network failure: silently keep existing URL
+    return null;
+  }
+}
+
+/**
+ * Immediately preloads all book cover images into the browser cache in parallel.
+ * Runs asynchronously in the background as soon as the user visits the Book Club,
+ * guaranteeing instantaneous 0ms display on hover or click.
+ */
+export function preloadAllBookCovers(books: BookClubBook[]): void {
+  if (typeof window === 'undefined' || !books || books.length === 0) return;
+
+  books.forEach((book) => {
+    const localUrl = `${import.meta.env.BASE_URL}covers/book_${book.id}.jpg`;
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = localUrl;
+  });
+}
+
+/**
+ * Asynchronously preloads and caches covers for all books in background using small batches
+ */
+export async function preloadAndCacheBookCovers(books: BookClubBook[]): Promise<void> {
+  const batchSize = 3;
+  const missingCovers = books.filter((book) => !getCachedBookCover(book.id) && book.coverUrl);
+  for (let i = 0; i < missingCovers.length; i += batchSize) {
+    const chunk = missingCovers.slice(i, i + batchSize);
+    await Promise.allSettled(chunk.map((book) => convertAndCacheBookCover(book.id, book.coverUrl!)));
+  }
+}
+
+/**
+ * Clears all Book Club related data from localStorage
+ */
+export function clearBookCache(): void {
+  clearStorageByPrefix(KEY_PREFIX);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('mm_books_cache_cleared'));
+  }
+}

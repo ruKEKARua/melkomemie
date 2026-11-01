@@ -20,9 +20,17 @@ export async function fetchTmdb<T>(path: string, options?: FetchTmdbOptions): Pr
   const targetUrl = `${tmdbProxyUrl}${cleanPath}`;
 
   try {
-    const combinedSignal = options?.signal
-      ? AbortSignal.any([controller.signal, options.signal])
-      : controller.signal;
+    let combinedSignal: AbortSignal;
+    if (options?.signal) {
+      if (typeof AbortSignal.any === 'function') {
+        combinedSignal = AbortSignal.any([controller.signal, options.signal]);
+      } else {
+        options.signal.addEventListener('abort', () => controller.abort(), { once: true });
+        combinedSignal = controller.signal;
+      }
+    } else {
+      combinedSignal = controller.signal;
+    }
 
     const response = await fetch(targetUrl, { signal: combinedSignal });
 
@@ -37,10 +45,10 @@ export async function fetchTmdb<T>(path: string, options?: FetchTmdbOptions): Pr
 }
 
 /**
- * Fast health check to verify TMDB connectivity (e.g. from Russia or through proxy).
- * Uses a shorter timeout (default 2500ms) so failure is detected quickly.
+ * Fast health check to verify TMDB connectivity (e.g. through proxy).
+ * Priority source on entering the site is TMDB; if unreachable, falls back to Kinopoisk.
  */
-export async function checkTmdbHealth(timeoutMs = 2500): Promise<boolean> {
+export async function checkTmdbHealth(timeoutMs = 3500): Promise<boolean> {
   if (!tmdbProxyUrl) {
     return false;
   }

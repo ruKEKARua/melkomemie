@@ -1,29 +1,15 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { memo, useRef, useState, useCallback } from 'react';
+import { getCardRatingStyle } from '../utils/ratings';
 
 type MovieCardProps = {
   id: number;
   title: string;
-  posterPath: string;
+  posterPath: string | null;
   overallRating?: string;
   func: (id: number) => void;
 };
 
-const getRatingStyle = (ratingStr?: string) => {
-  if (!ratingStr) return null;
-  const num = parseFloat(ratingStr.replace(',', '.'));
-  if (isNaN(num)) return { bg: 'bg-zinc-700/90 border-zinc-600', text: 'text-zinc-200' };
-
-  if (num >= 7.5) {
-    return { bg: 'bg-emerald-500/95 border-emerald-400/50 shadow-emerald-950/40', text: 'text-white' };
-  }
-  if (num >= 6.0) {
-    return { bg: 'bg-amber-500/95 border-amber-400/50 shadow-amber-950/40', text: 'text-slate-950' };
-  }
-  // < 6.0: Brown badge
-  return { bg: 'bg-[#78350f]/95 border-[#92400e]/70 shadow-amber-950/40', text: 'text-amber-100' };
-};
-
-const MovieCard = ({ id = 0, title = '', posterPath = '', overallRating, func }: MovieCardProps) => {
+const MovieCardComponent = ({ id = 0, title = '', posterPath = '', overallRating, func }: MovieCardProps) => {
   const [loadedPosterPath, setLoadedPosterPath] = useState<string | null>(null);
   const [errorPosterPath, setErrorPosterPath] = useState<string | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -32,26 +18,15 @@ const MovieCard = ({ id = 0, title = '', posterPath = '', overallRating, func }:
   const imageLoaded = loadedPosterPath === posterPath;
   const imageError = errorPosterPath === posterPath;
 
-  const ratingStyle = getRatingStyle(overallRating);
+  const ratingStyle = getCardRatingStyle(overallRating);
 
-  useLayoutEffect(() => {
+  // Check truncation lazily only when mouse enters the card, eliminating Layout Thrashing
+  const handleMouseEnter = useCallback(() => {
     const el = titleRef.current;
-    if (!el) return;
-
-    const checkTruncation = () => {
-      setIsTruncated(el.scrollHeight > el.clientHeight + 1);
-    };
-
-    checkTruncation();
-
-    if ('fonts' in document) {
-      document.fonts.ready.then(checkTruncation);
+    if (el) {
+      setIsTruncated(el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth);
     }
-
-    const observer = new ResizeObserver(checkTruncation);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [title]);
+  }, []);
 
   return (
     <div
@@ -59,6 +34,7 @@ const MovieCard = ({ id = 0, title = '', posterPath = '', overallRating, func }:
       tabIndex={0}
       aria-label={`Открыть фильм: ${title}${overallRating ? `, оценка киноклуба: ${overallRating}` : ''}`}
       onClick={() => func(id)}
+      onMouseEnter={handleMouseEnter}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
@@ -130,7 +106,7 @@ const MovieCard = ({ id = 0, title = '', posterPath = '', overallRating, func }:
           {title}
         </h3>
 
-        {/* Full title popover displayed ONLY on hover if truncated, anchored at top-0 to expand downwards and never obscure the "Подробнее" button or poster */}
+        {/* Full title popover displayed ONLY on hover if truncated */}
         {isTruncated && (
           <div className="pointer-events-none absolute inset-x-[-0.5rem] top-0 z-40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex justify-center">
             <div className="w-full rounded-xl bg-white/95 dark:bg-[#0a0c16]/98 px-2.5 py-2 text-xs sm:text-sm font-bold text-amber-600 dark:text-amber-400 text-center shadow-[0_12px_36px_rgba(15,23,42,0.15),0_0_16px_rgba(245,158,11,0.25)] dark:shadow-[0_12px_36px_rgba(0,0,0,0.95),0_0_16px_rgba(245,158,11,0.25)] border border-amber-500/50 backdrop-blur-xl leading-snug break-words">
@@ -143,4 +119,5 @@ const MovieCard = ({ id = 0, title = '', posterPath = '', overallRating, func }:
   );
 };
 
+export const MovieCard = memo(MovieCardComponent);
 export default MovieCard;

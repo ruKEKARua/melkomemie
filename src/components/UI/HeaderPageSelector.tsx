@@ -1,12 +1,15 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
+import { useClickOutsideAndEscape } from '../../hooks/useClickOutsideAndEscape';
 
-export type PageMode = 'main' | 'entry' | 'roulette' | 'tournaments';
+export type PageMode = 'main' | 'entry' | 'roulette' | 'tournaments' | 'book-club';
 
 interface HeaderPageSelectorProps {
   currentPage: PageMode;
+  isAuthorized?: boolean;
   onSelectCatalog: () => void;
   onSelectTournaments: () => void;
   onSelectRoulette: () => void;
+  onSelectBookClub: () => void;
   onSelectAddMovie: () => void;
   align?: 'left' | 'right';
   className?: string;
@@ -25,9 +28,11 @@ interface PageOption {
 
 export const HeaderPageSelector = ({
   currentPage,
+  isAuthorized = false,
   onSelectCatalog,
   onSelectTournaments,
   onSelectRoulette,
+  onSelectBookClub,
   onSelectAddMovie,
   align = 'left',
   className = '',
@@ -35,30 +40,8 @@ export const HeaderPageSelector = ({
   const [isOpen, setIsOpen] = useState(false);
   const selectorRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on click outside or Escape key
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (selectorRef.current && !selectorRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleEscape);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isOpen]);
+  const closeDropdown = useCallback(() => setIsOpen(false), []);
+  useClickOutsideAndEscape(selectorRef, isOpen, closeDropdown);
 
   // Current page presentation configuration
   const pageDetails: Record<
@@ -68,6 +51,7 @@ export const HeaderPageSelector = ({
     main: { title: 'Каталог', icon: '🍿' },
     tournaments: { title: 'Турниры', icon: '🏆' },
     roulette: { title: 'Рулетка', icon: '🎲' },
+    'book-club': { title: 'Книжный клуб', icon: '📚' },
     entry: { title: 'Добавить фильм', icon: '➕' },
   };
 
@@ -103,6 +87,16 @@ export const HeaderPageSelector = ({
       badgeText: 'text-indigo-400',
       badgeBorder: 'border-indigo-500/20',
       action: onSelectRoulette,
+    },
+    {
+      id: 'book-club',
+      title: 'Книжный клуб',
+      subtitle: 'Каталог и оценки книг',
+      icon: '📚',
+      badgeBg: 'bg-emerald-500/20',
+      badgeText: 'text-emerald-400',
+      badgeBorder: 'border-emerald-500/20',
+      action: onSelectBookClub,
     },
   ];
 
@@ -195,18 +189,19 @@ export const HeaderPageSelector = ({
                       <span className={`text-xs font-bold ${isCurrent ? 'text-amber-400' : 'text-white group-hover:text-amber-300'} transition-colors`}>
                         {page.title}
                       </span>
-                      <span className="text-[10px] text-zinc-400 truncate">
-                        {/* {page.subtitle} */}
-                      </span>
                     </div>
                   </div>
 
-                  {/* Active Indicator Checkmark */}
-                  {/* {isCurrent && (
-                    <span className="text-amber-400 text-xs font-bold px-1.5 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/30 shrink-0">
-                      ✓
+                  {/* Lock indicator if unauthorized */}
+                  {!isAuthorized && page.id !== 'roulette' && (
+                    <span
+                      className="text-[10px] text-zinc-400 group-hover:text-amber-400 flex items-center gap-1 font-medium shrink-0 bg-white/5 px-2 py-0.5 rounded-md border border-white/10"
+                      title="Требуется авторизация"
+                    >
+                      <span>🔒</span>
+                      <span className="hidden sm:inline">Вход</span>
                     </span>
-                  )} */}
+                  )}
                 </button>
               );
             })}
@@ -234,15 +229,22 @@ export const HeaderPageSelector = ({
                   <span className="text-xs font-bold text-white group-hover:text-emerald-300 transition-colors">
                     Добавить фильм
                   </span>
-
                 </div>
               </div>
 
-              {currentPage === 'entry' && (
+              {!isAuthorized ? (
+                <span
+                  className="text-[10px] text-zinc-400 group-hover:text-amber-400 flex items-center gap-1 font-medium shrink-0 bg-white/5 px-2 py-0.5 rounded-md border border-white/10"
+                  title="Требуется авторизация"
+                >
+                  <span>🔒</span>
+                  <span className="hidden sm:inline">Вход</span>
+                </span>
+              ) : currentPage === 'entry' ? (
                 <span className="text-emerald-400 text-xs font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/30 shrink-0">
                   ✓
                 </span>
-              )}
+              ) : null}
             </button>
           </div>
         </div>

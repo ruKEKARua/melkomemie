@@ -9,6 +9,13 @@
  */
 
 import { getActiveMovieSource, type MovieSource } from './movieSource';
+import {
+  isLocalStorageAvailable,
+  purgeExpiredStorageRecords,
+  clearStorageByPrefix,
+} from '../utils/storageCache';
+
+export { isLocalStorageAvailable };
 
 export type CompactPosterItem = {
   id: number;
@@ -28,20 +35,6 @@ const MAX_STRING_LENGTH = 4096; // 4 KB safety limit per entry to strictly respe
 function getStorageKey(page: number, source?: MovieSource): string {
   const currentSource = source ?? getActiveMovieSource();
   return `${KEY_PREFIX}${currentSource}_p_${page}`;
-}
-
-export function isLocalStorageAvailable(): boolean {
-  if (typeof window === 'undefined' || !window.localStorage) {
-    return false;
-  }
-  try {
-    const testKey = '__mm_storage_test__';
-    window.localStorage.setItem(testKey, '1');
-    window.localStorage.removeItem(testKey);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /**
@@ -135,7 +128,6 @@ export function setCachedPopularPosters(
     window.localStorage.setItem(key, serialized);
   } catch (error) {
     console.warn(`[posterCache] Failed to save posters for page ${page}:`, error);
-    // If QuotaExceededError or write failure, try purging expired cache
     tryPurgeOldPosterCache();
   }
 }
@@ -144,56 +136,15 @@ export function setCachedPopularPosters(
  * Removes any expired poster cache entries to free up localStorage space.
  */
 export function tryPurgeOldPosterCache(): void {
-  if (typeof window === 'undefined' || !window.localStorage) return;
-
-  try {
-    const keysToRemove: string[] = [];
-    const now = Date.now();
-
-    for (let i = 0; i < window.localStorage.length; i++) {
-      const key = window.localStorage.key(i);
-      if (key && key.startsWith(KEY_PREFIX)) {
-        try {
-          const raw = window.localStorage.getItem(key);
-          if (raw) {
-            const record = JSON.parse(raw) as CachedPageRecord;
-            if (!record.cachedAt || now - record.cachedAt > CACHE_TTL_MS) {
-              keysToRemove.push(key);
-            }
-          }
-        } catch {
-          keysToRemove.push(key);
-        }
-      }
-    }
-
-    for (const key of keysToRemove) {
-      window.localStorage.removeItem(key);
-    }
-  } catch (error) {
-    console.warn('[posterCache] Failed to purge old poster cache:', error);
-  }
+  purgeExpiredStorageRecords(KEY_PREFIX, CACHE_TTL_MS);
 }
 
 /**
  * Clears all background posters cache.
  */
 export function clearPosterCache(): void {
-  if (typeof window === 'undefined' || !window.localStorage) return;
-
-  try {
-    const keysToRemove: string[] = [];
-    for (let i = 0; i < window.localStorage.length; i++) {
-      const key = window.localStorage.key(i);
-      if (key && key.startsWith(KEY_PREFIX)) {
-        keysToRemove.push(key);
-      }
-    }
-    for (const key of keysToRemove) {
-      window.localStorage.removeItem(key);
-    }
+  clearStorageByPrefix(KEY_PREFIX);
+  if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('mm_posters_cache_cleared'));
-  } catch (error) {
-    console.warn('[posterCache] Failed to clear poster cache:', error);
   }
 }

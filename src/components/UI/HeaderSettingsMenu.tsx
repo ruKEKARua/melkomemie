@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useTheme, type ThemePreference } from '../../utils/theme';
 import type { MovieSource } from '../../api/movieSource';
+import { useClickOutsideAndEscape } from '../../hooks/useClickOutsideAndEscape';
 
 interface HeaderSettingsMenuProps {
   isAuthorized: boolean;
@@ -27,30 +28,8 @@ export const HeaderSettingsMenu = ({
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on click outside or Escape key
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleEscape);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isOpen]);
+  const closeMenu = useCallback(() => setIsOpen(false), []);
+  useClickOutsideAndEscape(menuRef, isOpen, closeMenu);
 
   const themeOptions: { value: ThemePreference; label: string; sublabel: string; icon: string }[] = [
     {

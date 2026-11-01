@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useTheme, type ThemePreference } from '../../utils/theme';
+import { useClickOutsideAndEscape } from '../../hooks/useClickOutsideAndEscape';
 
 interface ThemeToggleProps {
   className?: string;
@@ -11,30 +12,8 @@ export const ThemeToggle = ({ className = '', variant = 'dropdown' }: ThemeToggl
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on click outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleEscape);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isOpen]);
+  const closeDropdown = useCallback(() => setIsOpen(false), []);
+  useClickOutsideAndEscape(dropdownRef, isOpen, closeDropdown);
 
   const options: { value: ThemePreference; label: string; sublabel: string; icon: string }[] = [
     {

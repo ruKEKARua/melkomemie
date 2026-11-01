@@ -9,7 +9,7 @@ import type { MovieSheetEntry } from '../api/googleSheets';
 import { getMovieImageUrl, getTmdbImageUrl } from '../api/tmdbImage';
 import { getActiveMovieSource, type MovieSource } from '../api/movieSource';
 
-type Movie = {
+export type Movie = {
   media_type: 'movie' | 'tv';
   id: number;
   backdrop_path: string;
@@ -21,7 +21,7 @@ type Movie = {
   isExcelFallback?: boolean;
 };
 
-type Person = {
+export type Person = {
   media_type: 'person';
   id: number;
   gender: number;
@@ -32,9 +32,9 @@ type Person = {
   known_for_department: string;
 };
 
-type Media = Movie | Person;
+export type Media = Movie | Person;
 
-type MovieSliderProps = {
+export type MovieSliderProps = {
   media: Media[];
   ratings: MovieRatings[];
   participantNames?: string[];
@@ -74,6 +74,8 @@ export function MovieSlider({
     setFallbackMovieTitle(fallbackTitle);
     dispatch(openModal());
   };
+
+  const activeMovieId = isModalOpen ? movie_ID : null;
 
   useEffect(() => {
     if (!highlightMovieTitle || isLoading) {
@@ -217,17 +219,18 @@ export function MovieSlider({
       </div>
 
       {/* Movie Details Modal */}
-      {isModalOpen && movie_ID !== null && (
+      {activeMovieId !== null && (
         <Modal
-          key={movie_ID}
+          key={activeMovieId}
           isHidden=""
-          movie_ID={movie_ID}
+          movie_ID={activeMovieId}
           source={movieSource}
           ratings={ratings}
           excelMovieTitle={excelMovieTitle}
           fallbackTitle={fallbackMovieTitle}
           participantNames={participantNames}
           onUpdateMovie={onUpdateMovie}
+          onClose={() => setMovie_ID(null)}
         />
       )}
     </div>

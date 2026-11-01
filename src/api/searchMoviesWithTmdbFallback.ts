@@ -1,4 +1,4 @@
-import { searchMoviesFromSource, type NormalizedMovie } from '../api/movieSource';
+import { searchMoviesFromSource, type NormalizedMovie } from './movieSource';
 
 export async function searchMoviesWithTmdbFallback(query: string): Promise<NormalizedMovie[]> {
   const trimmed = query.trim();
