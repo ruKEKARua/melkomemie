@@ -27,20 +27,21 @@ function compactToPopularMovieData(items: CompactPosterItem[]): PopularMovieData
 }
 
 // Module-level in-flight request cache: deduplicates network calls across components and React StrictMode remounts
-const inFlightRequests = new Map<number, Promise<PopularMovieData[]>>();
+const inFlightRequests = new Map<string, Promise<PopularMovieData[]>>();
 
-function fetchPopularPage(page: number): Promise<PopularMovieData[]> {
-  const existing = inFlightRequests.get(page);
+function fetchPopularPage(page: number, source: MovieSource): Promise<PopularMovieData[]> {
+  const cacheKey = `${source}_${page}`;
+  const existing = inFlightRequests.get(cacheKey);
   if (existing) {
     return existing;
   }
 
-  const promise = getPopularMoviesFromSource(page)
+  const promise = getPopularMoviesFromSource(page, source)
     .then((res) => {
       const validMovies = res.filter((movie) => Boolean(movie.poster_path));
 
       // Save compact minimal representation into localStorage (strips overviews/titles to respect string limits)
-      setCachedPopularPosters(page, validMovies);
+      setCachedPopularPosters(page, validMovies, source);
 
       return validMovies.map((movie) => ({
         id: movie.id,
@@ -52,10 +53,10 @@ function fetchPopularPage(page: number): Promise<PopularMovieData[]> {
       }));
     })
     .finally(() => {
-      inFlightRequests.delete(page);
+      inFlightRequests.delete(cacheKey);
     });
 
-  inFlightRequests.set(page, promise);
+  inFlightRequests.set(cacheKey, promise);
   return promise;
 }
 
@@ -82,7 +83,7 @@ const usePopularMovies = (page: number) => {
     // 2. Fetch page (deduplicated across StrictMode remounts via inFlightRequests)
     let isSubscribed = true;
 
-    fetchPopularPage(page)
+    fetchPopularPage(page, currentSource)
       .then((movies) => {
         if (isSubscribed) {
           setFetchedData(movies);
@@ -100,7 +101,7 @@ const usePopularMovies = (page: number) => {
   // Listen for storage events (e.g. if cache was cleared in another tab or programmatically)
   useEffect(() => {
     const onCacheCleared = () => {
-      fetchPopularPage(page)
+      fetchPopularPage(page, currentSource)
         .then((movies) => setFetchedData(movies))
         .catch(() => {});
     };

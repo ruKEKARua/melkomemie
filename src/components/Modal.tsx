@@ -340,7 +340,7 @@ const Modal = ({
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
                   О фильме
                 </h3>
-                <p className="text-sm md:text-base text-slate-700 dark:text-zinc-200 leading-relaxed font-normal">
+                <p className="text-base md:text-[17px] text-slate-700 dark:text-zinc-200 leading-relaxed font-normal">
                   {description}
                 </p>
               </div>

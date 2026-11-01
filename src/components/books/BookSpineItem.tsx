@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import type { BookClubBook } from '../../api/bookClubData';
+import { getCachedBookCover } from '../../api/bookCache';
 import { parseSpineColors, formatRating } from '../../utils/bookShelfStyles';
 
 interface BookSpineItemProps {
@@ -7,12 +8,15 @@ interface BookSpineItemProps {
   index: number;
   totalOnShelf: number;
   isHovered: boolean;
+  isRowHovered?: boolean;
   scale: number;
   spineWidthPx: number;
   hingeWidthPx: number;
   coverWidthPx: number;
   totalExpandedWidthPx: number;
   gapPx: number;
+  tiltAngle?: number;
+  tiltOrigin?: 'bottom left' | 'bottom right' | 'bottom center';
   onHover: (id: number) => void;
   onSelect: (book: BookClubBook) => void;
 }
@@ -24,18 +28,23 @@ export const BookSpineItem: React.FC<BookSpineItemProps> = memo(({
   index,
   totalOnShelf,
   isHovered,
+  isRowHovered = false,
   scale,
   spineWidthPx,
   hingeWidthPx,
   coverWidthPx,
   totalExpandedWidthPx,
   gapPx,
+  tiltAngle = 0,
+  tiltOrigin = 'bottom center',
   onHover,
   onSelect,
 }) => {
   const isLastOnShelf = index === totalOnShelf - 1;
   const heightRatio = heightRatios[index % heightRatios.length];
-  const zIndex = isHovered ? 50 : index + 1;
+  // Leaning books that tilt onto a neighbor stay in front of the upright neighbor,
+  // while the hovered book always ascends to zIndex 50
+  const zIndex = isHovered ? 50 : tiltAngle !== 0 ? 15 + index : index + 1;
 
   const titleFontSize = Math.max(9, Math.round(10.5 * scale));
   const spineTitleFontSize = Math.max(9, Math.round(10 * scale));
@@ -54,38 +63,54 @@ export const BookSpineItem: React.FC<BookSpineItemProps> = memo(({
         zIndex,
         opacity: 1,
         transition: isHovered
-          ? 'width 180ms cubic-bezier(0.2, 0, 0, 1), z-index 0ms'
-          : 'width 160ms cubic-bezier(0.25, 1, 0.5, 1), z-index 0ms',
+          ? 'width 180ms cubic-bezier(0.2, 0, 0, 1), padding-right 180ms cubic-bezier(0.2, 0, 0, 1), z-index 0ms'
+          : 'width 160ms cubic-bezier(0.25, 1, 0.5, 1), padding-right 160ms cubic-bezier(0.25, 1, 0.5, 1), z-index 0ms',
       }}
       onMouseEnter={() => onHover(book.id)}
       onClick={() => onSelect(book)}
     >
       {/* 
-        3D BOOK VOLUME:
-        - Both Spine and Front Cover exist simultaneously in true 3D (transform-style: preserve-3d)
-        - In resting state: Spine (0deg) faces forward, Front Cover (90deg) is perpendicular in shelf depth
-        - On hover: Spine turns away (-90deg) and naturally disappears into the shelf depth (backface-hidden),
-          while Front Cover swings forward (0deg) facing the viewer!
-        - The book volume elevates slightly forward (-5deg isometric tilt, translateZ) with rich drop shadow
-        - Accordion: outer container widens to coverWidth, smoothly pushing neighbor books to the right
+        TILT WRAPPER:
+        - Leans the book naturally on the shelf (rotateZ) around tiltOrigin (bottom-left or bottom-right).
+        - On hover: smoothly rotates to vertical (0deg) in 180ms simultaneously as the 3D volume opens.
       */}
       <div
-        className="relative w-full select-none"
+        className="relative w-full flex flex-col justify-end select-none"
         style={{
           height: `calc(${heightRatio * 100}% - ${Math.max(8, Math.round(10 * scale))}px)`,
+          transformOrigin: tiltOrigin,
+          transform: (isHovered || isRowHovered) ? 'rotateZ(0deg)' : `rotateZ(${tiltAngle}deg)`,
+          transition: (isHovered || isRowHovered)
+            ? 'transform 180ms cubic-bezier(0.2, 0, 0, 1)'
+            : 'transform 200ms cubic-bezier(0.25, 1, 0.5, 1)',
           transformStyle: 'preserve-3d',
-          transformOrigin: 'left center',
-          transform: isHovered
-            ? `rotateY(-5deg) translateZ(${14 * scale}px) scale(1.02)`
-            : 'rotateY(0deg) translateZ(0px)',
-          boxShadow: isHovered
-            ? `-14px 12px 28px rgba(0, 0, 0, 0.95), -4px 4px 12px rgba(0, 0, 0, 0.7), 0 0 20px ${accent}44`
-            : 'none',
-          transition: isHovered
-            ? 'transform 180ms cubic-bezier(0.2, 0, 0, 1), box-shadow 180ms ease'
-            : 'transform 160ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 160ms ease',
         }}
       >
+        {/* 
+          3D BOOK VOLUME:
+          - Both Spine and Front Cover exist simultaneously in true 3D (transform-style: preserve-3d)
+          - In resting state: Spine (0deg) faces forward, Front Cover (90deg) is perpendicular in shelf depth
+          - On hover: Spine turns away (-90deg) and naturally disappears into the shelf depth (backface-hidden),
+            while Front Cover swings forward (0deg) facing the viewer!
+          - The book volume elevates slightly forward (-5deg isometric tilt, translateZ) with rich drop shadow
+          - Accordion: outer container widens to coverWidth, smoothly pushing neighbor books to the right
+        */}
+        <div
+          className="relative w-full h-full select-none"
+          style={{
+            transformStyle: 'preserve-3d',
+            transformOrigin: 'left center',
+            transform: isHovered
+              ? `rotateY(-5deg) translateZ(${14 * scale}px) scale(1.02)`
+              : 'rotateY(0deg) translateZ(0px)',
+            boxShadow: isHovered
+              ? `-14px 12px 28px rgba(0, 0, 0, 0.95), -4px 4px 12px rgba(0, 0, 0, 0.7), 0 0 20px ${accent}44`
+              : 'none',
+            transition: isHovered
+              ? 'transform 180ms cubic-bezier(0.2, 0, 0, 1), box-shadow 180ms ease'
+              : 'transform 160ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 160ms ease',
+          }}
+        >
         {/* =========================================================================
             FACE 1: THE SPINE (Корешок — виден в обычном состоянии при rotateY(0deg),
             естественное цилиндрическое закругление, при наведении скрывается на -90deg)
@@ -241,6 +266,28 @@ export const BookSpineItem: React.FC<BookSpineItemProps> = memo(({
               }}
             />
           </div>
+
+          {/* Authentic Book Cover Art background when hovered */}
+          <div className="absolute inset-0 overflow-hidden rounded-r-[3px] rounded-l-[1px] pointer-events-none z-0">
+            <img
+              src={`${import.meta.env.BASE_URL}covers/book_${book.id}.jpg`}
+              alt=""
+              className="w-full h-full object-cover object-center"
+              loading="eager"
+              decoding="async"
+              onError={(e) => {
+                const fallback = getCachedBookCover(book.id);
+                if (fallback && e.currentTarget.src !== fallback) {
+                  e.currentTarget.src = fallback;
+                } else {
+                  e.currentTarget.style.display = 'none';
+                }
+              }}
+            />
+            {/* Shading overlay ensuring crisp contrast for embossed gold lettering */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/60" />
+          </div>
+
           {/* Micro-texture stippled leather grain */}
           <div
             className="absolute inset-0 opacity-20 pointer-events-none"
@@ -320,7 +367,8 @@ export const BookSpineItem: React.FC<BookSpineItemProps> = memo(({
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 });
 
 BookSpineItem.displayName = 'BookSpineItem';

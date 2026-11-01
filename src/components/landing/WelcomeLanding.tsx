@@ -125,7 +125,7 @@ export const WelcomeLanding = ({
         }}
       />
 
-      {/* 3-Column Layout: Left 2 Cards | Center Login Card | Right 3 Cards */}
+      {/* 3-Column Layout: Left 2 Cards | Center Login Card | Right 2 Cards */}
       <div className="relative z-10 w-full max-w-7xl 2xl:max-w-[1600px] min-[1920px]:max-w-[1800px] min-[2560px]:max-w-[2200px] mx-auto px-2 sm:px-6 py-4 flex flex-col lg:flex-row items-center lg:items-stretch justify-center gap-5 xl:gap-7">
         {/* Left Column: 2 Cards */}
         <div className="w-full max-w-md lg:max-w-none lg:w-80 xl:w-88 flex flex-col sm:flex-row lg:flex-col justify-between gap-4 sm:gap-5 order-2 lg:order-1">
@@ -139,13 +139,13 @@ export const WelcomeLanding = ({
             onClick={login}
           />
           <LandingFeatureCard
-            icon="⭐"
-            category="Рейтинги"
-            title="Оценки друзей"
-            description="Честное и неподкупное мнение каждого участника, просмотревшего фильм вместе с клубом."
-            badgeText="Оценки →"
-            color="amber"
-            onClick={login}
+            icon="📚"
+            category="Литература"
+            title="Книжный клуб"
+            description="Уютная интерактивная комната с книжной полкой, каталогом и оценками клуба."
+            badgeText="Полка книг →"
+            color="emerald"
+            onClick={() => onNavigateToPage('book-club')}
           />
         </div>
 
@@ -203,7 +203,7 @@ export const WelcomeLanding = ({
           </div>
         </div>
 
-        {/* Right Column: 3 Feature Cards */}
+        {/* Right Column: 2 Feature Cards */}
         <div className="w-full max-w-md lg:max-w-none lg:w-80 xl:w-88 flex flex-col sm:flex-row lg:flex-col justify-between gap-4 sm:gap-5 order-3 lg:order-3">
           <LandingFeatureCard
             icon="🎲"
@@ -228,15 +228,6 @@ export const WelcomeLanding = ({
                 login();
               }
             }}
-          />
-          <LandingFeatureCard
-            icon="📚"
-            category="Литература"
-            title="Книжный клуб"
-            description="Уютная интерактивная комната с книжной полкой, каталогом и оценками клуба."
-            badgeText="Полка книг →"
-            color="emerald"
-            onClick={() => onNavigateToPage('book-club')}
           />
         </div>
       </div>

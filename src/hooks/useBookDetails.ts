@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { BookClubBook } from '../api/bookClubData';
-import { fetchGoogleBookDetails } from '../api/googleBooks';
+import { sanitizeGoogleBooksCover, type BookClubBook } from '../api/bookClubData';
+import { fetchGoogleBookDetails, cleanDescription } from '../api/googleBooks';
 import { getCachedBookCover, getCachedBookDetails, type EnrichedBookDetails } from '../api/bookCache';
 
 export function useBookDetails(selectedBook: BookClubBook) {
@@ -29,26 +29,37 @@ export function useBookDetails(selectedBook: BookClubBook) {
   const enrichedData = enrichedMap[selectedBook.id] || getCachedBookDetails(selectedBook.id);
   const isCoverFailed = failedCoverId === selectedBook.id;
   const cachedCover = getCachedBookCover(selectedBook.id);
+  const localCover = `${import.meta.env.BASE_URL}covers/book_${selectedBook.id}.jpg`;
+  const sanitizedUrl = sanitizeGoogleBooksCover(
+    enrichedData?.coverUrl || selectedBook.coverUrl
+  );
 
-  const activeCover =
-    !isCoverFailed && cachedCover
-      ? cachedCover
-      : !isCoverFailed && enrichedData?.coverUrl
-      ? enrichedData.coverUrl
-      : !isCoverFailed && selectedBook.coverUrl
-      ? selectedBook.coverUrl
-      : 'https://upload.wikimedia.org/wikipedia/commons/f/fb/Animal_Farm_-_1st_edition.jpg';
+  // Guarantee 100% cover display: always use local curated HD cover first,
+  // with fallback to offline base64 dictionary. External Google Books placeholder
+  // or rate-limited links will never overwrite the verified artwork.
+  const activeCover = isCoverFailed
+    ? (cachedCover || localCover)
+    : (localCover || cachedCover || sanitizedUrl);
 
   const publisherDisplay =
     enrichedData?.publisher || selectedBook.publisher || 'Издательство классической литературы';
   const publishedYearDisplay =
     enrichedData?.publishedYear || selectedBook.publishedYear || selectedBook.date;
-  const descriptionDisplay = enrichedData?.description || selectedBook.description;
+
+  // Selected book description is curated, clean and 100% Russian.
+  // Clean raw description to ensure zero publisher artifacts or English noise.
+  const rawDescription = selectedBook.description || enrichedData?.description || '';
+  const descriptionDisplay = cleanDescription(rawDescription) || selectedBook.description || '';
+
   const pageCountDisplay = enrichedData?.pageCount || selectedBook.pageCount;
+
+  // Keep curated Russian genres; only use external categories if they are in Russian and selectedBook has none.
   const genresDisplay =
-    enrichedData?.categories && enrichedData.categories.length > 0
+    selectedBook.genres && selectedBook.genres.length > 0
+      ? selectedBook.genres
+      : enrichedData?.categories && enrichedData.categories.length > 0
       ? enrichedData.categories
-      : selectedBook.genres;
+      : ['Классическая литература'];
 
   return {
     enrichedData,

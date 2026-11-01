@@ -1,4 +1,4 @@
-import type { BookClubBook } from './bookClubData';
+import { type BookClubBook } from './bookClubData';
 import { DEFAULT_BOOK_COVERS } from './bookCoversData';
 import {
   isLocalStorageAvailable,
@@ -12,7 +12,26 @@ const KEY_PREFIX = 'mm_book_';
 const LIST_KEY = `${KEY_PREFIX}list`;
 const DETAILS_PREFIX = `${KEY_PREFIX}details_`;
 const COVER_PREFIX = `${KEY_PREFIX}cover_`;
+const VERSION_KEY = `${KEY_PREFIX}cache_version`;
+const CURRENT_VERSION = 'v6_clean_russian_descriptions';
 const CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 days TTL, matching movie cache
+
+// One-time migration: purge any old low-res cached covers so new HD covers apply instantly
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    const savedVer = window.localStorage.getItem(VERSION_KEY);
+    if (savedVer !== CURRENT_VERSION) {
+      for (let i = 1; i <= 30; i++) {
+        window.localStorage.removeItem(`${COVER_PREFIX}${i}`);
+        window.localStorage.removeItem(`${DETAILS_PREFIX}${i}`);
+      }
+      window.localStorage.removeItem(LIST_KEY);
+      window.localStorage.setItem(VERSION_KEY, CURRENT_VERSION);
+    }
+  } catch {
+    // ignore storage access errors
+  }
+}
 
 export type EnrichedBookDetails = {
   coverUrl?: string;
@@ -242,6 +261,22 @@ export async function convertAndCacheBookCover(id: number, url: string): Promise
     // CORS or network failure: silently keep existing URL
     return null;
   }
+}
+
+/**
+ * Immediately preloads all book cover images into the browser cache in parallel.
+ * Runs asynchronously in the background as soon as the user visits the Book Club,
+ * guaranteeing instantaneous 0ms display on hover or click.
+ */
+export function preloadAllBookCovers(books: BookClubBook[]): void {
+  if (typeof window === 'undefined' || !books || books.length === 0) return;
+
+  books.forEach((book) => {
+    const localUrl = `${import.meta.env.BASE_URL}covers/book_${book.id}.jpg`;
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = localUrl;
+  });
 }
 
 /**

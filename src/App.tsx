@@ -22,6 +22,7 @@ import {
   type NormalizedMovie,
 } from './api/movieSource';
 import { useAppNavigation } from './hooks/useAppNavigation';
+import { checkIsMobileDevice } from './hooks/useBookClub';
 import {
   useCatalogMovies,
   type SortOrder,
@@ -77,8 +78,18 @@ function App() {
     navigateToPage,
   } = useAppNavigation({ isAuthorized, login });
 
-  // Lock window scroll when viewing the atmospheric book club room
-  useBodyScrollLock(page === 'book-club');
+  // Lock window scroll when viewing the book club on desktop/laptops (not on mobile)
+  const [isMobileDevice, setIsMobileDevice] = useState(() =>
+    typeof window !== 'undefined' ? checkIsMobileDevice() : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => setIsMobileDevice(checkIsMobileDevice());
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useBodyScrollLock(page === 'book-club' && !isMobileDevice);
 
   useEffect(() => {
     detectMovieSource().then((src) => setMovieDatabaseSource(src));
@@ -141,7 +152,9 @@ function App() {
   return (
     <div
       className={`bg-[#f4f6fa] dark:bg-[#090a0f] text-slate-900 dark:text-zinc-100 flex flex-col selection:bg-amber-500 selection:text-slate-950 transition-colors duration-200 ${
-        page === 'book-club' ? 'h-screen max-h-screen overflow-hidden' : 'min-h-screen'
+        page === 'book-club'
+          ? 'min-h-screen md:h-screen md:max-h-screen md:overflow-hidden'
+          : 'min-h-screen'
       }`}
     >
       <AppHeader
@@ -174,7 +187,7 @@ function App() {
         }}
       />
 
-      <main className="flex-1 w-full flex flex-col">
+      <main className={`flex-1 w-full flex flex-col ${page === 'book-club' ? 'min-h-0 md:overflow-hidden' : ''}`}>
         {page === 'roulette' ? (
           <MovieRoulette
             excelMovies={isAuthorized ? (foundMovies.filter((movie) => movie.media_type !== 'person') as unknown as NormalizedMovie[]) : []}

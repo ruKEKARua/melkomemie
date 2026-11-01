@@ -38,18 +38,36 @@ export const AppHeader = ({
   onLogout,
   onSourceChange,
 }: AppHeaderProps) => {
+  const isBookClub = currentDisplayedPage === 'book-club';
+
   return (
-    <header className="sticky top-0 z-40 backdrop-blur-xl bg-[#090a0f]/95 border-b border-white/10 px-4 sm:px-6 lg:px-8 py-2 sm:py-2.5 text-white transition-colors">
-      <div className="max-w-7xl 2xl:max-w-[1600px] min-[1920px]:max-w-[1800px] min-[2560px]:max-w-[2200px] mx-auto flex flex-col md:flex-row items-center justify-between gap-3 md:gap-5">
-        {/* Left (Block 1): Brand Logo, Burger Menu & Navigation Links (Fixed proportional width) */}
-        <div className="flex items-center justify-between w-full md:w-auto md:min-w-[240px] lg:min-w-[270px] xl:min-w-[290px] gap-3 shrink-0">
+    <header className="sticky top-0 z-40 backdrop-blur-xl bg-[#090a0f]/95 border-b border-white/10 px-4 sm:px-6 lg:px-8 py-2 sm:py-2.5 text-white transition-colors shrink-0">
+      <div
+        className={`max-w-7xl 2xl:max-w-[1600px] min-[1920px]:max-w-[1800px] min-[2560px]:max-w-[2200px] mx-auto flex items-center justify-between gap-3 md:gap-5 ${
+          isBookClub ? 'flex-row' : 'flex-col md:flex-row'
+        }`}
+      >
+        {/* Left (Block 1): Brand Logo, Burger Menu & Navigation Links */}
+        <div
+          className={`flex items-center justify-between gap-3 shrink-0 ${
+            isBookClub
+              ? 'w-auto'
+              : 'w-full md:w-auto md:min-w-[240px] lg:min-w-[270px] xl:min-w-[290px]'
+          }`}
+        >
           <div className="flex items-center gap-3 sm:gap-4">
             <button
               onClick={onResetCatalog}
               className="flex items-center text-left group cursor-pointer focus:outline-none shrink-0"
               title="На главную"
             >
-              <Logo className="h-12 sm:h-14 md:h-[68px] lg:h-[76px] w-auto shrink-0 filter drop-shadow-[0_2px_14px_rgba(245,158,11,0.28)] group-hover:scale-105 group-hover:drop-shadow-[0_2px_22px_rgba(245,158,11,0.45)] transition-all" />
+              <Logo
+                className={`w-auto shrink-0 filter drop-shadow-[0_2px_14px_rgba(245,158,11,0.28)] group-hover:scale-105 group-hover:drop-shadow-[0_2px_22px_rgba(245,158,11,0.45)] transition-all ${
+                  isBookClub
+                    ? 'h-9 sm:h-10 md:h-11'
+                    : 'h-10 sm:h-12 md:h-[58px] lg:h-[64px]'
+                }`}
+              />
             </button>
 
             {/* Page Selector */}
@@ -64,22 +82,24 @@ export const AppHeader = ({
             />
           </div>
 
-          {/* Mobile-only right controls */}
-          <div className="flex md:hidden items-center gap-2">
-            <HeaderSettingsMenu
-              isAuthorized={isAuthorized}
-              userName={userName}
-              userPicture={userPicture}
-              onLogin={onLogin}
-              onLogout={onLogout}
-              movieDatabaseSource={movieDatabaseSource}
-              onSourceChange={onSourceChange}
-            />
-          </div>
+          {/* Mobile-only right controls for non-book-club pages */}
+          {!isBookClub && (
+            <div className="flex md:hidden items-center gap-2">
+              <HeaderSettingsMenu
+                isAuthorized={isAuthorized}
+                userName={userName}
+                userPicture={userPicture}
+                onLogin={onLogin}
+                onLogout={onLogout}
+                movieDatabaseSource={movieDatabaseSource}
+                onSourceChange={onSourceChange}
+              />
+            </div>
+          )}
         </div>
 
         {/* Center: Integrated Search Bar (Centered between Block 1 and Block 2) */}
-        {isAuthorized ? (
+        {isAuthorized && !isBookClub ? (
           <div className="flex-1 w-full min-w-0 max-w-xl lg:max-w-2xl mx-auto flex items-center gap-2">
             <div className="relative flex-1 min-w-0">
               <span className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none text-zinc-400">
@@ -129,11 +149,17 @@ export const AppHeader = ({
             </label>
           </div>
         ) : (
-          <div className="hidden md:flex flex-1" />
+          <div className="flex-1 min-w-0" />
         )}
 
-        {/* Right (Block 2): User Avatar / Login & Gear Settings (Fixed proportional width) */}
-        <div className="hidden md:flex items-center justify-end md:min-w-[150px] lg:min-w-[180px] xl:min-w-[200px] gap-2 sm:gap-2.5 shrink-0">
+        {/* Right (Block 2): User Avatar / Login & Gear Settings */}
+        <div
+          className={`items-center justify-end gap-2 sm:gap-2.5 shrink-0 ${
+            isBookClub
+              ? 'flex'
+              : 'hidden md:flex md:min-w-[150px] lg:min-w-[180px] xl:min-w-[200px]'
+          }`}
+        >
           {isAuthorized ? (
             <div className="flex items-center gap-2 pr-1 border-r border-white/10">
               {userPicture ? (

@@ -40,11 +40,12 @@ export interface GoogleBooksResponse {
 }
 
 /**
- * Strips HTML formatting tags from Google Books description strings.
+ * Strips HTML formatting tags, decodes HTML entities, and removes publisher metadata/promotional noise.
+ * Also verifies Russian language content to avoid returning English descriptions.
  */
-function cleanDescription(html?: string): string | undefined {
+export function cleanDescription(html?: string): string | undefined {
   if (!html) return undefined;
-  return html
+  let text = html
     .replace(/<br\s*[/]?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
     .replace(/<[^>]+>/g, '')
@@ -53,8 +54,35 @@ function cleanDescription(html?: string): string | undefined {
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+    .replace(/&laquo;/g, '«')
+    .replace(/&raquo;/g, '»')
+    .replace(/&mdash;/g, '—')
+    .replace(/&ndash;/g, '–')
+    .replace(/&nbsp;/g, ' ');
+
+  // Strip publisher technical footnotes and file production credits
+  text = text.replace(/Файл электронной книги подготовлен[\s\S]*$/gi, '');
+  text = text.replace(/В формате\s+[^\n.]*сохранен[^\n.]*макет[^\n.]*[.]?/gi, '');
+  text = text.replace(/В формате\s+(?:a4\.pdf|pdf|fb2|epub)[^\n.]*[.]?/gi, '');
+  text = text.replace(/сохранен[^\n.]*издательский макет[^\n.]*[.]?/gi, '');
+  text = text.replace(/Книга содержит нецензурную брань[^\n.]*[.]?/gi, '');
+  text = text.replace(/Для кого эта книга[\s\S]*$/gi, '');
+  text = text.replace(/В сборник также вошли[\s\S]*$/gi, '');
+  text = text.replace(/[A-Z\s]{4,}:[\s\S]*$/g, '');
+  text = text.replace(/["'—–\-]+\s*$/g, '');
+  text = text.replace(/\s*[,;:]\s*$/g, '.');
+
+  text = text.replace(/\n{3,}/g, '\n\n').trim();
+
+  // Language check: Must contain Russian Cyrillic characters.
+  // If text is in English or non-Russian, discard it so system retains vetted Russian description.
+  const cyrillicCount = (text.match(/[а-яёА-ЯЁ]/g) || []).length;
+  const latinCount = (text.match(/[a-zA-Z]/g) || []).length;
+  if (cyrillicCount === 0 || (latinCount > cyrillicCount && cyrillicCount < 30)) {
+    return undefined;
+  }
+
+  return text || undefined;
 }
 
 /**
@@ -95,11 +123,14 @@ export async function fetchGoogleBookDetails(
 
     // Find best matching item
     const normalizedTitle = title.toLowerCase().trim();
-    const item =
-      data.items.find((it) => {
-        const itemTitle = (it.volumeInfo?.title || '').toLowerCase();
-        return itemTitle.includes(normalizedTitle) || normalizedTitle.includes(itemTitle);
-      }) || data.items[0];
+    const item = data.items.find((it) => {
+      const itemTitle = (it.volumeInfo?.title || '').toLowerCase();
+      return itemTitle.includes(normalizedTitle) || normalizedTitle.includes(itemTitle);
+    });
+
+    if (!item) {
+      return null;
+    }
 
     const vi = item.volumeInfo || {};
     const rawImg =
@@ -113,13 +144,16 @@ export async function fetchGoogleBookDetails(
     const cleanedDesc = cleanDescription(vi.description);
     const publishedYear = vi.publishedDate ? vi.publishedDate.slice(0, 4) : undefined;
 
+    // Only keep Russian categories to avoid polluting with English generic tags like "Fiction" or "Brain"
+    const russianCategories = (vi.categories || []).filter((cat) => /[а-яёА-ЯЁ]/i.test(cat));
+
     const result: EnrichedBookDetails = {
       coverUrl,
       publisher: vi.publisher,
       publishedYear,
       description: cleanedDesc,
       pageCount: vi.pageCount,
-      categories: vi.categories,
+      categories: russianCategories.length > 0 ? russianCategories : undefined,
       language: vi.language === 'ru' ? 'Русский' : vi.language,
     };
 

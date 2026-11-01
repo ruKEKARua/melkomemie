@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { sanitizeGoogleBooksCover, type BookClubBook } from '../../api/bookClubData';
+import { type BookClubBook } from '../../api/bookClubData';
 import { getCachedBookCover } from '../../api/bookCache';
-import { parseSpineColors, formatRating } from '../../utils/bookShelfStyles';
+import { formatRating, getBookTilt } from '../../utils/bookShelfStyles';
 import { BookSpineItem } from './BookSpineItem';
 
 interface VirtualBookShelfProps {
@@ -31,7 +31,28 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
   const coverWidthPx = Math.max(72, Math.round(80 * scale));
   // Total physical width when book is opened on hover
   const totalExpandedWidthPx = hingeWidthPx + coverWidthPx;
-  const gapPx = Math.max(2, Math.round(3 * scale));
+
+  // Horizontal padding on shelf cavity edges (left & right)
+  const paddingPx = Math.max(8, Math.round(11 * (scale / 1.1157)));
+
+  // Available inner shelf width for books inside padding
+  const totalShelfWidth = Math.round(319.8 * scale);
+  const availableWidth = Math.max(0, totalShelfWidth - paddingPx * 2);
+
+  // Spacing between books:
+  // For a shelf with all 6 books, distribute gaps so 6 books completely span availableWidth with ZERO void on right.
+  // 6 books have 5 gaps: (availableWidth - 6 * spineWidthPx) / 5
+  const restingGapPx = Math.max(
+    3,
+    Math.round(((availableWidth - 6 * spineWidthPx) / 5) * 10) / 10
+  );
+
+  // When a book on a 6-book shelf is expanded on hover (totalExpandedWidthPx),
+  // smoothly compress the 5 gaps so total width stays strictly within availableWidth:
+  const hoverGapPx = Math.max(
+    2,
+    Math.round(((availableWidth - (totalExpandedWidthPx + 5 * spineWidthPx)) / 5) * 10) / 10
+  );
 
   // Floating tooltip card dimensions
   const cardWidth = Math.max(205, Math.round(235 * scale));
@@ -52,6 +73,12 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     // Check if currently hovered book is on this shelf
     const hoveredIdx = shelfBooks.findIndex((b) => b.id === hoveredBookId);
     const hoveredBook = hoveredIdx !== -1 ? shelfBooks[hoveredIdx] : null;
+    const isRowHovered = Boolean(hoveredBook);
+
+    // Determine gap for this shelf:
+    // When 6 books are on shelf and one is hovered, compress to hoverGapPx so shelf doesn't overflow.
+    // Otherwise use restingGapPx so books fill the shelf without any void on the right.
+    const currentGapPx = shelfBooks.length === 6 && hoveredBook ? hoverGapPx : restingGapPx;
 
     let tooltipLeft = 0;
     let beakLeft = 0;
@@ -59,13 +86,11 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
     const isBottomShelf = shelfIndex === 3;
 
     if (hoveredBook && hoveredIdx !== -1) {
-      // Books before hovered book are resting: hoveredIdx * (spineWidthPx + gapPx)
-      const bookLeft = hoveredIdx * (spineWidthPx + gapPx);
+      // Books before hovered book are resting: hoveredIdx * (spineWidthPx + currentGapPx)
+      const bookLeft = hoveredIdx * (spineWidthPx + currentGapPx);
       const bookCenter = bookLeft + totalExpandedWidthPx / 2;
 
-      // Available inner shelf width (~332px inside cabinet)
-      const shelfInnerWidth = Math.max(280, Math.round(332 * scale));
-      const maxLeft = Math.max(0, shelfInnerWidth - cardWidth);
+      const maxLeft = Math.max(0, availableWidth - cardWidth);
       const idealLeft = bookCenter - cardWidth / 2;
 
       tooltipLeft = Math.max(0, Math.min(maxLeft, idealLeft));
@@ -78,7 +103,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
         className="w-full max-w-full box-border flex items-end justify-start select-none relative"
         style={{
           height: heightPercent,
-          padding: '0 12px',
+          padding: `0 ${paddingPx}px`,
           maxWidth: '100%',
           boxSizing: 'border-box',
           zIndex: hoveredBook ? 50 : 10,
@@ -88,23 +113,34 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
           className="flex items-end h-full select-none"
           onMouseLeave={() => setHoveredBookId(null)}
         >
-          {shelfBooks.map((b, i) => (
-            <BookSpineItem
-              key={b.id}
-              book={b}
-              index={i}
-              totalOnShelf={shelfBooks.length}
-              isHovered={hoveredBookId === b.id}
-              scale={scale}
-              spineWidthPx={spineWidthPx}
-              hingeWidthPx={hingeWidthPx}
-              coverWidthPx={coverWidthPx}
-              totalExpandedWidthPx={totalExpandedWidthPx}
-              gapPx={gapPx}
-              onHover={handleHoverBook}
-              onSelect={onSelectBook}
-            />
-          ))}
+          {shelfBooks.map((b, i) => {
+            const { tiltAngle, tiltOrigin } = getBookTilt(
+              shelfIndex,
+              i,
+              shelfBooks.length
+            );
+
+            return (
+              <BookSpineItem
+                key={b.id}
+                book={b}
+                index={i}
+                totalOnShelf={shelfBooks.length}
+                isHovered={hoveredBookId === b.id}
+                isRowHovered={isRowHovered}
+                scale={scale}
+                spineWidthPx={spineWidthPx}
+                hingeWidthPx={hingeWidthPx}
+                coverWidthPx={coverWidthPx}
+                totalExpandedWidthPx={totalExpandedWidthPx}
+                gapPx={currentGapPx}
+                tiltAngle={tiltAngle}
+                tiltOrigin={tiltOrigin}
+                onHover={handleHoverBook}
+                onSelect={onSelectBook}
+              />
+            );
+          })}
         </div>
 
         {/* 
@@ -117,7 +153,7 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
               isBottomShelf ? 'bottom-[calc(100%+6px)]' : 'top-[calc(100%+6px)]'
             } z-50 pointer-events-none animate-fade-in flex flex-col items-center`}
             style={{
-              left: `${tooltipLeft + 12}px`,
+              left: `${tooltipLeft + paddingPx}px`,
               width: `${cardWidth}px`,
             }}
           >
@@ -143,25 +179,19 @@ export const VirtualBookShelf: React.FC<VirtualBookShelfProps> = ({
                   height: `${coverThumbHeight}px`,
                 }}
               >
-                {(getCachedBookCover(hoveredBook.id) || sanitizeGoogleBooksCover(hoveredBook.coverUrl)) ? (
-                  <img
-                    src={getCachedBookCover(hoveredBook.id) || sanitizeGoogleBooksCover(hoveredBook.coverUrl) || ''}
-                    alt={hoveredBook.title}
-                    className="w-full h-full object-cover block"
-                    loading="eager"
-                  />
-                ) : (
-                  <div
-                    className="w-full h-full flex flex-col items-center justify-center p-1 text-center"
-                    style={{
-                      background: `linear-gradient(135deg, ${
-                        parseSpineColors(hoveredBook).topColor
-                      } 0%, #0a0a14 100%)`,
-                    }}
-                  >
-                    <span className="text-sm">📖</span>
-                  </div>
-                )}
+                <img
+                  src={`${import.meta.env.BASE_URL}covers/book_${hoveredBook.id}.jpg`}
+                  alt={hoveredBook.title}
+                  className="w-full h-full object-cover block"
+                  loading="eager"
+                  decoding="async"
+                  onError={(e) => {
+                    const fallback = getCachedBookCover(hoveredBook.id);
+                    if (fallback && e.currentTarget.src !== fallback) {
+                      e.currentTarget.src = fallback;
+                    }
+                  }}
+                />
               </div>
 
               <div className="flex-1 flex flex-col justify-between min-w-0 text-left py-0.5">
