@@ -1,4 +1,6 @@
-const rawGasUrl = import.meta.env.VITE_GAS_URL;
+const rawGasUrl =
+  import.meta.env.VITE_GAS_URL ||
+  'https://script.google.com/macros/s/AKfycbw03ghdeItJPUEUAx53oZLFdoDfJ35R0HcLmOgN-7-KbRTHZnx8sosLq5wEXBabofmA/exec';
 const rawProxyUrl = import.meta.env.VITE_TMDB_PROXY_URL;
 const tmdbProxyUrl = rawProxyUrl ? rawProxyUrl.replace(/\/+$/, '') : '';
 const DEFAULT_TIMEOUT_MS = 6000;

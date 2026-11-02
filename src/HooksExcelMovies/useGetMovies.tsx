@@ -12,7 +12,9 @@ import {
 
 export type { MovieRatings, MovieRating, LoadedMovieData };
 
-const GAS_URL = import.meta.env.VITE_GAS_URL || '';
+const GAS_URL =
+  import.meta.env.VITE_GAS_URL ||
+  'https://script.google.com/macros/s/AKfycbw03ghdeItJPUEUAx53oZLFdoDfJ35R0HcLmOgN-7-KbRTHZnx8sosLq5wEXBabofmA/exec';
 const LOCAL_STORAGE_USER_KEY = 'melkomemie_google_user';
 
 type GasMoviesResponse = {
