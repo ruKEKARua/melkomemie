@@ -249,8 +249,6 @@ function App() {
                   setHeroModalMovie(movie);
                   dispatch(openModal());
                 }}
-                onNavigateRoulette={() => navigateToPage('roulette')}
-                onNavigateTournaments={() => navigateToPage('tournaments')}
               />
             )}
 
