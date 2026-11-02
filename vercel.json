@@ -4,6 +4,14 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/tmdb/(.*)",
+      "destination": "/api/tmdb?path=$1"
+    },
+    {
+      "source": "/api/image/(.*)",
+      "destination": "/api/image?path=$1"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },

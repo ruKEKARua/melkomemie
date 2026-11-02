@@ -1,5 +1,5 @@
-const rawProxyUrl = import.meta.env.VITE_TMDB_PROXY_URL;
-const tmdbProxyUrl = rawProxyUrl ? rawProxyUrl.replace(/\/+$/, '') : '';
+const rawProxyUrl = import.meta.env.VITE_TMDB_PROXY_URL || '/api/tmdb';
+const tmdbProxyUrl = rawProxyUrl ? rawProxyUrl.replace(/\/+$/, '') : '/api/tmdb';
 const DEFAULT_TIMEOUT_MS = 5000;
 
 export type FetchTmdbOptions = {
