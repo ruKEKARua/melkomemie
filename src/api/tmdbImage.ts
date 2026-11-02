@@ -1,6 +1,4 @@
-const rawProxyUrl = import.meta.env.VITE_TMDB_PROXY_URL || '/api/tmdb';
-const tmdbProxyUrl = rawProxyUrl ? rawProxyUrl.replace(/\/+$/, '') : '/api/tmdb';
-const TMDB_OFFICIAL_IMAGE_BASE = 'https://image.tmdb.org/t/p';
+const TMDB_PROXY_BASE = 'https://movies-tmdb-proxy.kekar.workers.dev/image';
 
 /**
  * Universal movie image resolver.
@@ -24,13 +22,7 @@ export function getMovieImageUrl(
   }
 
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-
-  if (tmdbProxyUrl) {
-    const imageProxyBase = tmdbProxyUrl.replace(/\/tmdb\/?$/, '/image');
-    return `${imageProxyBase}/${size}${cleanPath}`;
-  }
-
-  return `${TMDB_OFFICIAL_IMAGE_BASE}/${size}${cleanPath}`;
+  return `${TMDB_PROXY_BASE}/${size}${cleanPath}`;
 }
 
 /**
