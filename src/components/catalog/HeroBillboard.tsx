@@ -6,16 +6,12 @@ interface HeroBillboardProps {
   featuredMovie: MovieMedia;
   numericRating?: number;
   onOpenModal: (movie: MovieMedia) => void;
-  onNavigateRoulette: () => void;
-  onNavigateTournaments: () => void;
 }
 
 export const HeroBillboard = ({
   featuredMovie,
   numericRating,
   onOpenModal,
-  onNavigateRoulette,
-  onNavigateTournaments,
 }: HeroBillboardProps) => {
   return (
     <div className="relative w-full h-[45vh] min-h-[22rem] max-h-[32rem] overflow-hidden bg-slate-900 dark:bg-[#0c0e17]">
@@ -74,22 +70,6 @@ export const HeroBillboard = ({
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
               </svg>
               <span>Подробнее и оценки</span>
-            </button>
-
-            <button
-              onClick={onNavigateRoulette}
-              className="flex items-center gap-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-semibold px-4 py-2.5 text-sm backdrop-blur-md transition-all cursor-pointer border border-white/20"
-            >
-              <span>🎲</span>
-              <span>Случайный фильм</span>
-            </button>
-
-            <button
-              onClick={onNavigateTournaments}
-              className="flex items-center gap-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold px-4 py-2.5 text-sm backdrop-blur-md border border-amber-500/30 transition-all cursor-pointer"
-            >
-              <span>🏆</span>
-              <span>Турниры</span>
             </button>
           </div>
         </div>

@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - master
+      - feature/book-club
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -35,6 +37,7 @@ jobs:
       - name: Build
         run: npm run build
         env:
+          VITE_GAS_URL: ${{ vars.GAS_URL }}
           VITE_TMDB_PROXY_URL: ${{ vars.TMDB_PROXY_URL }}
 
       - name: Setup Pages

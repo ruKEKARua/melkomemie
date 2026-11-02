@@ -1,91 +1,49 @@
 import { useGoogleLogin } from '@react-oauth/google';
 import { useEffect, useState, useCallback } from 'react';
 import { useDispatch } from 'react-redux';
-import { spreadsheetId } from '../../shared/googleSheets';
 import { setExcelMovies } from '../store/excelMovies';
-import { appendMovieToSheet, updateMovieInSheet, type MovieSheetEntry } from '../api/googleSheets';
+import type { MovieSheetEntry } from '../api/googleSheets';
 import {
   normalizeMovieData,
   type MovieRatings,
   type MovieRating,
   type LoadedMovieData,
-  type CloudflareSessionResponse,
-  type GoogleSheetsResponse,
-  type GoogleSheetsNotesResponse,
-  type GoogleUserResponse,
 } from '../utils/movieDataNormalizer';
 
 export type { MovieRatings, MovieRating, LoadedMovieData };
 
-const isServerAuthEnabled = typeof window !== 'undefined'
-  && window.location.protocol === 'https:'
-  && !['localhost', '127.0.0.1'].includes(window.location.hostname);
+const GAS_URL =
+  import.meta.env.VITE_GAS_URL ||
+  'https://script.google.com/macros/s/AKfycbw03ghdeItJPUEUAx53oZLFdoDfJ35R0HcLmOgN-7-KbRTHZnx8sosLq5wEXBabofmA/exec';
+const LOCAL_STORAGE_USER_KEY = 'melkomemie_google_user';
 
-const loadGoogleSheets = async (accessToken: string): Promise<LoadedMovieData> => {
-  const fetchRange = async (
-    range: string,
-    majorDimension: 'ROWS' | 'COLUMNS' = 'COLUMNS',
-  ): Promise<GoogleSheetsResponse> => {
-    const encodedRange = encodeURIComponent(range);
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodedRange}?majorDimension=${majorDimension.toLowerCase()}`,
-      { headers: { Authorization: `Bearer ${accessToken}` } },
-    );
-
-    if (!response.ok) {
-      throw new Error('Не удалось загрузить данные Google Sheets');
-    }
-
-    return response.json() as Promise<GoogleSheetsResponse>;
-  };
-
-  const fetchMovieComments = async (): Promise<string[]> => {
-    const query = new URLSearchParams({
-      includeGridData: 'true',
-      ranges: 'Киноклуб!C5:C',
-      fields: 'sheets(data(rowData(values(note))))',
-    });
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?${query}`,
-      { headers: { Authorization: `Bearer ${accessToken}` } },
-    );
-
-    if (!response.ok) {
-      throw new Error('Не удалось загрузить комментарии Google Sheets');
-    }
-
-    const spreadsheet = await response.json() as GoogleSheetsNotesResponse;
-    return spreadsheet.sheets?.[0]?.data?.[0]?.rowData?.map(
-      (row) => row.values?.[0]?.note ?? '',
-    ) ?? [];
-  };
-
-  const [moviesResponse, movieComments, ratingsResponse, participantsResponse] = await Promise.all([
-    fetchRange('Киноклуб!C5:C'),
-    fetchMovieComments(),
-    fetchRange('Киноклуб!B5:F', 'ROWS'),
-    fetchRange('Сводная киноклуба!B3:B50'),
-  ]);
-
-  return normalizeMovieData(
-    moviesResponse.values?.[0] ?? [],
-    movieComments,
-    ratingsResponse.values ?? [],
-    participantsResponse.values?.[0] ?? [],
-  );
+type GasMoviesResponse = {
+  movies?: string[];
+  movieComments?: string[];
+  ratings?: string[][];
+  participants?: string[];
+  error?: string;
 };
 
-const loadCloudflareSession = async (): Promise<CloudflareSessionResponse | null> => {
-  const response = await fetch('/api/session', { credentials: 'same-origin' });
-  if (response.status === 401) {
-    return null;
-  }
+const loadMoviesFromGas = async (gasUrl: string): Promise<LoadedMovieData> => {
+  const url = `${gasUrl}${gasUrl.includes('?') ? '&' : '?'}action=movies`;
+  const response = await fetch(url, { redirect: 'follow' });
 
   if (!response.ok) {
-    throw new Error('Не удалось восстановить сессию Google');
+    throw new Error(`Google Apps Script error HTTP ${response.status}`);
   }
 
-  return response.json() as Promise<CloudflareSessionResponse>;
+  const data = (await response.json()) as GasMoviesResponse;
+  if (data.error) {
+    throw new Error(data.error);
+  }
+
+  return normalizeMovieData(
+    data.movies ?? [],
+    data.movieComments ?? [],
+    data.ratings ?? [],
+    data.participants ?? [],
+  );
 };
 
 const useGetMovies = () => {
@@ -95,20 +53,10 @@ const useGetMovies = () => {
   const [usersRating, setUsersRating] = useState<MovieRatings[]>([]);
   const [participantNames, setParticipantNames] = useState<string[]>([]);
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [isLoading, setIsLoading] = useState(isServerAuthEnabled);
+  const [isLoading, setIsLoading] = useState(true);
   const [userName, setUserName] = useState('');
   const [userPicture, setUserPicture] = useState('');
-  const [accessToken, setAccessToken] = useState('');
-  const [authError, setAuthError] = useState(() => {
-    if (typeof window === 'undefined') {
-      return '';
-    }
-
-    const error = new URLSearchParams(window.location.search).get('auth_error');
-    return error
-      ? `Не удалось войти в Google (${error}). Проверьте настройки OAuth и попробуйте снова.`
-      : '';
-  });
+  const [authError, setAuthError] = useState('');
 
   const applyNormalizedData = useCallback((loaded: LoadedMovieData) => {
     setData(loaded.movies);
@@ -117,187 +65,149 @@ const useGetMovies = () => {
     setParticipantNames(loaded.participantNames);
   }, []);
 
-  const browserLogin = useGoogleLogin({
-    scope: 'openid profile email https://www.googleapis.com/auth/spreadsheets',
-    onSuccess: async ({ access_token }) => {
-      setAccessToken(access_token);
-      setIsAuthorized(true);
-      setIsLoading(true);
+  // Restore authorized user session from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
+      if (stored) {
+        const user = JSON.parse(stored) as { name?: string; picture?: string };
+        if (user && (user.name || user.picture)) {
+          setUserName(user.name || 'Пользователь');
+          setUserPicture(user.picture || '');
+          setIsAuthorized(true);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
+  // Load movies from Google Apps Script on mount
+  const fetchAllMovies = useCallback(async () => {
+    if (!GAS_URL) {
+      console.warn('[useGetMovies] VITE_GAS_URL is not set. Please configure VITE_GAS_URL.');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const loaded = await loadMoviesFromGas(GAS_URL);
+      applyNormalizedData(loaded);
+    } catch (error) {
+      console.error('[useGetMovies] Failed to load data from GAS:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [applyNormalizedData]);
+
+  useEffect(() => {
+    void fetchAllMovies();
+  }, [fetchAllMovies]);
+
+  // Google Login via @react-oauth/google
+  const browserLogin = useGoogleLogin({
+    scope: 'openid profile email',
+    onSuccess: async ({ access_token }) => {
       try {
         const userResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: {
-            Authorization: `Bearer ${access_token}`,
-          },
+          headers: { Authorization: `Bearer ${access_token}` },
         });
 
         if (userResponse.ok) {
-          const user = await userResponse.json() as GoogleUserResponse;
-          setUserName(user.name ?? user.email ?? 'Пользователь Google');
-          setUserPicture(user.picture ?? '');
+          const user = (await userResponse.json()) as { name?: string; email?: string; picture?: string };
+          const resolvedName = user.name || user.email || 'Пользователь';
+          const resolvedPic = user.picture || '';
+
+          setUserName(resolvedName);
+          setUserPicture(resolvedPic);
+          setIsAuthorized(true);
+
+          localStorage.setItem(
+            LOCAL_STORAGE_USER_KEY,
+            JSON.stringify({ name: resolvedName, picture: resolvedPic }),
+          );
         }
       } catch (error) {
-        console.error('Не удалось получить данные пользователя Google:', error);
+        console.error('[useGetMovies] Error fetching user profile:', error);
       }
-
-      try {
-        const loaded = await loadGoogleSheets(access_token);
-        applyNormalizedData(loaded);
-      } catch (error) {
-        console.error('Ошибка загрузки данных Google Sheets:', error);
-      } finally {
-        setIsLoading(false);
-      }
+    },
+    onError: (error) => {
+      console.error('[useGetMovies] Google Login failed:', error);
+      setAuthError('Не удалось войти через Google');
     },
   });
 
   const login = () => {
     setAuthError('');
-    if (isServerAuthEnabled) {
-      window.location.assign('/api/auth/google');
-      return;
-    }
-
     browserLogin();
   };
 
-  const logout = async () => {
-    if (isServerAuthEnabled) {
-      await fetch('/api/logout', {
-        method: 'POST',
-        credentials: 'same-origin',
-      });
-    }
-
-    setAccessToken('');
+  const logout = () => {
+    localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
     setIsAuthorized(false);
     setUserName('');
     setUserPicture('');
-    setData([]);
-    setMovieComments([]);
-    setUsersRating([]);
-    setParticipantNames([]);
-    dispatch(setExcelMovies([]));
   };
 
-  useEffect(() => {
-    if (!isServerAuthEnabled) {
-      return;
-    }
-
-    let isActive = true;
-
-    loadCloudflareSession()
-      .then((session) => {
-        if (!isActive || !session) {
-          return;
-        }
-
-        const loaded = normalizeMovieData(
-          session.movies,
-          session.movieComments ?? [],
-          session.ratings,
-          session.participants,
-        );
-        setIsAuthorized(true);
-        setUserName(session.userName);
-        setUserPicture(session.userPicture);
-        applyNormalizedData(loaded);
-      })
-      .catch((error) => {
-        console.error('Не удалось восстановить сессию Google:', error);
-      })
-      .finally(() => {
-        if (isActive) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [applyNormalizedData]);
-
+  // Save movie to Google Sheets through Google Apps Script
   const saveMovie = async (entry: MovieSheetEntry) => {
-    if (isServerAuthEnabled) {
-      const response = await fetch('/api/save-movie', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(entry),
-      });
-
-      if (!response.ok) {
-        throw new Error(response.status === 401
-          ? 'Сессия Google истекла. Войдите снова'
-          : 'Не удалось сохранить запись в Google Sheets');
-      }
-
-      const session = await loadCloudflareSession();
-      if (!session) {
-        throw new Error('Сессия Google истекла. Войдите снова');
-      }
-
-      const loaded = normalizeMovieData(
-        session.movies,
-        session.movieComments ?? [],
-        session.ratings,
-        session.participants,
-      );
-      setUserName(session.userName);
-      setUserPicture(session.userPicture);
-      applyNormalizedData(loaded);
-      return;
+    if (!GAS_URL) {
+      throw new Error('VITE_GAS_URL не настроен');
     }
 
-    if (!accessToken) {
-      throw new Error('Необходимо авторизоваться в Google');
+    const response = await fetch(GAS_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
+      body: JSON.stringify({
+        action: 'save-movie',
+        entry,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Ошибка сервера Google Apps Script HTTP ${response.status}`);
     }
 
-    await appendMovieToSheet(accessToken, entry);
-    const loaded = await loadGoogleSheets(accessToken);
-    applyNormalizedData(loaded);
+    const result = (await response.json()) as { ok?: boolean; error?: string };
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    await fetchAllMovies();
   };
 
+  // Update movie in Google Sheets through Google Apps Script
   const updateMovie = async (entry: MovieSheetEntry) => {
-    if (isServerAuthEnabled) {
-      const response = await fetch('/api/update-movie', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(entry),
-      });
-
-      if (!response.ok) {
-        throw new Error(response.status === 401
-          ? 'Сессия Google истекла. Войдите снова'
-          : 'Не удалось обновить запись в Google Sheets');
-      }
-
-      const session = await loadCloudflareSession();
-      if (!session) {
-        throw new Error('Сессия Google истекла. Войдите снова');
-      }
-
-      const loaded = normalizeMovieData(
-        session.movies,
-        session.movieComments ?? [],
-        session.ratings,
-        session.participants,
-      );
-      setUserName(session.userName);
-      setUserPicture(session.userPicture);
-      applyNormalizedData(loaded);
-      return;
+    if (!GAS_URL) {
+      throw new Error('VITE_GAS_URL не настроен');
     }
 
-    if (!accessToken) {
-      throw new Error('Необходимо авторизоваться в Google');
+    const response = await fetch(GAS_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
+      body: JSON.stringify({
+        action: 'update-movie',
+        entry,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Ошибка сервера Google Apps Script HTTP ${response.status}`);
     }
 
-    await updateMovieInSheet(accessToken, entry);
-    const loaded = await loadGoogleSheets(accessToken);
-    applyNormalizedData(loaded);
+    const result = (await response.json()) as { ok?: boolean; error?: string };
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    await fetchAllMovies();
   };
 
   useEffect(() => {

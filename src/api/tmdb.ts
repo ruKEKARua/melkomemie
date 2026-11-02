@@ -1,6 +1,9 @@
+const rawGasUrl =
+  import.meta.env.VITE_GAS_URL ||
+  'https://script.google.com/macros/s/AKfycbw03ghdeItJPUEUAx53oZLFdoDfJ35R0HcLmOgN-7-KbRTHZnx8sosLq5wEXBabofmA/exec';
 const rawProxyUrl = import.meta.env.VITE_TMDB_PROXY_URL;
 const tmdbProxyUrl = rawProxyUrl ? rawProxyUrl.replace(/\/+$/, '') : '';
-const DEFAULT_TIMEOUT_MS = 5000;
+const DEFAULT_TIMEOUT_MS = 6000;
 
 export type FetchTmdbOptions = {
   timeoutMs?: number;
@@ -8,16 +11,21 @@ export type FetchTmdbOptions = {
 };
 
 export async function fetchTmdb<T>(path: string, options?: FetchTmdbOptions): Promise<T> {
-  if (!tmdbProxyUrl) {
-    throw new Error('VITE_TMDB_PROXY_URL is not configured');
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+
+  let targetUrl = '';
+  if (rawGasUrl) {
+    const separator = rawGasUrl.includes('?') ? '&' : '?';
+    targetUrl = `${rawGasUrl}${separator}action=tmdb&path=${encodeURIComponent(cleanPath)}`;
+  } else if (tmdbProxyUrl) {
+    targetUrl = `${tmdbProxyUrl}${cleanPath}`;
+  } else {
+    throw new Error('Neither VITE_GAS_URL nor VITE_TMDB_PROXY_URL is configured');
   }
 
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
-
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  const targetUrl = `${tmdbProxyUrl}${cleanPath}`;
 
   try {
     let combinedSignal: AbortSignal;
@@ -32,7 +40,7 @@ export async function fetchTmdb<T>(path: string, options?: FetchTmdbOptions): Pr
       combinedSignal = controller.signal;
     }
 
-    const response = await fetch(targetUrl, { signal: combinedSignal });
+    const response = await fetch(targetUrl, { signal: combinedSignal, redirect: 'follow' });
 
     if (!response.ok) {
       throw new Error(`TMDB request failed with HTTP ${response.status}`);
@@ -45,11 +53,10 @@ export async function fetchTmdb<T>(path: string, options?: FetchTmdbOptions): Pr
 }
 
 /**
- * Fast health check to verify TMDB connectivity (e.g. through proxy).
- * Priority source on entering the site is TMDB; if unreachable, falls back to Kinopoisk.
+ * Fast health check to verify TMDB connectivity (e.g. through GAS or proxy).
  */
-export async function checkTmdbHealth(timeoutMs = 3500): Promise<boolean> {
-  if (!tmdbProxyUrl) {
+export async function checkTmdbHealth(timeoutMs = 4000): Promise<boolean> {
+  if (!rawGasUrl && !tmdbProxyUrl) {
     return false;
   }
 
@@ -57,7 +64,7 @@ export async function checkTmdbHealth(timeoutMs = 3500): Promise<boolean> {
     await fetchTmdb('/configuration', { timeoutMs });
     return true;
   } catch (error) {
-    console.warn('[TMDB Health Check] TMDB proxy is unreachable:', error);
+    console.warn('[TMDB Health Check] TMDB is unreachable:', error);
     return false;
   }
 }
