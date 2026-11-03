@@ -37,6 +37,16 @@ function createJsonResponse(data) {
 }
 
 /**
+ * Округление оценки до максимум 2 знаков после запятой
+ */
+function roundScore(val) {
+  if (val === null || val === undefined || val === '') return '';
+  var num = typeof val === 'number' ? val : parseFloat(String(val).replace(',', '.'));
+  if (isNaN(num)) return String(val).trim();
+  return String(Math.round((num + 1e-9) * 100) / 100);
+}
+
+/**
  * Форматирование даты в DD.MM.YYYY
  */
 function formatDate(date) {
@@ -134,11 +144,18 @@ function doGet(e) {
         var rangeB_F = movieSheet.getRange(5, 2, lastRow - 4, 5);
         var rawRatings = rangeB_F.getValues();
         for (var r = 0; r < rawRatings.length; r++) {
-          ratings.push(rawRatings[r].map(function(val) {
+          ratings.push(rawRatings[r].map(function(val, colIndex) {
             if (val instanceof Date) {
               return normalizeDate(val);
             }
-            return val !== null && val !== undefined ? String(val) : '';
+            if (val !== null && val !== undefined && val !== '') {
+              // Столбец F (colIndex === 4) — средняя оценка фильма, округляем до 2 знаков
+              if (colIndex === 4) {
+                return roundScore(val);
+              }
+              return String(val);
+            }
+            return '';
           }));
         }
       }
@@ -232,7 +249,7 @@ function appendMovie(ss, entry) {
   var participants = entry.participants;
   var participantCount = participants.length;
 
-  // Расчёт средней оценки
+  // Расчёт средней оценки (округление до 2 знаков после запятой)
   var scores = [];
   for (var p = 0; p < participantCount; p++) {
     var scoreNum = parseFloat(String(participants[p].score).replace(',', '.'));
@@ -240,7 +257,7 @@ function appendMovie(ss, entry) {
       scores.push(scoreNum);
     }
   }
-  var avg = scores.length > 0 ? (scores.reduce(function(a, b) { return a + b; }, 0) / scores.length).toFixed(1) : '';
+  var avg = scores.length > 0 ? (Math.round(((scores.reduce(function(a, b) { return a + b; }, 0) / scores.length) + 1e-9) * 100) / 100) : '';
 
   // Подготовка строк [Номер, Дата, Название, Участник, Оценка, Среднее]
   var rows = [];
@@ -353,13 +370,13 @@ function updateMovie(ss, entry) {
     sheet.deleteRows(movieStartRow + newCount, existingCount - newCount);
   }
 
-  // Расчёт среднего балла
+  // Расчёт среднего балла (округление до 2 знаков после запятой)
   var scores = [];
   for (var p = 0; p < newCount; p++) {
     var scoreNum = parseFloat(String(participants[p].score).replace(',', '.'));
     if (!isNaN(scoreNum)) scores.push(scoreNum);
   }
-  var avg = scores.length > 0 ? (scores.reduce(function(a, b) { return a + b; }, 0) / scores.length).toFixed(1) : '';
+  var avg = scores.length > 0 ? (Math.round(((scores.reduce(function(a, b) { return a + b; }, 0) / scores.length) + 1e-9) * 100) / 100) : '';
 
   // Формирование обновленных строк
   var rows = [];

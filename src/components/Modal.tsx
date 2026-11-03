@@ -8,6 +8,7 @@ import { getMovieImageUrl } from '../api/tmdbImage';
 import type { MovieSource } from '../api/movieSource';
 import { useEditMovie } from '../HooksExcelMovies/useEditMovie';
 import { formatDate, formatDateFromExcel } from '../utils/dateFormat';
+import { roundRating } from '../utils/ratings';
 import { ModalOverlay } from './modals/ModalOverlay';
 import { MovieEditForm } from './modals/MovieEditForm';
 import { ParticipantRatingRow } from './shared/ParticipantRatingRow';
@@ -77,7 +78,7 @@ const Modal = ({
     ? ratings.find((movie) => movie.movie.trim().toLowerCase() === excelMovieTitle.trim().toLowerCase())
     : undefined;
   const excelRatings = excelMovie?.ratings ?? [];
-  const overallRating = excelRatings[0]?.scores[1];
+  const overallRating = roundRating(excelRatings[0]?.scores[1]);
   const watchDate = excelMovie?.date ? formatDateFromExcel(excelMovie.date) : '';
 
   const editMovie = useEditMovie({
@@ -127,7 +128,7 @@ const Modal = ({
                   <ParticipantRatingRow
                     key={`${rating.userName}-${idx}`}
                     name={rating.userName}
-                    score={rating.scores[0]}
+                    score={roundRating(rating.scores[0])}
                     index={idx}
                   />
                 ))}
@@ -395,7 +396,7 @@ const Modal = ({
                       <ParticipantRatingRow
                         key={`${rating.userName}-${index}`}
                         name={rating.userName}
-                        score={rating.scores[0]}
+                        score={roundRating(rating.scores[0])}
                         index={index}
                       />
                     ))

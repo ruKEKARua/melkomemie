@@ -81,7 +81,7 @@ const getAverage = (participants: MovieSheetEntry['participants']) => {
     .filter((score) => Number.isFinite(score));
   const average = scores.reduce((sum, score) => sum + score, 0) / scores.length;
 
-  return average.toFixed(1).replace('.', ',');
+  return (Math.round((average + Number.EPSILON) * 100) / 100).toString().replace('.', ',');
 };
 
 const getNextMovieNumber = (rows: string[][]) => {

@@ -16,6 +16,26 @@ export function normalizeMovieTitle(title?: string): string {
 }
 
 /**
+ * Rounds a rating number or string representation to at most 2 decimal places.
+ * Handles commas, trailing zeroes, and empty/undefined states gracefully.
+ * Examples:
+ *   9.166666666666666 -> "9.17"
+ *   9.333333333333334 -> "9.33"
+ *   7.66125           -> "7.66"
+ *   7.63              -> "7.63"
+ *   9.5               -> "9.5"
+ *   8                 -> "8"
+ */
+export function roundRating(value: string | number | undefined | null): string {
+  if (value === undefined || value === null || value === '') return '';
+  const str = String(value).trim().replace(',', '.');
+  const num = parseFloat(str);
+  if (isNaN(num)) return String(value).trim();
+  const rounded = Math.round((num + Number.EPSILON) * 100) / 100;
+  return String(rounded);
+}
+
+/**
  * Builds an O(1) lookup Map of movie ratings keyed by normalized title
  */
 export function buildRatingsMap(ratings: MovieRatings[]): Map<string, MovieRatings> {
@@ -29,7 +49,8 @@ export function buildRatingsMap(ratings: MovieRatings[]): Map<string, MovieRatin
 }
 
 /**
- * Retrieves the numeric rating for a movie from either a pre-built Map or raw array
+ * Retrieves the numeric rating for a movie from either a pre-built Map or raw array,
+ * rounded to at most 2 decimal places.
  */
 export function getMovieNumericRating(
   movie?: TitleHolder | null,
@@ -49,7 +70,9 @@ export function getMovieNumericRating(
 
   const sheetRating = match?.ratings[0]?.scores[1];
   const ratingNumber = sheetRating?.replace(',', '.').match(/-?\d+(?:\.\d+)?/)?.[0];
-  return ratingNumber ? Number(ratingNumber) : undefined;
+  if (!ratingNumber) return undefined;
+  const num = Number(ratingNumber);
+  return isNaN(num) ? undefined : Math.round((num + Number.EPSILON) * 100) / 100;
 }
 
 /**
