@@ -8,6 +8,7 @@ import type { MovieRatings } from '../HooksExcelMovies/useGetMovies';
 import type { MovieSheetEntry } from '../api/googleSheets';
 import { getMovieImageUrl, getTmdbImageUrl } from '../api/tmdbImage';
 import { getActiveMovieSource, type MovieSource } from '../api/movieSource';
+import { roundRating } from '../utils/ratings';
 
 export type Movie = {
   media_type: 'movie' | 'tv';
@@ -143,11 +144,12 @@ export function MovieSlider({
             const title = movieVariables.title || movieVariables.original_title;
             const id = movieVariables.id;
             const posterPath = movieVariables.poster_path ?? '';
-            const overallRating = item.excelTitle
+            const rawRating = item.excelTitle
               ? ratings.find(
                   (movie) => movie.movie.trim().toLowerCase() === item.excelTitle?.trim().toLowerCase(),
                 )?.ratings[0]?.scores[1]
               : undefined;
+            const overallRating = rawRating !== undefined ? roundRating(rawRating) : undefined;
 
             return (
               <div
