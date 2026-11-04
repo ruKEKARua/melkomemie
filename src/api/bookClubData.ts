@@ -1,3 +1,4 @@
+import { roundRating } from '../utils/ratings';
 import {
   getCachedBookClubBooks,
   setCachedBookClubBooks,
@@ -573,7 +574,7 @@ export function parseBookClubCsv(csvText: string): BookClubBook[] {
         date: dateStr || fallback.date,
         author: resolvedAuthor,
         title: resolvedTitle,
-        overallRating: overallScore || fallback.overallRating,
+        overallRating: roundRating(overallScore) || fallback.overallRating,
       };
 
       currentParticipants = [];
@@ -591,7 +592,7 @@ export function parseBookClubCsv(csvText: string): BookClubBook[] {
         hasAsterisk: participantName.includes('*'),
       });
       if (overallScore && !currentBook.overallRating) {
-        currentBook.overallRating = overallScore;
+        currentBook.overallRating = roundRating(overallScore);
       }
     }
   }

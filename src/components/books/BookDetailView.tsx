@@ -1,3 +1,4 @@
+import { roundRating } from '../../utils/ratings';
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import type { BookClubBook } from '../../api/bookClubData';
 import { ParticipantRatingRow } from '../shared/ParticipantRatingRow';
@@ -265,7 +266,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
                   <div className="flex-1 flex flex-col gap-2 min-w-0">
                     <div className="flex items-center gap-1.5 self-start rounded-lg bg-amber-500/15 dark:bg-amber-500/20 px-2 py-0.5 text-xs font-black text-amber-700 dark:text-amber-300 border border-amber-500/30">
                       <span className="text-amber-600 dark:text-amber-400">★</span>
-                      <span>{displayedBook.overallRating} / 10</span>
+                      <span>{roundRating(displayedBook.overallRating)} / 10</span>
                     </div>
 
                     <div className="flex flex-col gap-0.5">
@@ -411,7 +412,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
 
                     <div className="flex items-center gap-1 rounded-lg bg-amber-500/15 dark:bg-amber-500/20 px-2 py-0.5 text-xs font-black text-amber-700 dark:text-amber-300 border border-amber-500/35 dark:border-amber-500/30 shadow-xs">
                       <span className="text-amber-600 dark:text-amber-400">★</span>
-                      <span>{displayedBook.overallRating} / 10</span>
+                      <span>{roundRating(displayedBook.overallRating)} / 10</span>
                     </div>
                   </div>
 
@@ -610,7 +611,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
                                 WebkitFontSmoothing: 'antialiased',
                               }}
                             >
-                              {book.overallRating}
+                              {roundRating(book.overallRating)}
                             </span>
                           </div>
                         </div>

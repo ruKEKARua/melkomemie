@@ -1,5 +1,5 @@
 import { getTmdbImageUrl } from '../../api/tmdbImage';
-import { getHeroRatingBadgeStyle } from '../../utils/ratings';
+import { getHeroRatingBadgeStyle, roundRating } from '../../utils/ratings';
 import type { MovieMedia } from '../../hooks/useCatalogMovies';
 
 interface HeroBillboardProps {
@@ -13,6 +13,8 @@ export const HeroBillboard = ({
   numericRating,
   onOpenModal,
 }: HeroBillboardProps) => {
+  const formattedRating = roundRating(numericRating);
+
   return (
     <div className="relative w-full h-[45vh] min-h-[22rem] max-h-[32rem] overflow-hidden bg-slate-900 dark:bg-[#0c0e17]">
       {/* Backdrop poster */}
@@ -44,9 +46,9 @@ export const HeroBillboard = ({
               <span>★</span>
               <span>ВЫБОР КИНОКЛУБА</span>
             </span>
-            {numericRating !== undefined && (
+            {formattedRating && (
               <span className={`rounded-md px-2.5 py-0.5 text-xs font-extrabold border backdrop-blur-sm ${getHeroRatingBadgeStyle(numericRating)}`}>
-                Рейтинг: {numericRating} / 10
+                Рейтинг: {formattedRating} / 10
               </span>
             )}
           </div>

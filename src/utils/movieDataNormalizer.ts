@@ -1,3 +1,5 @@
+import { roundRating } from './ratings';
+
 export type MovieRating = {
   userName: string;
   scores: string[];
@@ -84,7 +86,7 @@ export const parseMovieRatings = (rows: string[][]): MovieRatings[] => {
       if (userName) {
         currentMovie.ratings.push({
           userName,
-          scores: scores.filter(Boolean),
+          scores: scores.filter(Boolean).map(roundRating),
         });
       }
 
@@ -97,13 +99,13 @@ export const parseMovieRatings = (rows: string[][]): MovieRatings[] => {
       currentMovie = {
         movie: movieOrUser,
         ratings: userOrScore
-          ? [{ userName: userOrScore, scores }]
+          ? [{ userName: userOrScore, scores: scores.map(roundRating) }]
           : [],
       };
     } else {
       currentMovie.ratings.push({
         userName: movieOrUser,
-        scores: [userOrScore, ...scores].filter(Boolean),
+        scores: [userOrScore, ...scores].filter(Boolean).map(roundRating),
       });
     }
   }
