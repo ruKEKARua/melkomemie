@@ -100,6 +100,16 @@ export const CatalogToolbar = ({
               По добавлению
             </button>
             <button
+              onClick={() => onSetSortOrder('reverse')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                sortOrder === 'reverse'
+                  ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              С конца
+            </button>
+            <button
               onClick={() => onSetSortOrder('top-rated')}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 sortOrder === 'top-rated'
@@ -162,16 +172,7 @@ export const CatalogToolbar = ({
                 </svg>
               )}
             </button>
-            <button
-              onClick={() => onSetSortOrder('reverse')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                sortOrder === 'reverse'
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              С конца
-            </button>
+            
             <button
               onClick={() => onSetSortOrder('viewing-month')}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
