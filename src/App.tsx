@@ -1,6 +1,6 @@
 import './App.css';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from './store/store';
 import Modal from './components/Modal';
@@ -33,15 +33,33 @@ import {
 import { useBodyScrollLock } from './hooks/useBodyScrollLock';
 import { AppHeader } from './components/layout/AppHeader';
 import { HeroBillboard } from './components/catalog/HeroBillboard';
-import { CatalogToolbar } from './components/catalog/CatalogToolbar';
+import { CatalogToolbar, type CatalogViewMode } from './components/catalog/CatalogToolbar';
 import { CatalogContent } from './components/catalog/CatalogContent';
 import { WelcomeLanding } from './components/landing/WelcomeLanding';
+import { ScrollToTopButton } from './components/shared/ScrollToTopButton';
 import { getMovieNumericRating } from './utils/ratings';
 
 function App() {
   const dispatch = useDispatch();
 
   const [sortOrder, setSortOrder] = useState<SortOrder>('added');
+  const [viewMode, setViewMode] = useState<CatalogViewMode>(() => {
+    try {
+      return (localStorage.getItem('melkomemie_view_mode') as CatalogViewMode) || 'grid';
+    } catch {
+      return 'grid';
+    }
+  });
+
+  const handleSetViewMode = (mode: CatalogViewMode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('melkomemie_view_mode', mode);
+    } catch {
+      // ignore
+    }
+  };
+
   const [viewingFilterMode, setViewingFilterMode] = useState<ViewingFilterMode>('all');
   const [selectedViewingMonth, setSelectedViewingMonth] = useState('');
   const [viewingRangeStart, setViewingRangeStart] = useState('');
@@ -106,6 +124,16 @@ function App() {
 
   const isCatalogLoading = isLoading || (moviesFromExcel.length > 0 && foundMovies.length === 0);
 
+  const movieNumberMap = useMemo(() => {
+    const map = new Map<string, number>();
+    moviesFromExcel.forEach((title, idx) => {
+      if (title) {
+        map.set(title.trim().toLowerCase(), idx + 1);
+      }
+    });
+    return map;
+  }, [moviesFromExcel]);
+
   const {
     ratingsMap,
     displayedMovies,
@@ -151,7 +179,7 @@ function App() {
 
   return (
     <div
-      className={`bg-[#f4f6fa] dark:bg-[#090a0f] text-slate-900 dark:text-zinc-100 flex flex-col selection:bg-amber-500 selection:text-slate-950 transition-colors duration-200 ${
+      className={`bg-[#f4f6fa] dark:bg-[#090a0f] text-slate-900 dark:text-zinc-100 flex flex-col selection:bg-amber-500 selection:text-slate-950 transition-colors duration-200 relative min-h-screen ${
         page === 'book-club'
           ? 'min-h-screen md:h-screen md:max-h-screen md:overflow-hidden'
           : 'min-h-screen'
@@ -256,6 +284,8 @@ function App() {
               searchBarValue={searchBarValue}
               sortOrder={sortOrder}
               onSetSortOrder={setSortOrder}
+              viewMode={viewMode}
+              onSetViewMode={handleSetViewMode}
               displayedMoviesCount={displayedMovies.length}
               movieDatabaseSource={movieDatabaseSource}
               areMoviesLoaded={areMoviesLoaded}
@@ -283,6 +313,8 @@ function App() {
               participantNames={participantNames}
               updateMovie={updateMovie}
               highlightMovieTitle={highlightMovieTitle}
+              viewMode={viewMode}
+              movieNumberMap={movieNumberMap}
             />
           </>
         ) : (
@@ -313,6 +345,9 @@ function App() {
           onClose={() => setHeroModalMovie(null)}
         />
       )}
+
+      {/* Floating Scroll to Top Button */}
+      <ScrollToTopButton />
     </div>
   );
 }

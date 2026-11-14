@@ -68,7 +68,7 @@ const useGetMovies = () => {
   // Restore authorized user session from localStorage
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
+      const stored = localStorage.getItem(LOCAL_STORAGE_USER_KEY) || (import.meta.env.DEV ? JSON.stringify({ name: 'KEKAR*', picture: '' }) : null);
       if (stored) {
         const user = JSON.parse(stored) as { name?: string; picture?: string };
         if (user && (user.name || user.picture)) {

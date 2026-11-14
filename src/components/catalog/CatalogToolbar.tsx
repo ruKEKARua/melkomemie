@@ -3,10 +3,14 @@ import type { SortOrder, ViewingFilterMode } from '../../hooks/useCatalogMovies'
 import type { ViewingMonth } from '../../utils/dateFormat';
 import ViewingMonthFilterBar from './ViewingMonthFilterBar';
 
+export type CatalogViewMode = 'grid' | 'table';
+
 interface CatalogToolbarProps {
   searchBarValue: string;
   sortOrder: SortOrder;
   onSetSortOrder: (order: SortOrder) => void;
+  viewMode?: CatalogViewMode;
+  onSetViewMode?: (mode: CatalogViewMode) => void;
   displayedMoviesCount: number;
   movieDatabaseSource: MovieSource;
   areMoviesLoaded: boolean;
@@ -29,6 +33,8 @@ export const CatalogToolbar = ({
   searchBarValue,
   sortOrder,
   onSetSortOrder,
+  viewMode = 'grid',
+  onSetViewMode,
   displayedMoviesCount,
   movieDatabaseSource,
   areMoviesLoaded,
@@ -83,107 +89,145 @@ export const CatalogToolbar = ({
           )}
         </div>
 
-        {/* Row 2: Sort Label & Buttons */}
-        <div className="flex flex-col gap-2 mt-1">
-          <span className="text-xs font-normal text-slate-500 dark:text-zinc-400">
-            Сортировка:
-          </span>
-          <div className="flex flex-wrap gap-1 bg-slate-200/70 dark:bg-[#131520] p-1 rounded-xl border border-slate-300/60 dark:border-white/10 shadow-inner w-fit">
-            <button
-              onClick={() => onSetSortOrder('added')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                sortOrder === 'added'
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              По добавлению
-            </button>
-            <button
-              onClick={() => onSetSortOrder('reverse')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                sortOrder === 'reverse'
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              С конца
-            </button>
-            <button
-              onClick={() => onSetSortOrder('top-rated')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                sortOrder === 'top-rated'
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              ★ Топ рейтинга
-            </button>
-            <button
-              onClick={() => onSetSortOrder('low-rated')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                sortOrder === 'low-rated'
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              Сначала худшие
-            </button>
-            <button
-              onClick={() => {
-                if (sortOrder === 'alphabetical') {
-                  onSetSortOrder('alphabetical-reverse');
-                } else {
-                  onSetSortOrder('alphabetical');
+        {/* Row 2: Sort Label & Buttons + View Mode Switcher (Screenshot 1) */}
+        <div id="catalog-sort-anchor" className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mt-1">
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-normal text-slate-500 dark:text-zinc-400">
+              Сортировка:
+            </span>
+            <div className="flex flex-wrap gap-1 bg-slate-200/70 dark:bg-[#131520] p-1 rounded-xl border border-slate-300/60 dark:border-white/10 shadow-inner w-fit">
+              <button
+                onClick={() => onSetSortOrder('added')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  sortOrder === 'added'
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                По добавлению
+              </button>
+              <button
+                onClick={() => onSetSortOrder('reverse')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  sortOrder === 'reverse'
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                С конца
+              </button>
+              <button
+                onClick={() => onSetSortOrder('top-rated')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  sortOrder === 'top-rated'
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                ★ Топ рейтинга
+              </button>
+              <button
+                onClick={() => onSetSortOrder('low-rated')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  sortOrder === 'low-rated'
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Сначала худшие
+              </button>
+              <button
+                onClick={() => {
+                  if (sortOrder === 'alphabetical') {
+                    onSetSortOrder('alphabetical-reverse');
+                  } else {
+                    onSetSortOrder('alphabetical');
+                  }
+                }}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  sortOrder === 'alphabetical' || sortOrder === 'alphabetical-reverse'
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+                title={
+                  sortOrder === 'alphabetical'
+                    ? 'Сортировка А-Я активна. Нажмите для Я-А'
+                    : sortOrder === 'alphabetical-reverse'
+                    ? 'Сортировка Я-А активна. Нажмите для А-Я'
+                    : 'Сортировка по алфавиту (А-Я)'
                 }
-              }}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                sortOrder === 'alphabetical' || sortOrder === 'alphabetical-reverse'
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-              title={
-                sortOrder === 'alphabetical'
-                  ? 'Сортировка А-Я активна. Нажмите для Я-А'
-                  : sortOrder === 'alphabetical-reverse'
-                  ? 'Сортировка Я-А активна. Нажмите для А-Я'
-                  : 'Сортировка по алфавиту (А-Я)'
-              }
-            >
-              <span>{sortOrder === 'alphabetical-reverse' ? 'Я-А' : 'А-Я'}</span>
-              {sortOrder === 'alphabetical' ? (
-                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                </svg>
-              ) : sortOrder === 'alphabetical-reverse' ? (
-                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                </svg>
-              ) : (
-                <svg
-                  className="w-3.5 h-3.5 shrink-0 opacity-80"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  aria-hidden="true"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 4v12m0 0l4-4m-4 4l-4-4" />
-                </svg>
-              )}
-            </button>
-            
-            <button
-              onClick={() => onSetSortOrder('viewing-month')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                sortOrder === 'viewing-month'
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              По месяцам
-            </button>
+              >
+                <span>{sortOrder === 'alphabetical-reverse' ? 'Я-А' : 'А-Я'}</span>
+                {sortOrder === 'alphabetical' ? (
+                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                  </svg>
+                ) : sortOrder === 'alphabetical-reverse' ? (
+                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                  </svg>
+                ) : (
+                  <svg
+                    className="w-3.5 h-3.5 shrink-0 opacity-80"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    aria-hidden="true"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 4v12m0 0l4-4m-4 4l-4-4" />
+                  </svg>
+                )}
+              </button>
+              
+              <button
+                onClick={() => onSetSortOrder('viewing-month')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  sortOrder === 'viewing-month'
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                По месяцам
+              </button>
+            </div>
           </div>
+
+          {/* View Mode Toggle: Icons only (grid / table) */}
+          {onSetViewMode && (
+            <div className="flex items-center gap-1 bg-slate-200/70 dark:bg-[#131520] p-1 rounded-xl border border-slate-300/60 dark:border-white/10 shadow-inner shrink-0 self-start sm:self-end">
+              <button
+                type="button"
+                onClick={() => onSetViewMode('grid')}
+                className={`p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer ${
+                  viewMode === 'grid'
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+                title="Плиточный режим"
+                aria-label="Плиточный режим"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => onSetViewMode('table')}
+                className={`p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer ${
+                  viewMode === 'table'
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+                title="Построчный режим"
+                aria-label="Построчный режим"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

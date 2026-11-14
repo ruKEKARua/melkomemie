@@ -6,6 +6,7 @@ import type { RootState } from '../store/store';
 import MovieCard from './MovieCard';
 import type { MovieRatings } from '../HooksExcelMovies/useGetMovies';
 import type { MovieSheetEntry } from '../api/googleSheets';
+import type { SortOrder } from '../hooks/useCatalogMovies';
 import { getMovieImageUrl, getTmdbImageUrl } from '../api/tmdbImage';
 import { getActiveMovieSource, type MovieSource } from '../api/movieSource';
 import { roundRating } from '../utils/ratings';
@@ -42,6 +43,8 @@ export type MovieSliderProps = {
   onUpdateMovie?: (entry: MovieSheetEntry) => Promise<void>;
   isLoading?: boolean;
   highlightMovieTitle?: string | null;
+  sortOrder?: SortOrder;
+  movieNumberMap?: Map<string, number>;
 };
 
 export function MovieSlider({
@@ -51,6 +54,8 @@ export function MovieSlider({
   onUpdateMovie,
   isLoading = false,
   highlightMovieTitle,
+  sortOrder = 'added',
+  movieNumberMap,
 }: MovieSliderProps) {
   const dispatch = useDispatch();
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -150,6 +155,12 @@ export function MovieSlider({
                 )?.ratings[0]?.scores[1]
               : undefined;
             const overallRating = rawRating !== undefined ? roundRating(rawRating) : undefined;
+            const titleKey = (item.excelTitle ?? item.title ?? '').trim().toLowerCase();
+            const canonicalNum = movieNumberMap?.get(titleKey);
+            const movieNumber =
+              sortOrder === 'top-rated' || sortOrder === 'low-rated'
+                ? key + 1
+                : (canonicalNum ?? key + 1);
 
             return (
               <div
@@ -164,6 +175,7 @@ export function MovieSlider({
                   title={title}
                   posterPath={posterPath}
                   overallRating={overallRating}
+                  movieNumber={movieNumber}
                   func={(movieID) =>
                     openDescription(
                       movieID,

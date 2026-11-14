@@ -6,10 +6,18 @@ type MovieCardProps = {
   title: string;
   posterPath: string | null;
   overallRating?: string;
+  movieNumber?: number;
   func: (id: number) => void;
 };
 
-const MovieCardComponent = ({ id = 0, title = '', posterPath = '', overallRating, func }: MovieCardProps) => {
+const MovieCardComponent = ({
+  id = 0,
+  title = '',
+  posterPath = '',
+  overallRating,
+  movieNumber,
+  func,
+}: MovieCardProps) => {
   const [loadedPosterPath, setLoadedPosterPath] = useState<string | null>(null);
   const [errorPosterPath, setErrorPosterPath] = useState<string | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -102,7 +110,7 @@ const MovieCardComponent = ({ id = 0, title = '', posterPath = '', overallRating
         <h3
           ref={titleRef}
           title={title}
-          className="w-full text-center text-xs sm:text-sm font-semibold text-slate-800 dark:text-zinc-100 line-clamp-2 leading-snug group-hover:text-amber-500 dark:group-hover:text-amber-400 transition-colors"
+          className="w-full text-center text-xs sm:text-sm font-semibold text-slate-800 dark:text-zinc-100 line-clamp-2 leading-snug group-hover:text-amber-500 dark:group-hover:text-amber-400 transition-colors px-2 sm:px-3"
         >
           {title}
         </h3>
@@ -116,6 +124,16 @@ const MovieCardComponent = ({ id = 0, title = '', posterPath = '', overallRating
           </div>
         )}
       </div>
+
+      {/* Movie Number Badge (Screenshot 3: inside movie block, next to title, top-left corner rounded 50%) */}
+      {movieNumber !== undefined && (
+        <div
+          className="absolute bottom-0 right-0 z-20 flex items-center justify-center min-w-[39px] sm:min-w-[44px] h-[32px] sm:h-[35px] px-2.5 text-[12px] sm:text-[13px] font-bold text-slate-500 dark:text-zinc-400 bg-slate-100/95 dark:bg-[#161926] border-t border-l border-slate-200/90 dark:border-white/10 rounded-tl-full rounded-br-2xl shadow-xs transition-colors group-hover:text-amber-600 dark:group-hover:text-amber-400 select-none pointer-events-none"
+          title={`Фильм №${movieNumber}`}
+        >
+          {movieNumber}
+        </div>
+      )}
     </div>
   );
 };

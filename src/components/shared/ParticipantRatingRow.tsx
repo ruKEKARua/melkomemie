@@ -50,7 +50,7 @@ const ParticipantRatingRowComponent = ({
         });
         setShowTooltip(true);
       }
-    }, 2500);
+    }, 1500);
   };
 
   const handleMouseLeave = () => {

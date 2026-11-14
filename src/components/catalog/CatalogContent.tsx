@@ -2,6 +2,8 @@ import { MovieSlider, type Media } from '../MovieSlider';
 import type { MovieRatings } from '../../HooksExcelMovies/useGetMovies';
 import type { MovieSheetEntry } from '../../api/googleSheets';
 import type { SortOrder, ViewingMonthSectionItem } from '../../hooks/useCatalogMovies';
+import type { CatalogViewMode } from './CatalogToolbar';
+import MovieTableView from './MovieTableView';
 
 interface CatalogContentProps {
   sortOrder: SortOrder;
@@ -12,6 +14,8 @@ interface CatalogContentProps {
   participantNames: string[];
   updateMovie?: (entry: MovieSheetEntry) => Promise<void>;
   highlightMovieTitle: string | null;
+  viewMode?: CatalogViewMode;
+  movieNumberMap?: Map<string, number>;
 }
 
 export const CatalogContent = ({
@@ -23,6 +27,8 @@ export const CatalogContent = ({
   participantNames,
   updateMovie,
   highlightMovieTitle,
+  viewMode = 'grid',
+  movieNumberMap,
 }: CatalogContentProps) => {
   return (
     <div className="max-w-7xl 2xl:max-w-[1600px] min-[1920px]:max-w-[1800px] min-[2560px]:max-w-[2200px] mx-auto w-full px-4 sm:px-6 lg:px-8 pb-16">
@@ -43,13 +49,27 @@ export const CatalogContent = ({
                   {section.movies.length}
                 </span>
               </div>
-              <MovieSlider
-                media={section.movies}
-                ratings={usersRating}
-                participantNames={participantNames}
-                onUpdateMovie={updateMovie}
-                highlightMovieTitle={highlightMovieTitle}
-              />
+              {viewMode === 'table' ? (
+                <MovieTableView
+                  media={section.movies}
+                  ratings={usersRating}
+                  participantNames={participantNames}
+                  onUpdateMovie={updateMovie}
+                  highlightMovieTitle={highlightMovieTitle}
+                  sortOrder={sortOrder}
+                  movieNumberMap={movieNumberMap}
+                />
+              ) : (
+                <MovieSlider
+                  media={section.movies}
+                  ratings={usersRating}
+                  participantNames={participantNames}
+                  onUpdateMovie={updateMovie}
+                  highlightMovieTitle={highlightMovieTitle}
+                  sortOrder={sortOrder}
+                  movieNumberMap={movieNumberMap}
+                />
+              )}
             </section>
           ))}
           {viewingMonthSections.length === 0 && (
@@ -59,6 +79,17 @@ export const CatalogContent = ({
             </div>
           )}
         </div>
+      ) : viewMode === 'table' ? (
+        <MovieTableView
+          media={displayedMovies}
+          ratings={usersRating}
+          participantNames={participantNames}
+          onUpdateMovie={updateMovie}
+          isLoading={isCatalogLoading}
+          highlightMovieTitle={highlightMovieTitle}
+          sortOrder={sortOrder}
+          movieNumberMap={movieNumberMap}
+        />
       ) : (
         <MovieSlider
           media={displayedMovies}
@@ -67,6 +98,8 @@ export const CatalogContent = ({
           onUpdateMovie={updateMovie}
           isLoading={isCatalogLoading}
           highlightMovieTitle={highlightMovieTitle}
+          sortOrder={sortOrder}
+          movieNumberMap={movieNumberMap}
         />
       )}
     </div>

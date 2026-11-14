@@ -87,3 +87,21 @@ export const parseDateInput = (date: string): string => {
   const year = localizedDate[3].length === 2 ? `20${localizedDate[3]}` : localizedDate[3];
   return `${year}-${localizedDate[2].padStart(2, '0')}-${localizedDate[1].padStart(2, '0')}`;
 };
+
+export function formatTableDate(dateStr?: string): string {
+  if (!dateStr) return '—';
+  const trimmed = dateStr.trim();
+  if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(trimmed)) {
+    return trimmed;
+  }
+  const isoMatch = trimmed.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/);
+  if (isoMatch) {
+    return `${isoMatch[3].padStart(2, '0')}.${isoMatch[2].padStart(2, '0')}.${isoMatch[1]}`;
+  }
+  const dmyMatch = trimmed.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/);
+  if (dmyMatch) {
+    const y = dmyMatch[3].length === 2 ? `20${dmyMatch[3]}` : dmyMatch[3];
+    return `${dmyMatch[1].padStart(2, '0')}.${dmyMatch[2].padStart(2, '0')}.${y}`;
+  }
+  return trimmed;
+}
