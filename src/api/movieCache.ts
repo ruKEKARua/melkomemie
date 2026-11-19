@@ -1,4 +1,4 @@
-import { getActiveMovieSource, type MovieSource, type NormalizedMovie } from './movieSource';
+import { ensureMovieGenres, getActiveMovieSource, type MovieSource, type NormalizedMovie } from './movieSource';
 import { isLocalStorageAvailable, clearStorageByPrefix } from '../utils/storageCache';
 
 export { isLocalStorageAvailable };
@@ -17,6 +17,15 @@ export function normalizeCacheKey(title: string): string {
     .replace(/[«»"'`]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+export function isStaleMovieWithoutGenres(movie: NormalizedMovie): boolean {
+  if (movie.isExcelFallback) {
+    return false;
+  }
+  const hasGenres = Boolean(movie.genres && movie.genres.length > 0);
+  const hasGenreIds = Boolean(movie.genre_ids && movie.genre_ids.length > 0);
+  return !hasGenres && !hasGenreIds;
 }
 
 function getSourceStorageKey(title: string, source: MovieSource): string {
@@ -104,11 +113,11 @@ export function getCachedMovie(title: string, preferredSource?: MovieSource): No
     if (raw) {
       const record = JSON.parse(raw) as CacheRecord;
       if (record?.movie && Date.now() - (record.cachedAt ?? 0) <= CACHE_TTL_MS) {
-        if (isValidMovieForSource(record.movie, targetSource)) {
-          return record.movie;
-        } else {
+        if (!isValidMovieForSource(record.movie, targetSource) || isStaleMovieWithoutGenres(record.movie)) {
           // Stale or incompatible record saved under this key - purge it
           window.localStorage.removeItem(sourceKey);
+        } else {
+          return ensureMovieGenres(record.movie);
         }
       }
     }
@@ -123,8 +132,8 @@ export function getCachedMovie(title: string, preferredSource?: MovieSource): No
     if (raw) {
       const record = JSON.parse(raw) as CacheRecord;
       if (record?.movie && Date.now() - (record.cachedAt ?? 0) <= CACHE_TTL_MS) {
-        if (isValidMovieForSource(record.movie, targetSource)) {
-          return record.movie;
+        if (isValidMovieForSource(record.movie, targetSource) && !isStaleMovieWithoutGenres(record.movie)) {
+          return ensureMovieGenres(record.movie);
         }
       }
     }
@@ -151,10 +160,10 @@ export function setCachedMovie(title: string, movie: NormalizedMovie): void {
 
   try {
     const record: CacheRecord = {
-      movie: {
+      movie: ensureMovieGenres({
         ...movie,
         source,
-      },
+      }),
       cachedAt: Date.now(),
     };
     const payload = JSON.stringify(record);
@@ -179,7 +188,11 @@ export function getCachedMoviesBatch(titles: string[], source?: MovieSource): {
 
     const movie = getCachedMovie(title, targetSource);
     if (movie) {
-      cached.set(normKey, movie);
+      if (isStaleMovieWithoutGenres(movie)) {
+        missing.push(title);
+      } else {
+        cached.set(normKey, ensureMovieGenres(movie));
+      }
     } else {
       missing.push(title);
     }

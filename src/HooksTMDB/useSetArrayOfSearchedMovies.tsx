@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { getCachedMoviesBatch, normalizeCacheKey } from '../api/movieCache';
-import { getActiveMovieSource, type MovieSource, type NormalizedMovie } from '../api/movieSource';
+import { ensureMovieGenres, getActiveMovieSource, type MovieSource, type NormalizedMovie } from '../api/movieSource';
 import { setFoundMovies } from '../store/foundMovies';
 import findMovieBySearchTitle from './useGetMovieBySearchName';
 
@@ -58,7 +58,7 @@ const useSetArrayOfSearchedMovies = (titles: string[], source?: MovieSource): Us
         const cachedMovie = cached.get(normalizeCacheKey(title));
         if (cachedMovie) {
           return {
-            ...cachedMovie,
+            ...ensureMovieGenres(cachedMovie),
             excelTitle: title,
           };
         }
@@ -74,6 +74,7 @@ const useSetArrayOfSearchedMovies = (titles: string[], source?: MovieSource): Us
           source: currentSource,
           excelTitle: title,
           isExcelFallback: true,
+          genres: [],
         };
       });
 
@@ -110,11 +111,12 @@ const useSetArrayOfSearchedMovies = (titles: string[], source?: MovieSource): Us
           if (cancelled) break;
 
           if (resolved) {
+            const resolvedWithGenres = ensureMovieGenres(resolved);
             movies[i] = {
-              ...resolved,
+              ...resolvedWithGenres,
               excelTitle: title,
-              poster_path: resolved.poster_path ?? '',
-              backdrop_path: resolved.backdrop_path ?? '',
+              poster_path: resolvedWithGenres.poster_path ?? '',
+              backdrop_path: resolvedWithGenres.backdrop_path ?? '',
             };
             currentLoaded++;
             pendingBatchUpdates++;

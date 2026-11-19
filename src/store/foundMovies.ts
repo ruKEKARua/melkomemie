@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
-type Movie = {
+export type Movie = {
 
     media_type: 'movie' | 'tv'; // обязательно, что это фильм или сериал
     id: number; // айдишник
@@ -11,6 +11,12 @@ type Movie = {
     poster_path: string; // постер на русском
     excelTitle?: string;
     isExcelFallback?: boolean;
+    release_date?: string;
+    genre_ids?: number[];
+    genres?: { id: number; name: string }[];
+    source?: 'tmdb' | 'kinopoisk';
+    vote_average?: number;
+    vote_count?: number;
 
 };
 

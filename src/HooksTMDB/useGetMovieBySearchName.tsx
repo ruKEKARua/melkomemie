@@ -1,5 +1,11 @@
 import { getCachedMovie, setCachedMovie } from '../api/movieCache';
-import { getActiveMovieSource, searchMoviesFromSource, type MovieSource, type NormalizedMovie } from '../api/movieSource';
+import {
+  ensureMovieGenres,
+  getActiveMovieSource,
+  searchMoviesFromSource,
+  type MovieSource,
+  type NormalizedMovie,
+} from '../api/movieSource';
 
 export const normalizeTitle = (value: string): string =>
   value
@@ -85,7 +91,7 @@ export async function findMovieBySearchTitle(title: string, source?: MovieSource
   const currentSource = source ?? getActiveMovieSource();
   const cached = getCachedMovie(excelTitle, currentSource);
   if (cached) {
-    return { ...cached, excelTitle };
+    return { ...ensureMovieGenres(cached), excelTitle };
   }
 
   const normalized = normalizeTitle(excelTitle);
@@ -131,11 +137,11 @@ export async function findMovieBySearchTitle(title: string, source?: MovieSource
     }
 
     if (candidate) {
-      const result: NormalizedMovie = {
+      const result: NormalizedMovie = ensureMovieGenres({
         ...candidate,
         source: candidate.source || currentSource,
         excelTitle,
-      };
+      });
 
       // Save to persistent cache
       setCachedMovie(excelTitle, result);

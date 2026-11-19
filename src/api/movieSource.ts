@@ -8,6 +8,28 @@ import { checkTmdbHealth, fetchTmdb } from './tmdb';
 
 export type MovieSource = 'tmdb' | 'kinopoisk';
 
+export const TMDB_GENRE_MAP_RU: Record<number, string> = {
+  28: 'Боевик',
+  12: 'Приключения',
+  16: 'Мультфильм',
+  35: 'Комедия',
+  80: 'Криминал',
+  99: 'Документальный',
+  18: 'Драма',
+  10751: 'Семейный',
+  14: 'Фэнтези',
+  36: 'История',
+  27: 'Ужасы',
+  10402: 'Музыка',
+  9648: 'Детектив',
+  10749: 'Мелодрама',
+  878: 'Фантастика',
+  10770: 'Телевизионный фильм',
+  53: 'Триллер',
+  10752: 'Военный',
+  37: 'Вестерн',
+};
+
 export type NormalizedMovie = {
   id: number;
   media_type: 'movie';
@@ -22,8 +44,50 @@ export type NormalizedMovie = {
   release_date?: string;
   vote_average?: number;
   vote_count?: number;
+  genre_ids?: number[];
   genres?: { id: number; name: string }[];
 };
+
+function capitalizeGenreName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return '';
+  return trimmed.charAt(0).toLocaleUpperCase('ru-RU') + trimmed.slice(1);
+}
+
+export function ensureMovieGenres(movie: NormalizedMovie): NormalizedMovie {
+  if (movie.genres && movie.genres.length > 0) {
+    const normalizedGenres = movie.genres
+      .map((g) => ({
+        ...g,
+        name: capitalizeGenreName(g.name || ''),
+      }))
+      .filter((g) => Boolean(g.name));
+
+    return {
+      ...movie,
+      genres: normalizedGenres,
+    };
+  }
+
+  if (movie.genre_ids && movie.genre_ids.length > 0) {
+    const mappedGenres = movie.genre_ids
+      .map((id) => {
+        const name = TMDB_GENRE_MAP_RU[id];
+        return name ? { id, name } : null;
+      })
+      .filter((g): g is { id: number; name: string } => Boolean(g));
+
+    return {
+      ...movie,
+      genres: mappedGenres,
+    };
+  }
+
+  return {
+    ...movie,
+    genres: movie.genres ?? [],
+  };
+}
 
 export type MovieDetails = NormalizedMovie & {
   release_date: string;
@@ -140,7 +204,7 @@ export function normalizeKinopoiskFilm(film: KinopoiskFilm): NormalizedMovie {
       ?.map((g, index) => ({ id: index, name: g.genre ?? '' }))
       .filter((g) => Boolean(g.name)) ?? [];
 
-  return {
+  return ensureMovieGenres({
     id: filmId,
     media_type: 'movie',
     title: film.nameRu || film.nameEn || film.nameOriginal || '',
@@ -153,11 +217,11 @@ export function normalizeKinopoiskFilm(film: KinopoiskFilm): NormalizedMovie {
     vote_average: voteAverage,
     vote_count: voteCount,
     genres,
-  };
+  });
 }
 
 function normalizeTmdbMovie(movie: Omit<NormalizedMovie, 'source'>): NormalizedMovie {
-  return { ...movie, source: 'tmdb' };
+  return ensureMovieGenres({ ...movie, source: 'tmdb' });
 }
 
 async function searchTmdbMovies(query: string): Promise<NormalizedMovie[]> {
@@ -231,7 +295,7 @@ export async function getMovieDetailsFromSource(
     try {
       if (movieId > 0) {
         const tmdbData = await fetchTmdb<MovieDetails>(`/movie/${movieId}?language=ru-RU`);
-        return { ...tmdbData, source: 'tmdb' };
+        return ensureMovieGenres({ ...tmdbData, source: 'tmdb' }) as MovieDetails;
       }
     } catch (error) {
       console.warn('[movieSource] Failed to fetch TMDB details, attempting Kinopoisk fallback:', error);
