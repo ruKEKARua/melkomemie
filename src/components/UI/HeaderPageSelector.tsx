@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
 import { useClickOutsideAndEscape } from '../../hooks/useClickOutsideAndEscape';
+import type { PageMode } from '../../hooks/useAppNavigation';
 
-export type PageMode = 'main' | 'entry' | 'roulette' | 'tournaments' | 'book-club';
+export type { PageMode };
 
 interface HeaderPageSelectorProps {
   currentPage: PageMode;
@@ -10,6 +11,7 @@ interface HeaderPageSelectorProps {
   onSelectTournaments: () => void;
   onSelectRoulette: () => void;
   onSelectBookClub: () => void;
+  onSelectRewind?: () => void;
   onSelectAddMovie: () => void;
   align?: 'left' | 'right';
   className?: string;
@@ -33,6 +35,7 @@ export const HeaderPageSelector = ({
   onSelectTournaments,
   onSelectRoulette,
   onSelectBookClub,
+  onSelectRewind,
   onSelectAddMovie,
   align = 'left',
   className = '',
@@ -52,6 +55,7 @@ export const HeaderPageSelector = ({
     tournaments: { title: 'Турниры', icon: '🏆' },
     roulette: { title: 'Рулетка', icon: '🎲' },
     'book-club': { title: 'Книжный клуб', icon: '📚' },
+    rewind: { title: '✨ Rewind', icon: '✨' },
     entry: { title: 'Добавить фильм', icon: '➕' },
   };
 
@@ -97,6 +101,16 @@ export const HeaderPageSelector = ({
       badgeText: 'text-emerald-400',
       badgeBorder: 'border-emerald-500/20',
       action: onSelectBookClub,
+    },
+    {
+      id: 'rewind',
+      title: '✨ Rewind',
+      subtitle: 'Итоги киноклуба',
+      icon: '✨',
+      badgeBg: 'bg-purple-500/20',
+      badgeText: 'text-purple-400',
+      badgeBorder: 'border-purple-500/20',
+      action: onSelectRewind ?? (() => {}),
     },
   ];
 
@@ -193,7 +207,7 @@ export const HeaderPageSelector = ({
                   </div>
 
                   {/* Lock indicator if unauthorized */}
-                  {!isAuthorized && page.id !== 'roulette' && (
+                  {!isAuthorized && page.id !== 'roulette' && page.id !== 'rewind' && (
                     <span
                       className="text-[10px] text-zinc-400 group-hover:text-amber-400 flex items-center gap-1 font-medium shrink-0 bg-white/5 px-2 py-0.5 rounded-md border border-white/10"
                       title="Требуется авторизация"

@@ -8,6 +8,7 @@ import MovieRoulette from './components/MovieRoulette';
 import { TournamentsPage } from './pages/TournamentsPage';
 import BookClubPage from './pages/BookClubPage';
 import MovieEntryPage from './pages/MovieEntryPage';
+import RewindPage from './pages/RewindPage';
 import { setSearchBarValue } from './store/searchBar';
 import { openModal } from './store/openModal';
 import useGetMovies from './HooksExcelMovies/useGetMovies';
@@ -225,6 +226,13 @@ function App() {
             participantNames={isAuthorized ? participantNames : []}
             onUpdateMovie={updateMovie}
             onClose={() => navigateToPage('main')}
+          />
+        ) : page === 'rewind' ? (
+          <RewindPage
+            usersRating={usersRating}
+            foundMovies={foundMovies.filter((movie) => movie.media_type !== 'person') as unknown as NormalizedMovie[]}
+            participantNames={participantNames}
+            onBack={() => navigateToPage('main')}
           />
         ) : isAuthorized && page === 'tournaments' ? (
           <TournamentsPage

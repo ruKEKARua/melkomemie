@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 
-export type PageMode = 'main' | 'entry' | 'roulette' | 'tournaments' | 'book-club';
+export type PageMode = 'main' | 'entry' | 'roulette' | 'tournaments' | 'book-club' | 'rewind';
 
 export const parsePageFromHash = (hasAuth = false): PageMode => {
   if (typeof window === 'undefined') return 'main';
   const raw = window.location.hash.replace(/^#\/?/, '').toLowerCase();
   if (raw === 'roulette') return 'roulette';
+  if (raw === 'rewind') return 'rewind';
   if (hasAuth || import.meta.env.DEV) {
     if (raw === 'tournaments' || raw === 'tournament') return 'tournaments';
     if (raw === 'book-club' || raw === 'books' || raw === 'book') return 'book-club';
@@ -26,14 +27,14 @@ export function useAppNavigation({ isAuthorized, login }: UseAppNavigationOption
   const prevIsAuthorizedRef = useRef(false);
 
   const currentDisplayedPage: PageMode =
-    !isAuthorized && !import.meta.env.DEV && page !== 'roulette' && page !== 'main'
+    !isAuthorized && !import.meta.env.DEV && page !== 'roulette' && page !== 'rewind' && page !== 'main'
       ? 'main'
       : page;
 
   // Navigation with browser history support (Back / Forward button works without leaving the site)
   const navigateToPage = useCallback(
     (newPage: PageMode, replace = false) => {
-      if (!isAuthorized && newPage !== 'roulette' && newPage !== 'main') {
+      if (!isAuthorized && newPage !== 'roulette' && newPage !== 'rewind' && newPage !== 'main') {
         pendingPageRef.current = newPage;
         if (newPage === 'entry') {
           setIsAddMovieRequested(true);
@@ -66,6 +67,8 @@ export function useAppNavigation({ isAuthorized, login }: UseAppNavigationOption
       pendingPageRef.current = 'tournaments';
     } else if (raw === 'entry' || raw === 'add') {
       pendingPageRef.current = 'entry';
+    } else if (raw === 'rewind') {
+      pendingPageRef.current = 'rewind';
     }
   }, []);
 
@@ -96,7 +99,7 @@ export function useAppNavigation({ isAuthorized, login }: UseAppNavigationOption
   useEffect(() => {
     const handlePopState = () => {
       const p = parsePageFromHash(isAuthorized);
-      if (!isAuthorized && !import.meta.env.DEV && p !== 'roulette' && p !== 'main') {
+      if (!isAuthorized && !import.meta.env.DEV && p !== 'roulette' && p !== 'rewind' && p !== 'main') {
         setPage('main');
         window.history.replaceState({ page: 'main' }, '', window.location.pathname + window.location.search);
       } else {
@@ -114,7 +117,7 @@ export function useAppNavigation({ isAuthorized, login }: UseAppNavigationOption
 
   // Strictly redirect away from protected pages if unauthorized
   useEffect(() => {
-    if (!isAuthorized && !import.meta.env.DEV && page !== 'roulette' && page !== 'main') {
+    if (!isAuthorized && !import.meta.env.DEV && page !== 'roulette' && page !== 'rewind' && page !== 'main') {
       window.history.replaceState({ page: 'main' }, '', window.location.pathname + window.location.search);
       queueMicrotask(() => {
         setPage('main');

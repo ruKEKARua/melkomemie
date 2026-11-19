@@ -78,6 +78,7 @@ export const AppHeader = ({
               onSelectTournaments={() => onNavigateToPage('tournaments')}
               onSelectRoulette={() => onNavigateToPage('roulette')}
               onSelectBookClub={() => onNavigateToPage('book-club')}
+              onSelectRewind={() => onNavigateToPage('rewind')}
               onSelectAddMovie={() => onNavigateToPage('entry')}
             />
           </div>
