@@ -36,6 +36,17 @@ export const ScrollToTopButton = () => {
     const winHeight = window.innerHeight;
     const docHeight = document.documentElement.scrollHeight;
     maxScrollRef.current = Math.max(docHeight - winHeight, 1);
+
+    // Dynamic horizontal centering: ensure film strip center strictly matches button center
+    if (buttonRef.current && filmContainerRef.current) {
+      const btnRect = buttonRef.current.getBoundingClientRect();
+      if (btnRect.width > 0) {
+        const btnCenterX = btnRect.left + btnRect.width / 2;
+        const filmLeft = Math.round(btnCenterX - FILM_WIDTH / 2);
+        filmContainerRef.current.style.left = `${filmLeft}px`;
+        filmContainerRef.current.style.right = 'auto';
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -164,7 +175,7 @@ export const ScrollToTopButton = () => {
       {/* 1. Киноплёнка (скрыта при ширине менее 1000px, видна при >=1000px) */}
       <div
         ref={filmContainerRef}
-        className="hidden min-[1000px]:block fixed pointer-events-none drop-shadow-md overflow-hidden select-none z-10"
+        className="scroll-to-top-film hidden min-[1000px]:block fixed pointer-events-none drop-shadow-md overflow-hidden select-none z-10"
         style={{
           position: 'fixed',
           right: `${FILM_RIGHT}px`,
@@ -241,7 +252,7 @@ export const ScrollToTopButton = () => {
         ref={buttonRef}
         onClick={handleScrollToTop}
         aria-label="Прокрутить страницу наверх"
-        className="fixed bottom-5 sm:bottom-7 min-[1000px]:bottom-[36px] right-4 sm:right-5 min-[1000px]:right-6 w-[clamp(48px,15vw,60px)] sm:w-[clamp(60px,7.2vw,72px)] min-[1000px]:w-[72px] h-[clamp(48px,15vw,60px)] sm:h-[clamp(60px,7.2vw,72px)] min-[1000px]:h-[72px] z-20 group focus:outline-hidden active:scale-95 drop-shadow-2xl shrink-0 cursor-pointer pointer-events-none"
+        className="scroll-to-top-btn fixed z-20 group focus:outline-hidden active:scale-95 drop-shadow-2xl shrink-0 cursor-pointer pointer-events-none"
         style={{
           opacity: 0,
           transform: 'translate3d(0, 10px, 0) scale(0.9)',

@@ -102,12 +102,8 @@ export const RewindClubSummarySection: React.FC<RewindClubSummarySectionProps> =
       {/* Header & Mini Metrics Bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-white/5">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 mb-2">
-            <span>📊</span>
-            <span>Итоги киноклуба</span>
-          </div>
           <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Главные цифры и пьедестал
+            Итоги киноклуба
           </h2>
         </div>
 
@@ -186,7 +182,7 @@ export const RewindClubSummarySection: React.FC<RewindClubSummarySectionProps> =
               </h3>
             </div>
             <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
-              Трэш & Провал
+              Мы живём в обществе...
             </span>
           </div>
 

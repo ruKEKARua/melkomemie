@@ -2,6 +2,7 @@ import type { MovieRatings } from './movieDataNormalizer';
 import type { NormalizedMovie } from '../api/movieSource';
 import type { Movie } from '../store/foundMovies';
 import { normalizeMovieTitle } from './ratings';
+import { agreeAdjective } from './nameGrammar';
 
 /* ========================================================================== */
 /*                             TYPES & INTERFACES                             */
@@ -46,6 +47,7 @@ export type RewindMovieSummary = {
   posterPath: string;
   backdropPath?: string;
   rating: number;
+  clubRating?: number;
   genres: string[];
   date?: string;
   releaseDate?: string;
@@ -68,8 +70,10 @@ export type ParticipantStats = {
 export type GenreRadarItem = {
   genre: string;
   count: number;
+  weightedCount: number;
   avgRating: number;
   percentage: number; // 0-100% of watched movies by this user/club
+  weightedPercentage: number; // 0-100% of weighted genre share
 };
 
 export type UserProfileStats = {
@@ -173,6 +177,13 @@ export const REWIND_MONTH_LABELS = [
 ] as const;
 
 export const MIN_ELIGIBLE_MOVIES_COUNT = 10;
+
+/**
+ * Umbrella genres that frequently appear on TMDB/Kinopoisk alongside specific genres.
+ * When a movie has other specific genres, umbrella genres receive reduced weight (0.3)
+ * so they don't dominate the genre radar chart.
+ */
+export const UMBRELLA_GENRES = new Set<string>(['драма']);
 
 /* ========================================================================== */
 /*                            HELPER UTILITIES                                */
@@ -292,6 +303,67 @@ function extractGenreNames(genres?: unknown[]): string[] {
 }
 
 /**
+ * Calculates normalized genre weights for a movie.
+ * - If genres array is empty -> returns empty Map.
+ * - If the movie has >= 1 genre NOT in UMBRELLA_GENRES, each genre in UMBRELLA_GENRES gets base weight 0.3, others 1.0.
+ * - If all genres belong to UMBRELLA_GENRES (pure drama), base weight is 1.0.
+ * - Normalizes weights within the movie so their sum always equals 1.0.
+ */
+export function getMovieGenreWeights(
+  genres: Array<{ id?: number; name: string }>,
+): Map<string, number> {
+  const result = new Map<string, number>();
+  if (!genres || !Array.isArray(genres) || genres.length === 0) {
+    return result;
+  }
+
+  // Deduplicate genres by lowercase name, keeping trimmed original name
+  const uniqueGenres = new Map<string, string>(); // lower -> original trimmed
+  for (const g of genres) {
+    const trimmed = g?.name ? g.name.trim() : '';
+    if (!trimmed) continue;
+    const lower = trimmed.toLowerCase();
+    if (!uniqueGenres.has(lower)) {
+      uniqueGenres.set(lower, trimmed);
+    }
+  }
+
+  if (uniqueGenres.size === 0) {
+    return result;
+  }
+
+  // Check if at least one non-umbrella genre is present
+  let hasNonUmbrella = false;
+  for (const lower of uniqueGenres.keys()) {
+    if (!UMBRELLA_GENRES.has(lower)) {
+      hasNonUmbrella = true;
+      break;
+    }
+  }
+
+  let totalBaseWeight = 0;
+  const baseWeights = new Map<string, number>();
+
+  for (const [lower, originalName] of uniqueGenres.entries()) {
+    const isUmbrella = UMBRELLA_GENRES.has(lower);
+    const baseWeight = hasNonUmbrella && isUmbrella ? 0.3 : 1.0;
+    baseWeights.set(originalName, baseWeight);
+    totalBaseWeight += baseWeight;
+  }
+
+  if (totalBaseWeight <= 0) {
+    return result;
+  }
+
+  // Normalize weights so their sum equals 1.0
+  for (const [originalName, baseWeight] of baseWeights.entries()) {
+    result.set(originalName, baseWeight / totalBaseWeight);
+  }
+
+  return result;
+}
+
+/**
  * Normalizes title for loose matching.
  */
 function looseNormalizeTitle(title?: string): string {
@@ -347,6 +419,7 @@ export function toMovieSummary(
     posterPath: movie.posterPath,
     backdropPath: movie.backdropPath,
     rating: overrideRating !== undefined ? safeRound(overrideRating) : movie.overallRating,
+    clubRating: movie.overallRating > 0 ? safeRound(movie.overallRating) : undefined,
     genres: movie.genres.map((g) => g.name).filter(Boolean),
     date: movie.date,
     releaseDate: movie.releaseDate,
@@ -465,19 +538,46 @@ function buildUserProfileStats(
   // Radar for top genres
   const radar: GenreRadarItem[] = topGenres.map((genre) => {
     const genreLower = genre.toLowerCase();
-    const matchingMovies = userMoviesWithScore.filter(({ movie }) =>
-      movie.genres.some((g) => g.name.toLowerCase() === genreLower),
-    );
-    const count = matchingMovies.length;
-    const gSum = matchingMovies.reduce((acc, it) => acc + it.score, 0);
-    const gAvg = count > 0 ? safeRound(gSum / count) : 0;
-    const percentage = watchedCount > 0 ? Math.round((count / watchedCount) * 100) : 0;
+
+    let rawCount = 0;
+    let weightedCount = 0;
+    let sumScore = 0;
+
+    for (const { movie, score } of userMoviesWithScore) {
+      const weights = getMovieGenreWeights(movie.genres);
+      let matchWeight = 0;
+      let hasGenre = false;
+
+      for (const [gName, weight] of weights.entries()) {
+        if (gName.toLowerCase() === genreLower) {
+          hasGenre = true;
+          matchWeight += weight;
+        }
+      }
+
+      if (!hasGenre) {
+        hasGenre = movie.genres.some((g) => g.name?.trim().toLowerCase() === genreLower);
+      }
+
+      if (hasGenre) {
+        rawCount += 1;
+        weightedCount += matchWeight;
+        sumScore += score;
+      }
+    }
+
+    const gAvg = rawCount > 0 ? safeRound(sumScore / rawCount) : 0;
+    const percentage = watchedCount > 0 ? Math.round((rawCount / watchedCount) * 100) : 0;
+    const weightedPercentage =
+      watchedCount > 0 ? Math.min(100, Math.round((weightedCount / watchedCount) * 100)) : 0;
 
     return {
       genre,
-      count,
+      count: rawCount,
+      weightedCount: safeRound(weightedCount),
       avgRating: gAvg,
       percentage,
+      weightedPercentage,
     };
   });
 
@@ -515,7 +615,6 @@ function buildAchievements(
   movies: RewindMovie[],
   eligibleParticipants: string[],
   compatibilityMatrix: PairCompatibility[],
-  topGenres: string[],
 ): RewindAchievement[] {
   // 1. Unanimous Top ("Рождественское перемирие")
   let unanimousNominee = '—';
@@ -622,30 +721,64 @@ function buildAchievements(
         .replace('{count}', String(pairCount))
     : 'В этом периоде совместных киносеансов не зафиксировано.';
 
-  // 4. Top Genre ("Жанровый фаворит")
+  // 4. Top Genre ("Жанровый фаворит" / "Жанровый триумф")
   let topGenreName = '—';
   let topGenreCount = 0;
+  let topGenreWeight = 0;
 
-  if (topGenres.length > 0) {
-    const genreCounts = new Map<string, number>();
+  if (movies.length > 0) {
+    const genreWeights = new Map<string, number>();
+    const genreRawCounts = new Map<string, number>();
+    const canonicalGenreNames = new Map<string, string>();
+
     for (const m of movies) {
+      const weights = getMovieGenreWeights(m.genres);
+
+      const seenInMovie = new Set<string>();
       for (const g of m.genres) {
         if (!g.name) continue;
-        genreCounts.set(g.name, (genreCounts.get(g.name) ?? 0) + 1);
+        const trimmed = g.name.trim();
+        if (!trimmed) continue;
+        const lower = trimmed.toLowerCase();
+        if (!canonicalGenreNames.has(lower)) {
+          canonicalGenreNames.set(lower, trimmed);
+        }
+        if (!seenInMovie.has(lower)) {
+          seenInMovie.add(lower);
+          genreRawCounts.set(lower, (genreRawCounts.get(lower) ?? 0) + 1);
+        }
+      }
+
+      for (const [gName, weight] of weights.entries()) {
+        const lower = gName.trim().toLowerCase();
+        genreWeights.set(lower, (genreWeights.get(lower) ?? 0) + weight);
       }
     }
-    const sortedG = Array.from(genreCounts.entries()).sort((a, b) => b[1] - a[1]);
-    if (sortedG[0]) {
-      topGenreName = sortedG[0][0];
-      topGenreCount = sortedG[0][1];
+
+    const sortedByWeight = Array.from(genreWeights.entries()).sort((a, b) => {
+      if (Math.abs(b[1] - a[1]) > 0.0001) {
+        return b[1] - a[1];
+      }
+      return (genreRawCounts.get(b[0]) ?? 0) - (genreRawCounts.get(a[0]) ?? 0);
+    });
+
+    if (sortedByWeight[0]) {
+      const bestLower = sortedByWeight[0][0];
+      topGenreName = canonicalGenreNames.get(bestLower) || bestLower;
+      topGenreWeight = safeRound(sortedByWeight[0][1]);
+      topGenreCount = genreRawCounts.get(bestLower) ?? 0;
     }
   }
 
   const genreTemplate =
-    'Жанр «{genre}» стал безоговорочным лидером клуба — {count} просмотренных картин.';
-  const genreDesc = genreTemplate
-    .replace('{genre}', topGenreName)
-    .replace('{count}', String(topGenreCount));
+    'Жанр «{genre}» стал безоговорочным лидером клуба — {count} просмотренных картин (вес {weight}).';
+  const genreDesc =
+    topGenreName !== '—'
+      ? genreTemplate
+          .replace('{genre}', topGenreName)
+          .replace('{count}', String(topGenreCount))
+          .replace('{weight}', String(topGenreWeight.toFixed(1)))
+      : 'В этом периоде не удалось определить преобладающий жанр.';
 
   // 5. Top Moviegoer ("Главный киноман")
   const participantMovieCounts = new Map<string, number>();
@@ -715,8 +848,9 @@ function buildAchievements(
   const criticName = strictest ? strictest.name : '—';
   const criticAvg = strictest ? String(strictest.avg) : '—';
 
+  const criticAdjective = agreeAdjective(criticName, 'беспощаден', 'беспощадна');
   const criticTemplate =
-    '{userName} беспощаден к проходному кино: средняя оценка за период составила всего {avgRating}.';
+    `{userName} ${criticAdjective} к проходному кино: средняя оценка за период составила всего {avgRating}.`;
   const criticDesc = criticTemplate
     .replace('{userName}', criticName)
     .replace('{avgRating}', criticAvg);
@@ -754,9 +888,13 @@ function buildAchievements(
       title: 'Жанровый триумф',
       badge: '🎭',
       nominee: topGenreName,
-      value: topGenreCount > 0 ? `${topGenreCount} фильмов` : '—',
+      value: topGenreCount > 0 ? `${topGenreCount} фильмов (вес ${topGenreWeight.toFixed(1)})` : '—',
       description: genreDesc,
       template: genreTemplate,
+      details: {
+        rawCount: topGenreCount,
+        weightedCount: topGenreWeight,
+      },
     },
     {
       id: 'top_moviegoer',
@@ -963,18 +1101,50 @@ export function buildRewindStats({
   // Always prepend 'all' for club-wide profile
   const eligibleParticipants = ['all', ...eligibleNamesList];
 
-  // 6. Top Genres (top 6..8 most frequent genres in the period)
+  // 6. Top Genres (top 6..8 most frequent genres in the period, sorted by weightedCount)
   const genreFrequency = new Map<string, number>();
+  const genreWeightedSum = new Map<string, number>();
+  const canonicalGenreName = new Map<string, string>();
+
   for (const movie of filteredMovies) {
+    const movieWeights = getMovieGenreWeights(movie.genres);
+
+    const seenInMovie = new Set<string>();
     for (const g of movie.genres) {
       if (!g.name) continue;
-      genreFrequency.set(g.name, (genreFrequency.get(g.name) ?? 0) + 1);
+      const trimmed = g.name.trim();
+      if (!trimmed) continue;
+      const lower = trimmed.toLowerCase();
+      if (!canonicalGenreName.has(lower)) {
+        canonicalGenreName.set(lower, trimmed);
+      }
+      if (!seenInMovie.has(lower)) {
+        seenInMovie.add(lower);
+        genreFrequency.set(lower, (genreFrequency.get(lower) ?? 0) + 1);
+      }
+    }
+
+    for (const [gName, weight] of movieWeights.entries()) {
+      const lower = gName.trim().toLowerCase();
+      genreWeightedSum.set(lower, (genreWeightedSum.get(lower) ?? 0) + weight);
     }
   }
 
-  const sortedGenres = Array.from(genreFrequency.entries())
-    .sort((a, b) => b[1] - a[1])
-    .map(([genre]) => genre);
+  const sortedGenres = Array.from(genreWeightedSum.entries())
+    .sort((a, b) => {
+      if (Math.abs(b[1] - a[1]) > 0.0001) {
+        return b[1] - a[1];
+      }
+      return (genreFrequency.get(b[0]) ?? 0) - (genreFrequency.get(a[0]) ?? 0);
+    })
+    .map(([lower]) => canonicalGenreName.get(lower) || lower);
+
+  for (const lower of genreFrequency.keys()) {
+    const name = canonicalGenreName.get(lower) || lower;
+    if (!sortedGenres.includes(name)) {
+      sortedGenres.push(name);
+    }
+  }
 
   // Take top 6..8 genres (or all if fewer)
   const topGenreCount = Math.min(8, Math.max(6, sortedGenres.length));
@@ -1053,7 +1223,6 @@ export function buildRewindStats({
     filteredMovies,
     eligibleParticipants,
     compatibilityMatrix,
-    topGenres,
   );
 
   return {

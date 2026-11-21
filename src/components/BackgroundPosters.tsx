@@ -9,7 +9,7 @@ interface BackgroundPostersProps {
 
 const BackgroundPosters = ({ page, direction }: BackgroundPostersProps) => {
   const popularMoviesArray = usePopularMovies(page);
-  const posterSize = 'w92';
+  const posterSize = 'w500';
 
   const postersURL = useMemo(() => {
     return popularMoviesArray

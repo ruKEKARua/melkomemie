@@ -1,13 +1,15 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { MovieRatings } from '../utils/movieDataNormalizer';
 import type { NormalizedMovie } from '../api/movieSource';
 import type { Movie } from '../store/foundMovies';
 import { buildRewindStats, getAvailableRewindYears } from '../utils/rewindStats';
 import RewindHeaderControls from '../components/rewind/RewindHeaderControls';
 import RewindHeroSection from '../components/rewind/RewindHeroSection';
-import RewindAboutSection from '../components/rewind/RewindAboutSection';
 import RewindClubSummarySection from '../components/rewind/RewindClubSummarySection';
 import RewindAchievementsSection from '../components/rewind/RewindAchievementsSection';
+import GenreRadarSection from '../components/rewind/GenreRadarSection';
+import HeadToHeadSection from '../components/rewind/HeadToHeadSection';
+import ClubActivitySection from '../components/rewind/ClubActivitySection';
 
 export interface RewindPageProps {
   usersRating: MovieRatings[];
@@ -29,11 +31,13 @@ export const RewindPage: React.FC<RewindPageProps> = ({
   const defaultYear = availableYears[0] ?? '2026';
   const [selectedYear, setSelectedYear] = useState<string | 'all'>(defaultYear);
 
-  // Sync selected year if availableYears changes and selectedYear is not 'all'
-  useEffect(() => {
-    if (selectedYear !== 'all' && availableYears.length > 0 && !availableYears.includes(selectedYear)) {
-      setSelectedYear(availableYears[0]);
+  // Derive effectively active year: if selected year not in list (and not 'all'), use default
+  const activeYear = useMemo(() => {
+    if (selectedYear === 'all') return 'all';
+    if (availableYears.length > 0 && !availableYears.includes(selectedYear)) {
+      return availableYears[0];
     }
+    return selectedYear;
   }, [availableYears, selectedYear]);
 
   // Calculate rewind stats for the selected period
@@ -43,9 +47,9 @@ export const RewindPage: React.FC<RewindPageProps> = ({
         usersRating,
         foundMovies,
         participantNames,
-        year: selectedYear,
+        year: activeYear,
       }),
-    [usersRating, foundMovies, participantNames, selectedYear],
+    [usersRating, foundMovies, participantNames, activeYear],
   );
 
   const activeParticipantsCount = useMemo(() => {
@@ -58,28 +62,43 @@ export const RewindPage: React.FC<RewindPageProps> = ({
         {/* Top Header Navigation & Year Controls */}
         <RewindHeaderControls
           availableYears={availableYears}
-          selectedYear={selectedYear}
+          selectedYear={activeYear}
           onSelectYear={setSelectedYear}
           onBack={onBack}
         />
 
         {/* Section 1: Hero Banner */}
-        <RewindHeroSection year={selectedYear} movies={stats.movies} />
+        <RewindHeroSection year={activeYear} movies={stats.movies} />
 
-        {/* Section 2: About Melkomemie Community */}
-        <RewindAboutSection
-          totalClubMovies={usersRating.length}
-          totalParticipants={participantNames.length}
-        />
-
-        {/* Section 3: Club Summary & Top 3 Best / Worst */}
+        {/* Section 2: Club Summary & Top 3 Best / Worst */}
         <RewindClubSummarySection
           clubSummary={stats.clubSummary}
           activeParticipantsCount={activeParticipantsCount}
         />
 
         {/* Section 4: Achievements in Steam Style */}
-        <RewindAchievementsSection achievements={stats.achievements} year={selectedYear} />
+        <RewindAchievementsSection achievements={stats.achievements} year={activeYear} />
+
+        {/* Section 5: Genre Radar & Personal Tops */}
+        <GenreRadarSection
+          genreRadar={stats.genreRadar}
+          eligibleParticipants={stats.eligibleParticipants}
+          participantStats={stats.participantStats}
+        />
+
+        {/* Section 6: Head to Head & Compatibility Matrix */}
+        <HeadToHeadSection
+          eligibleParticipants={stats.eligibleParticipants}
+          participantStats={stats.participantStats}
+          compareTwoParticipants={stats.compareTwoParticipants}
+          compatibilityMatrix={stats.compatibilityMatrix}
+        />
+
+        {/* Section 7: Club Monthly Activity */}
+        <ClubActivitySection
+          monthlyActivity={stats.monthlyActivity}
+          year={activeYear}
+        />
       </div>
     </div>
   );

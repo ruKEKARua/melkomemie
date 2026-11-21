@@ -6,11 +6,15 @@
 export const aboutClubPlaceholders = {
   badge: 'Сообщество Мелкомемье',
   title: 'Киноклуб, где кино оживает в горячих спорах',
-  foundedDate: '[Дата основания]',
+  foundedDate: '12.01.2025',
   description:
-    'Мелкомемье — это союз старых и новых друзей: от заядлых геймеров и синефилов до вдумчивых чтецов книжного клуба. Каждую неделю мы собираемся вместе, чтобы открывать шедевры мирового кино, погружаться в забытую классику и до хрипоты обсуждать каждый сюжетный поворот.',
+    `
+    
+    
+    
+    `,
   stats: [
-    { label: 'Дата основания', value: '[Дата основания]' },
+    { label: 'Дата основания', value: '12.01.2025' },
     { label: 'Киночасов в эфире', value: '500+ ч.' },
     { label: 'Сломанных копий в спорах', value: '1000+' },
     { label: 'Состав киноклуба', value: 'Непобедимый' },
@@ -35,7 +39,7 @@ export const achievementPlaceholdersMeta: Record<string, AchievementPlaceholderM
     rarity: 'Легендарное (0.8%)',
     rarityColor: 'text-amber-400 border-amber-500/40 bg-amber-500/10',
     flavorText: 'Редчайший момент в истории, когда никто не захотел задушить соседа по дискорду.',
-    factPrefix: 'Микро-факт:',
+    factPrefix: 'Микро  -факт:',
   },
   most_controversial: {
     id: 'most_controversial',

@@ -1005,3 +1005,54 @@ input[type="range"] {
     padding: 0.5rem 0.65rem;
   }
 }
+
+/* -------------------------------------------------------------
+   Scroll To Top Reel Button & 35mm Film Strip Positioning
+   ------------------------------------------------------------- */
+.scroll-to-top-btn {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1rem;
+  width: clamp(48px, 15vw, 60px);
+  height: clamp(48px, 15vw, 60px);
+  z-index: 20;
+}
+
+@media (min-width: 640px) {
+  .scroll-to-top-btn {
+    bottom: 1.75rem;
+    right: 1.25rem;
+    width: clamp(60px, 7.2vw, 72px);
+    height: clamp(60px, 7.2vw, 72px);
+  }
+}
+
+@media (min-width: 1000px) {
+  .scroll-to-top-btn {
+    bottom: 36px !important;
+    right: 24px !important;
+    width: 72px !important;
+    height: 72px !important;
+  }
+
+  .scroll-to-top-film {
+    position: fixed;
+    right: 46px;
+    width: 28px;
+    bottom: 68px;
+  }
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+

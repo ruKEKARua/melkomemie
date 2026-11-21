@@ -1,4 +1,5 @@
-const TMDB_PROXY_BASE = 'https://movies-tmdb-proxy.kekar.workers.dev/image';
+export const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
+export const TMDB_PROXY_BASE = 'https://movies-tmdb-proxy.kekar.workers.dev/image';
 
 /**
  * Universal movie image resolver.
@@ -22,7 +23,7 @@ export function getMovieImageUrl(
   }
 
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `${TMDB_PROXY_BASE}/${size}${cleanPath}`;
+  return `${TMDB_IMAGE_BASE}/${size}${cleanPath}`;
 }
 
 /**
