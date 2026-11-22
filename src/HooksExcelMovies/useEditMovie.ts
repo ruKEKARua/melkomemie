@@ -42,13 +42,26 @@ export const useEditMovie = ({
     setIsEditing(true);
   };
 
+  const sanitizeScore = (rawVal: string): string => {
+    const val = rawVal.replace(',', '.');
+    if (val === '') return '';
+    if (val === '0' || val.startsWith('0')) return '';
+    const num = parseFloat(val);
+    if (!isNaN(num)) {
+      if (num < 0) return '';
+      if (num > 10) return '10';
+    }
+    return val;
+  };
+
   const updateParticipant = (
     participantIndex: number,
     field: keyof EditableParticipant,
     value: string,
   ) => {
+    const finalValue = field === 'score' ? sanitizeScore(value) : value;
     setParticipants((current) => current.map((participant, index) =>
-      index === participantIndex ? { ...participant, [field]: value } : participant,
+      index === participantIndex ? { ...participant, [field]: finalValue } : participant,
     ));
     setError('');
   };
@@ -87,10 +100,10 @@ export const useEditMovie = ({
 
     const hasInvalidScore = participants.some(({ score }) => {
       const parsedScore = Number(score.trim().replace(',', '.'));
-      return !score.trim() || !Number.isFinite(parsedScore) || parsedScore < 0 || parsedScore > 10;
+      return !score.trim() || !Number.isFinite(parsedScore) || parsedScore < 1 || parsedScore > 10;
     });
     if (hasInvalidScore) {
-      setError('Укажите для каждого участника оценку от 0 до 10');
+      setError('Укажите для каждого участника оценку от 1 до 10');
       return;
     }
 
@@ -111,9 +124,12 @@ export const useEditMovie = ({
     setIsSaving(true);
     setError('');
     try {
+      const parsedDate = parseDateInput(movie.date ?? '');
       await onSave({
-        date: parseDateInput(movie.date ?? ''),
+        date: parsedDate,
         title: movie.movie,
+        originalDate: parsedDate,
+        originalTitle: movie.movie,
         participants: participants.map(({ name, score }) => ({ name, score })),
       });
       setIsConfirmationOpen(false);

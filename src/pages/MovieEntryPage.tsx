@@ -64,9 +64,31 @@ const MovieEntryPage = ({
     searchMovies(value);
   };
 
+  const isValidScore = (score: string): boolean => {
+    const trimmed = score.trim().replace(',', '.');
+    if (!trimmed) return false;
+    const num = Number(trimmed);
+    return Number.isFinite(num) && num >= 1 && num <= 10;
+  };
+
+  const sanitizeScoreInput = (rawVal: string): string => {
+    const val = rawVal.replace(',', '.');
+    if (val === '') return '';
+    // Block leading 0 (e.g. "0", "0.", "0.5") since range is strictly 1 to 10
+    if (val === '0' || val.startsWith('0')) {
+      return '';
+    }
+    const num = parseFloat(val);
+    if (!isNaN(num)) {
+      if (num < 0) return '';
+      if (num > 10) return '10';
+    }
+    return val;
+  };
+
   const hasParticipantErrors = (participants: ParticipantScore[]) =>
     participants.some(
-      (participant) => !participant.name.trim() || !participant.score.trim()
+      (participant) => !participant.name.trim() || !isValidScore(participant.score)
     );
 
   const validateForm = () => {
@@ -80,9 +102,14 @@ const MovieEntryPage = ({
       nextErrors.title = 'Введите название фильма';
     }
 
-    if (hasParticipantErrors(form.participants)) {
+    const selectedNames = form.participants.map((p) => p.name.trim()).filter(Boolean);
+    if (selectedNames.length === 0) {
+      nextErrors.participants = 'Добавьте хотя бы одного участника';
+    } else if (new Set(selectedNames).size !== selectedNames.length) {
+      nextErrors.participants = 'Один участник не может быть добавлен дважды';
+    } else if (hasParticipantErrors(form.participants)) {
       nextErrors.participants =
-        'Для каждого участника укажите имя и оценку от 0 до 10';
+        'Для каждого участника укажите имя и оценку от 1 до 10 (разрешены десятичные значения)';
     }
 
     setErrors(nextErrors);
@@ -152,10 +179,11 @@ const MovieEntryPage = ({
     field: keyof ParticipantScore,
     value: string
   ) => {
+    const finalValue = field === 'score' ? sanitizeScoreInput(value) : value;
     const updatedParticipants = form.participants.map(
       (participant, participantIndex) =>
         participantIndex === index
-          ? { ...participant, [field]: value }
+          ? { ...participant, [field]: finalValue }
           : participant
     );
     setForm((current) => ({
@@ -164,6 +192,20 @@ const MovieEntryPage = ({
     }));
     if (!hasParticipantErrors(updatedParticipants)) {
       setErrors((current) => ({ ...current, participants: undefined }));
+    }
+  };
+
+  const handleScoreBlur = (index: number) => {
+    const rawScore = form.participants[index]?.score ?? '';
+    if (rawScore.trim() !== '') {
+      const num = parseFloat(rawScore.replace(',', '.'));
+      if (!isNaN(num)) {
+        if (num < 1) {
+          updateParticipantRow(index, 'score', '1');
+        } else if (num > 10) {
+          updateParticipantRow(index, 'score', '10');
+        }
+      }
     }
   };
 
@@ -383,7 +425,7 @@ const MovieEntryPage = ({
           <div className="flex flex-col gap-3 text-left">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-white/10">
               <span className="text-sm font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                Оценки участников (от 0 до 10)
+                Оценки участников (от 1 до 10)
               </span>
               <button
                 type="button"
@@ -433,14 +475,15 @@ const MovieEntryPage = ({
 
                   <input
                     type="number"
-                    min="0"
+                    min="1"
                     max="10"
-                    step="0.1"
+                    step="any"
                     value={participant.score}
                     onChange={(event) =>
                       updateParticipantRow(index, 'score', event.target.value)
                     }
-                    placeholder="Балл"
+                    onBlur={() => handleScoreBlur(index)}
+                    placeholder="1-10"
                     className="rounded-xl border border-slate-300 dark:border-white/15 bg-slate-50 dark:bg-[#090a10] px-2 py-2 text-xs text-center font-bold text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
                   />
 

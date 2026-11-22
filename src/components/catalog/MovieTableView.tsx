@@ -12,6 +12,7 @@ import { getActiveMovieSource, type MovieSource } from '../../api/movieSource';
 import { getMovieImageUrl } from '../../api/tmdbImage';
 import { roundRating } from '../../utils/ratings';
 import { formatTableDate } from '../../utils/dateFormat';
+import { isPurpleColor } from '../../utils/colorUtils';
 
 export interface MovieTableViewProps {
   media: Media[];
@@ -45,9 +46,10 @@ interface ParticipantCellProps {
   score: string;
   hasAsterisk: boolean;
   isBlack: boolean;
+  isPurple?: boolean;
 }
 
-const ParticipantCells = ({ name, score, hasAsterisk, isBlack }: ParticipantCellProps) => {
+const ParticipantCells = ({ name, score, hasAsterisk, isBlack, isPurple }: ParticipantCellProps) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left: number; placeBelow: boolean } | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -92,6 +94,10 @@ const ParticipantCells = ({ name, score, hasAsterisk, isBlack }: ParticipantCell
     bgClasses = '!bg-black';
     nameClasses = '!text-white font-bold !border-zinc-700';
     scoreClasses = '!text-white font-bold !border-zinc-700';
+  } else if (isPurple) {
+    bgClasses = '!bg-[#B4A7D6]';
+    nameClasses = '!text-black font-semibold !border-black/30 dark:!border-black/50';
+    scoreClasses = '!text-black font-semibold !border-black/30 dark:!border-black/50';
   } else if (hasAsterisk) {
     bgClasses = '!bg-[#facc15] dark:!bg-[#eab308]';
     nameClasses = '!text-black font-bold !border-black/40 dark:!border-black/70';
@@ -247,6 +253,8 @@ export const MovieTableView = memo(function MovieTableView({
               const rawOverall = matchingRating?.ratings[0]?.scores[1];
               const overallRating = rawOverall !== undefined ? roundRating(rawOverall) : '—';
               const dateStr = formatTableDate(matchingRating?.date);
+              const cellColor = matchingRating?.cellColor;
+              const isPurple = isPurpleColor(cellColor);
 
               const participantRatings: MovieRating[] = matchingRating?.ratings ?? [];
               const rowCount = Math.max(participantRatings.length, 1);
@@ -260,7 +268,9 @@ export const MovieTableView = memo(function MovieTableView({
 
               const headerCellClasses = isBlackHeader
                 ? '!bg-black !text-white font-bold'
-                : 'bg-white dark:bg-[#131620] text-slate-800 dark:text-zinc-100';
+                : isPurple
+                  ? '!bg-[#B4A7D6] !text-black font-semibold !border-black/30 dark:!border-black/50'
+                  : 'bg-white dark:bg-[#131620] text-slate-800 dark:text-zinc-100';
 
               const posterUrl = item.poster_path ? getMovieImageUrl(item.poster_path, 'w342') : null;
 
@@ -286,7 +296,7 @@ export const MovieTableView = memo(function MovieTableView({
                         key={rIdx}
                         className={`transition-colors ${
                           isHighlighted ? 'bg-amber-500/10' : ''
-                        }`}
+                        } ${isPurple ? '!bg-[#B4A7D6]' : ''}`}
                       >
                         {/* Column 1: № (merged across participant rows, compact width) */}
                         {rIdx === 0 && (
@@ -387,13 +397,14 @@ export const MovieTableView = memo(function MovieTableView({
                             score={pScore}
                             hasAsterisk={hasAsterisk}
                             isBlack={isPartBlack}
+                            isPurple={isPurple}
                           />
                         ) : (
                           <>
-                            <td className="px-2 sm:px-3 min-[1001px]:px-4 py-2 text-xs sm:text-sm text-slate-400 dark:text-zinc-500 italic border border-slate-300 dark:border-white/10 bg-white dark:bg-[#131620] w-[120px] sm:w-[140px] min-[1001px]:w-[180px] max-w-[200px] shrink-0">
+                            <td className={`px-2 sm:px-3 min-[1001px]:px-4 py-2 text-xs sm:text-sm italic border ${isPurple ? '!bg-[#B4A7D6] !text-black/60 !border-black/30' : 'border-slate-300 dark:border-white/10 bg-white dark:bg-[#131620] text-slate-400 dark:text-zinc-500'} w-[120px] sm:w-[140px] min-[1001px]:w-[180px] max-w-[200px] shrink-0`}>
                               —
                             </td>
-                            <td className="px-2 sm:px-3 min-[1001px]:px-4 py-2 text-xs sm:text-sm text-right pr-3 sm:pr-4 min-[1001px]:pr-6 text-slate-400 dark:text-zinc-500 italic border border-slate-300 dark:border-white/10 bg-white dark:bg-[#131620] w-14 sm:w-16 min-[1001px]:w-24 shrink-0">
+                            <td className={`px-2 sm:px-3 min-[1001px]:px-4 py-2 text-xs sm:text-sm text-right pr-3 sm:pr-4 min-[1001px]:pr-6 italic border ${isPurple ? '!bg-[#B4A7D6] !text-black/60 !border-black/30' : 'border-slate-300 dark:border-white/10 bg-white dark:bg-[#131620] text-slate-400 dark:text-zinc-500'} w-14 sm:w-16 min-[1001px]:w-24 shrink-0`}>
                               —
                             </td>
                           </>

@@ -1,39 +1,53 @@
 /**
  * ============================================================================
- * GOOGLE APPS SCRIPT БЭКЕНД ДЛЯ ПРОЕКТА «МЕЛКОМЕМЬЕ»
+ * GOOGLE APPS SCRIPT БЭКЕНД ДЛЯ ПРОЕКТА «МЕЛКОМЕМЬЕ» (V8 Runtime)
  * ============================================================================
  * Инструкция по установке / обновлению:
- * 1. Открой https://script.google.com/ и перейди в свой проект бэкенда.
+ * 1. Открой https://script.google.com/ и перейди в проект бэкенда «Мелкомемья».
  * 2. Полностью замени код в файле Code.gs на этот скрипт.
  * 3. Нажми кнопку «Развернуть» (Deploy) -> «Управление развертываниями» (Manage deployments)
  *    -> выбери активное развертывание -> нажми значок карандаша (Edit)
  *    -> выбери Версия: «Новая версия» (New version) -> нажми «Развернуть» (Deploy).
- * 4. Для автоматического исправления уже добавленного фильма «Синистер»:
- *    - Либо в редакторе Google Apps Script выбери функцию `repairMovieSinister` и нажми «Выполнить» (Run).
- *    - Либо открой ссылку в браузере: <ТВОЙ_GAS_URL>?action=repair-sinister
  * ============================================================================
  */
 
-// ID таблицы «Мелкомемья»
-var SPREADSHEET_ID = '1SAwGMbF583ESfiVsaWA_XSqx947bBc13ipgvQCD5sws';
-
-// Прокси для TMDB
-var TMDB_PROXY_BASE = 'https://movies-tmdb-proxy.kekar.workers.dev/tmdb';
-
-// Имена листов
-var SHEET_NAME_MOVIES = 'Киноклуб';
-var SHEET_NAME_SUMMARY = 'Сводная киноклуба';
-var SHEET_NAME_PARTICIPANTS_FALLBACK = 'Список участников';
-
-// Цветовые константы
-var COLOR_SEPARATOR = '#434343';
-var COLOR_WHITE = '#ffffff';
-var COLOR_BLACK = '#000000';
-var COLOR_DIMA_TEXT = '#f3f3f3';
-var DIMA_WATERMARK_TEXT = 'ДИМА НЕ СМОТРЕЛ :(((((((((((((((((((((((((((((((((((((';
+const CONFIG = {
+  SPREADSHEET_ID: '1SAwGMbF583ESfiVsaWA_XSqx947bBc13ipgvQCD5sws',
+  TMDB_PROXY_BASE: 'https://movies-tmdb-proxy.kekar.workers.dev/tmdb',
+  SHEETS: {
+    MOVIES: 'Киноклуб',
+    SUMMARY: 'Сводная киноклуба',
+  },
+  DATA_START_ROW: 5,
+  PARTICIPANTS_RANGE: 'B3:B50',
+  COLORS: {
+    SEPARATOR: '#434343',
+    WHITE: '#ffffff',
+    BLACK: '#000000',
+    DIMA_TEXT: '#f3f3f3',
+  },
+  DIMA_WATERMARK: {
+    TEXT: 'ДИМА НЕ СМОТРЕЛ :((((((((((((((((((((((((((((((((((((((',
+    FONT_FAMILY: 'Pacifico',
+    FONT_SIZE: 29,
+    START_COL: 8, // Столбец H
+    SPAN_COLS: 8, // Столбцы H:O (8 столбцов)
+  },
+  COLS: {
+    NUMBER: 1,    // A
+    DATE: 2,      // B
+    TITLE: 3,     // C
+    NAME: 4,      // D
+    SCORE: 5,     // E
+    AVG: 6,       // F
+    SEPARATOR: 7, // G
+    GRID_START: 8,// H
+  },
+  LOCK_TIMEOUT_MS: 30000,
+};
 
 /**
- * Вспомогательная функция для формирования JSON-ответа с CORS
+ * Формирование JSON-ответа
  */
 function createJsonResponse(data) {
   return ContentService.createTextOutput(JSON.stringify(data))
@@ -45,7 +59,7 @@ function createJsonResponse(data) {
  */
 function roundScore(val) {
   if (val === null || val === undefined || val === '') return '';
-  var num = typeof val === 'number' ? val : parseFloat(String(val).replace(',', '.'));
+  const num = typeof val === 'number' ? val : parseFloat(String(val).replace(',', '.'));
   if (isNaN(num)) return String(val).trim();
   return String(Math.round((num + 1e-9) * 100) / 100);
 }
@@ -58,11 +72,11 @@ function formatDate(date) {
   if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(date)) {
     return date;
   }
-  var parts = String(date).split('-');
+  const parts = String(date).split('-');
   if (parts.length === 3) {
-    return parts[2] + '.' + parts[1] + '.' + parts[0];
+    return `${parts[2]}.${parts[1]}.${parts[0]}`;
   }
-  return date;
+  return String(date);
 }
 
 /**
@@ -71,20 +85,20 @@ function formatDate(date) {
 function normalizeDate(date) {
   if (!date) return '';
   if (date instanceof Date) {
-    var y = date.getFullYear();
-    var m = ('0' + (date.getMonth() + 1)).slice(-2);
-    var d = ('0' + date.getDate()).slice(-2);
-    return y + '-' + m + '-' + d;
+    const y = date.getFullYear();
+    const m = ('0' + (date.getMonth() + 1)).slice(-2);
+    const d = ('0' + date.getDate()).slice(-2);
+    return `${y}-${m}-${d}`;
   }
-  var str = String(date).trim();
-  var iso = str.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/);
+  const str = String(date).trim();
+  const iso = str.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/);
   if (iso) {
-    return iso[1] + '-' + ('0' + iso[2]).slice(-2) + '-' + ('0' + iso[3]).slice(-2);
+    return `${iso[1]}-${('0' + iso[2]).slice(-2)}-${('0' + iso[3]).slice(-2)}`;
   }
-  var loc = str.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/);
+  const loc = str.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/);
   if (loc) {
-    var year = loc[3].length === 2 ? '20' + loc[3] : loc[3];
-    return year + '-' + ('0' + loc[2]).slice(-2) + '-' + ('0' + loc[1]).slice(-2);
+    const year = loc[3].length === 2 ? '20' + loc[3] : loc[3];
+    return `${year}-${('0' + loc[2]).slice(-2)}-${('0' + loc[1]).slice(-2)}`;
   }
   return str;
 }
@@ -93,11 +107,11 @@ function normalizeDate(date) {
  * Находит последнюю строку с фактическими данными фильмов/участников в колонке D
  */
 function findLastMovieDataRow(sheet, lastRow) {
-  if (lastRow < 5) return 4;
-  var colD = sheet.getRange(5, 4, lastRow - 4, 1).getValues();
-  for (var r = colD.length - 1; r >= 0; r--) {
+  if (lastRow < CONFIG.DATA_START_ROW) return CONFIG.DATA_START_ROW - 1;
+  const colD = sheet.getRange(CONFIG.DATA_START_ROW, CONFIG.COLS.NAME, lastRow - CONFIG.DATA_START_ROW + 1, 1).getValues();
+  for (let r = colD.length - 1; r >= 0; r--) {
     if (colD[r][0] && String(colD[r][0]).trim() !== '') {
-      return 5 + r;
+      return CONFIG.DATA_START_ROW + r;
     }
   }
   return lastRow;
@@ -107,44 +121,92 @@ function findLastMovieDataRow(sheet, lastRow) {
  * Форматирует строку как темно-серую разделительную полосу (#434343)
  */
 function formatSeparatorRow(sheet, rowIndex, maxCols) {
-  var range = sheet.getRange(rowIndex, 1, 1, maxCols);
+  const range = sheet.getRange(rowIndex, 1, 1, maxCols);
   range.breakApart();
   range.clearContent();
   range.clearNote();
-  range.setBackground(COLOR_SEPARATOR);
-  range.setBorder(true, true, true, true, true, true, COLOR_SEPARATOR, SpreadsheetApp.BorderStyle.SOLID);
+  range.setBackground(CONFIG.COLORS.SEPARATOR);
+  range.setBorder(true, true, true, true, true, true, CONFIG.COLORS.SEPARATOR, SpreadsheetApp.BorderStyle.SOLID);
 }
 
 /**
- * Применяет или очищает водяной знак «ДИМА НЕ СМОТРЕЛ» в столбцах H:O (8:15)
+ * Проверяет, является ли строка пустой или уже разделителем (#434343)
+ */
+function isRowEmptyOrSeparator(sheet, rowIndex, maxCols) {
+  if (rowIndex < 1 || rowIndex > sheet.getMaxRows()) return false;
+  const bg = sheet.getRange(rowIndex, 1).getBackground().toLowerCase();
+  if (bg === CONFIG.COLORS.SEPARATOR.toLowerCase()) {
+    return true;
+  }
+  const values = sheet.getRange(rowIndex, 1, 1, Math.min(maxCols, 6)).getValues()[0];
+  const hasContent = values.some(val => val !== null && val !== undefined && String(val).trim() !== '');
+  return !hasContent;
+}
+
+/**
+ * Безопасное форматирование разделительной полосы (не затирает соседний фильм)
+ */
+function safeFormatSeparatorRow(sheet, rowIndex, maxCols) {
+  if (rowIndex < 1) return;
+  if (rowIndex > sheet.getMaxRows()) {
+    sheet.insertRowsAfter(sheet.getMaxRows(), rowIndex - sheet.getMaxRows());
+  }
+  if (isRowEmptyOrSeparator(sheet, rowIndex, maxCols)) {
+    formatSeparatorRow(sheet, rowIndex, maxCols);
+  }
+}
+
+/**
+ * Форматирует колонку G (Столбец 7) как темно-серый разделитель
+ */
+function formatColumnG(sheet, startRow, rowCount) {
+  const colGRange = sheet.getRange(startRow, CONFIG.COLS.SEPARATOR, rowCount, 1);
+  colGRange.breakApart();
+  colGRange.clearContent();
+  colGRange.clearNote();
+  colGRange.setBackground(CONFIG.COLORS.SEPARATOR);
+  colGRange.setBorder(true, true, true, true, true, true, CONFIG.COLORS.SEPARATOR, SpreadsheetApp.BorderStyle.SOLID);
+}
+
+/**
+ * Форматирует столбцы H+ как белую сетку
+ */
+function formatColumnsHPlus(sheet, startRow, rowCount, maxCols) {
+  if (maxCols < CONFIG.COLS.GRID_START) return;
+  const restCols = maxCols - (CONFIG.COLS.GRID_START - 1);
+  const restRange = sheet.getRange(startRow, CONFIG.COLS.GRID_START, rowCount, restCols);
+  restRange.breakApart();
+  restRange.clearContent();
+  restRange.clearNote();
+  restRange.setBackground(CONFIG.COLORS.WHITE);
+  restRange.setBorder(true, true, true, true, true, true, CONFIG.COLORS.WHITE, SpreadsheetApp.BorderStyle.SOLID);
+}
+
+/**
+ * Применяет или очищает водяной знак «ДИМА НЕ СМОТРЕЛ» в столбцах H:O
  */
 function applyDimaWatermark(sheet, startRow, rowCount, maxCols, participants) {
-  if (maxCols < 8) return;
-  var restCols = maxCols - 7;
-  var dimaColSpan = Math.min(8, restCols);
-  var dimaRange = sheet.getRange(startRow, 8, rowCount, dimaColSpan);
+  if (maxCols < CONFIG.COLS.GRID_START) return;
+  const restCols = maxCols - (CONFIG.COLS.GRID_START - 1);
+  const dimaColSpan = Math.min(CONFIG.DIMA_WATERMARK.SPAN_COLS, restCols);
+  const dimaRange = sheet.getRange(startRow, CONFIG.COLS.GRID_START, rowCount, dimaColSpan);
 
-  var isDimaPresent = false;
-  if (participants && participants.length) {
-    for (var i = 0; i < participants.length; i++) {
-      var p = participants[i];
-      var name = (p && p.name) ? String(p.name).trim().toLowerCase() : '';
-      if (name === 'дима') {
-        isDimaPresent = true;
-        break;
-      }
-    }
-  }
+  const isDimaPresent = Boolean(
+    participants && participants.some(p => {
+      const name = (p && p.name) ? String(p.name).trim().toLowerCase() : '';
+      return name === 'дима';
+    })
+  );
 
   if (!isDimaPresent) {
     dimaRange.breakApart();
     dimaRange.merge();
-    dimaRange.setValue(DIMA_WATERMARK_TEXT);
-    dimaRange.setFontFamily('Pacifico');
-    dimaRange.setFontSize(29);
+    dimaRange.setValue(CONFIG.DIMA_WATERMARK.TEXT);
+    dimaRange.setFontFamily(CONFIG.DIMA_WATERMARK.FONT_FAMILY);
+    dimaRange.setFontSize(CONFIG.DIMA_WATERMARK.FONT_SIZE);
     dimaRange.setFontWeight('bold');
     dimaRange.setFontStyle('italic');
-    dimaRange.setFontColor(COLOR_DIMA_TEXT);
+    dimaRange.setFontColor(CONFIG.COLORS.DIMA_TEXT);
     dimaRange.setVerticalAlignment('middle');
     dimaRange.setHorizontalAlignment('left');
   } else {
@@ -155,28 +217,20 @@ function applyDimaWatermark(sheet, startRow, rowCount, maxCols, participants) {
 }
 
 /**
- * ОБРАБОТКА GET-ЗАПРОСОВ (Получение списка фильмов, комментариев, рейтингов, прокси TMDB и авто-восстановление)
+ * ОБРАБОТКА GET-ЗАПРОСОВ (Получение списка фильмов, комментариев, рейтингов, прокси TMDB)
  */
 function doGet(e) {
   try {
-    var action = (e && e.parameter && e.parameter.action) || 'movies';
+    const action = (e && e.parameter && e.parameter.action) || 'movies';
 
-    // 0. Восстановление / исправление оформления фильма «Синистер»
-    if (action === 'repair-sinister' || action === 'repair-last-movie') {
-      var ssRepair = SpreadsheetApp.openById(SPREADSHEET_ID);
-      var repairRes = repairMovieSinister(ssRepair);
-      return createJsonResponse(repairRes);
-    }
-
-    // 1. Проксирование запросов к TMDB
+    // 1. Проксирование запросов к TMDB с безопасной обработкой ошибок
     if (action === 'tmdb') {
-      var subPath = e.parameter.path || '';
-      var targetUrl = TMDB_PROXY_BASE + (subPath.startsWith('/') ? subPath : '/' + subPath);
+      const subPath = (e && e.parameter && e.parameter.path) || '';
+      let targetUrl = CONFIG.TMDB_PROXY_BASE + (subPath.startsWith('/') ? subPath : '/' + subPath);
 
-      // Пробрасываем все параметры (query, language, page и т.д.)
-      var queryParts = [];
+      const queryParts = [];
       if (e && e.parameter) {
-        for (var param in e.parameter) {
+        for (const param in e.parameter) {
           if (param !== 'action' && param !== 'path') {
             queryParts.push(encodeURIComponent(param) + '=' + encodeURIComponent(e.parameter[param]));
           }
@@ -186,62 +240,114 @@ function doGet(e) {
         targetUrl += (targetUrl.indexOf('?') === -1 ? '?' : '&') + queryParts.join('&');
       }
 
-      var tmdbResponse = UrlFetchApp.fetch(targetUrl, { muteHttpExceptions: true });
-      return createJsonResponse(JSON.parse(tmdbResponse.getContentText()));
+      let tmdbResponse;
+      try {
+        tmdbResponse = UrlFetchApp.fetch(targetUrl, { muteHttpExceptions: true });
+      } catch (fetchErr) {
+        return createJsonResponse({
+          error: 'tmdb_proxy_fetch_failed',
+          details: fetchErr.message || String(fetchErr),
+        });
+      }
+
+      const responseCode = tmdbResponse.getResponseCode();
+      const contentText = tmdbResponse.getContentText();
+
+      try {
+        const parsed = JSON.parse(contentText);
+        return createJsonResponse(parsed);
+      } catch (parseErr) {
+        return createJsonResponse({
+          error: 'tmdb_proxy_invalid_response',
+          status: responseCode,
+          details: contentText.substring(0, 500),
+        });
+      }
     }
 
-    // 2. Получение данных фильмов, комментариев и оценок из Google Таблицы
-    if (action === 'movies' || action === 'session') {
-      var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-      var movieSheet = ss.getSheetByName(SHEET_NAME_MOVIES);
+    // 2. Получение данных фильмов, комментариев и оценок (action === 'movies')
+    if (action === 'movies') {
+      const ss = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+      const movieSheet = ss.getSheetByName(CONFIG.SHEETS.MOVIES);
       if (!movieSheet) {
-        return createJsonResponse({ error: 'Лист "' + SHEET_NAME_MOVIES + '" не найден' });
+        return createJsonResponse({ error: 'Лист "' + CONFIG.SHEETS.MOVIES + '" не найден' });
       }
 
-      var summarySheet = ss.getSheetByName(SHEET_NAME_SUMMARY) || ss.getSheetByName(SHEET_NAME_PARTICIPANTS_FALLBACK);
-      var lastRow = movieSheet.getLastRow();
+      const summarySheet = ss.getSheetByName(CONFIG.SHEETS.SUMMARY);
+      const lastRow = movieSheet.getLastRow();
 
-      var movies = [];
-      var movieComments = [];
-      var ratings = [];
+      const movies = [];
+      const movieComments = [];
+      const movieColors = [];
+      const ratings = [];
 
-      if (lastRow >= 5) {
-        // Чтение столбца C (названия фильмов и заметки/комментарии)
-        var rangeC = movieSheet.getRange(5, 3, lastRow - 4, 1);
-        var valuesC = rangeC.getValues();
-        var notesC = rangeC.getNotes();
+      if (lastRow >= CONFIG.DATA_START_ROW) {
+        const numRows = lastRow - CONFIG.DATA_START_ROW + 1;
+        // Однократное чтение диапазона A5:F
+        const range = movieSheet.getRange(CONFIG.DATA_START_ROW, 1, numRows, 6);
+        const values = range.getValues();
+        const notes = range.getNotes();
+        const backgrounds = range.getBackgrounds();
 
-        for (var i = 0; i < valuesC.length; i++) {
-          movies.push(valuesC[i][0] !== null && valuesC[i][0] !== undefined ? String(valuesC[i][0]) : '');
-          movieComments.push(notesC[i][0] ? String(notesC[i][0]) : '');
-        }
+        const whiteLower = CONFIG.COLORS.WHITE.toLowerCase();
+        const sepLower = CONFIG.COLORS.SEPARATOR.toLowerCase();
 
-        // Чтение столбцов B:F (Дата, Фильм, Участник, Оценка, Среднее)
-        var rangeB_F = movieSheet.getRange(5, 2, lastRow - 4, 5);
-        var rawRatings = rangeB_F.getValues();
-        for (var r = 0; r < rawRatings.length; r++) {
-          ratings.push(rawRatings[r].map(function(val, colIndex) {
-            if (val instanceof Date) {
-              return normalizeDate(val);
-            }
-            if (val !== null && val !== undefined && val !== '') {
-              // Столбец F (colIndex === 4) — средняя оценка фильма, округляем до 2 знаков
-              if (colIndex === 4) {
-                return roundScore(val);
+        for (let i = 0; i < numRows; i++) {
+          const valC = values[i][2]; // Колонка C (название фильма)
+          movies.push(valC !== null && valC !== undefined ? String(valC) : '');
+          movieComments.push(notes[i][2] ? String(notes[i][2]) : '');
+
+          const rowBgs = backgrounds[i];
+          let cellColor = CONFIG.COLORS.WHITE;
+
+          if (rowBgs) {
+            // Приоритет цвета: колонка C (индекс 2), затем B (индекс 1), затем любая из A:F
+            const colC = rowBgs[2] ? String(rowBgs[2]).trim() : '';
+            const colB = rowBgs[1] ? String(rowBgs[1]).trim() : '';
+
+            if (colC && colC.toLowerCase() !== whiteLower && colC.toLowerCase() !== sepLower) {
+              cellColor = colC;
+            } else if (colB && colB.toLowerCase() !== whiteLower && colB.toLowerCase() !== sepLower) {
+              cellColor = colB;
+            } else {
+              for (let c = 0; c < rowBgs.length; c++) {
+                const bg = rowBgs[c] ? String(rowBgs[c]).trim() : '';
+                if (bg && bg.toLowerCase() !== whiteLower && bg.toLowerCase() !== sepLower) {
+                  cellColor = bg;
+                  break;
+                }
               }
-              return String(val);
             }
-            return '';
-          }));
+          }
+          movieColors.push(cellColor);
+
+          // Рейтинги: столбцы B:F (индексы 1..5)
+          const rowRatings = [];
+          for (let colIdx = 1; colIdx <= 5; colIdx++) {
+            const cellVal = values[i][colIdx];
+            if (cellVal instanceof Date) {
+              rowRatings.push(normalizeDate(cellVal));
+            } else if (cellVal !== null && cellVal !== undefined && cellVal !== '') {
+              if (colIdx === 5) {
+                // Столбец F — средняя оценка
+                rowRatings.push(roundScore(cellVal));
+              } else {
+                rowRatings.push(String(cellVal));
+              }
+            } else {
+              rowRatings.push('');
+            }
+          }
+          ratings.push(rowRatings);
         }
       }
 
-      // Чтение списка участников (Сводная киноклуба!B3:B50)
-      var participants = [];
+      // Чтение участников (Сводная киноклуба!B3:B50)
+      const participants = [];
       if (summarySheet) {
-        var partValues = summarySheet.getRange('B3:B50').getValues();
-        for (var p = 0; p < partValues.length; p++) {
-          var pVal = partValues[p][0];
+        const partValues = summarySheet.getRange(CONFIG.PARTICIPANTS_RANGE).getValues();
+        for (let p = 0; p < partValues.length; p++) {
+          const pVal = partValues[p][0];
           if (pVal && String(pVal).trim()) {
             participants.push(String(pVal).trim());
           }
@@ -251,8 +357,9 @@ function doGet(e) {
       return createJsonResponse({
         movies: movies,
         movieComments: movieComments,
+        movieColors: movieColors,
         ratings: ratings,
-        participants: participants
+        participants: participants,
       });
     }
 
@@ -263,68 +370,64 @@ function doGet(e) {
 }
 
 /**
- * ОБРАБОТКА POST-ЗАПРОСОВ (Добавление и обновление фильмов, восстановление)
- * Запросы отправляются с Content-Type: text/plain;charset=utf-8, чтобы избежать CORS preflight OPTIONS!
+ * ОБРАБОТКА POST-ЗАПРОСОВ (Добавление и обновление фильмов с блокировкой ScriptLock)
+ * Content-Type: text/plain;charset=utf-8
  */
 function doPost(e) {
+  const lock = LockService.getScriptLock();
+  const hasLock = lock.tryLock(CONFIG.LOCK_TIMEOUT_MS);
+  if (!hasLock) {
+    return createJsonResponse({ error: 'Сервер занят другим запросом. Попробуйте еще раз через несколько секунд.' });
+  }
+
   try {
-    var data = {};
+    let data = {};
     if (e && e.postData && e.postData.contents) {
       data = JSON.parse(e.postData.contents);
     }
 
-    var action = data.action || (e && e.parameter && e.parameter.action);
-    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const action = data.action || (e && e.parameter && e.parameter.action);
+    const ss = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
 
+    let result;
     if (action === 'save-movie') {
-      var resSave = appendMovie(ss, data.entry);
-      return createJsonResponse(resSave);
+      result = appendMovie(ss, data.entry);
+    } else if (action === 'update-movie') {
+      result = updateMovie(ss, data.entry);
+    } else {
+      result = { error: 'unknown_action' };
     }
 
-    if (action === 'update-movie') {
-      var resUpdate = updateMovie(ss, data.entry);
-      return createJsonResponse(resUpdate);
-    }
-
-    if (action === 'repair-sinister' || action === 'repair-last-movie') {
-      var resRepair = repairMovieSinister(ss);
-      return createJsonResponse(resRepair);
-    }
-
-    return createJsonResponse({ error: 'unknown_action' });
+    SpreadsheetApp.flush();
+    return createJsonResponse(result);
   } catch (err) {
     return createJsonResponse({ error: err.message || String(err) });
+  } finally {
+    lock.releaseLock();
   }
 }
 
 /**
  * Добавление нового фильма в таблицу «Киноклуб»
- * Полностью реализует структуру:
- * 1. Верхняя разделительная полоса (#434343) на всю ширину таблицы
- * 2. Основные информативные ячейки (A:F) с белым фоном и черными границами
- * 3. Вертикальная разделительная полоска (Столбец G) с фоном и границами #434343
- * 4. Белая сетка для остальных ячеек (Столбцы H+)
- * 5. Проверка на участие Димы: если не смотрел — добавляется водяной знак «ДИМА НЕ СМОТРЕЛ»
- * 6. Нижняя разделительная полоса (#434343) на всю ширину таблицы («Полоса — Фильм — Полоса»)
  */
 function appendMovie(ss, entry) {
   if (!entry || !entry.title || !entry.date || !entry.participants || !entry.participants.length) {
     throw new Error('Некорректные данные фильма');
   }
 
-  var sheet = ss.getSheetByName(SHEET_NAME_MOVIES);
-  var maxCols = sheet.getMaxColumns();
-  var lastRow = sheet.getLastRow();
+  const sheet = ss.getSheetByName(CONFIG.SHEETS.MOVIES);
+  const maxCols = sheet.getMaxColumns();
+  const lastRow = sheet.getLastRow();
 
   // Определение следующего порядкового номера фильма
-  var nextNumber = 1;
-  if (lastRow >= 5) {
-    var colA = sheet.getRange(5, 1, lastRow - 4, 1).getValues();
-    var colC = sheet.getRange(5, 3, lastRow - 4, 1).getValues();
-    var nums = [];
-    for (var i = 0; i < colA.length; i++) {
-      var title = colC[i][0] ? String(colC[i][0]).trim() : '';
-      var val = Number(colA[i][0]);
+  let nextNumber = 1;
+  if (lastRow >= CONFIG.DATA_START_ROW) {
+    const colA = sheet.getRange(CONFIG.DATA_START_ROW, CONFIG.COLS.NUMBER, lastRow - CONFIG.DATA_START_ROW + 1, 1).getValues();
+    const colC = sheet.getRange(CONFIG.DATA_START_ROW, CONFIG.COLS.TITLE, lastRow - CONFIG.DATA_START_ROW + 1, 1).getValues();
+    const nums = [];
+    for (let i = 0; i < colA.length; i++) {
+      const title = colC[i][0] ? String(colC[i][0]).trim() : '';
+      const val = Number(colA[i][0]);
       if (title && isNaN(Number(title)) && !isNaN(val) && val > 0 && val < 1900) {
         nums.push(val);
       }
@@ -334,72 +437,67 @@ function appendMovie(ss, entry) {
     }
   }
 
-  var participants = entry.participants.filter(function(p) {
-    return p && p.name && String(p.name).trim() !== '';
-  });
+  const participants = entry.participants.filter(p => p && p.name && String(p.name).trim() !== '');
   if (participants.length === 0) {
     throw new Error('У фильма должен быть хотя бы один участник');
   }
-  var participantCount = participants.length;
+  const participantCount = participants.length;
 
-  // Расчёт средней оценки (округление до 2 знаков после запятой)
-  var scores = [];
-  for (var p = 0; p < participantCount; p++) {
-    var scoreNum = parseFloat(String(participants[p].score).replace(',', '.'));
-    if (!isNaN(scoreNum)) {
-      scores.push(scoreNum);
-    }
-  }
-  var avg = scores.length > 0 ? (Math.round(((scores.reduce(function(a, b) { return a + b; }, 0) / scores.length) + 1e-9) * 100) / 100) : '';
+  const lastDataRow = findLastMovieDataRow(sheet, lastRow);
+  const topSeparatorRow = lastDataRow + 1;
+  const movieStartRow = topSeparatorRow + 1;
+  const movieEndRow = movieStartRow + participantCount - 1;
+  const bottomSeparatorRow = movieEndRow + 1;
 
-  // Находим последнюю строку с данными участников
-  var lastDataRow = findLastMovieDataRow(sheet, lastRow);
-
-  // Структура строк:
-  // topSeparatorRow    = lastDataRow + 1 -> серая линия перед фильмом
-  // movieStartRow      = topSeparatorRow + 1 -> первая строка фильма
-  // movieEndRow        = movieStartRow + participantCount - 1 -> последняя строка фильма
-  // bottomSeparatorRow = movieEndRow + 1 -> серая линия после фильма
-  var topSeparatorRow = lastDataRow + 1;
-  var movieStartRow = topSeparatorRow + 1;
-  var movieEndRow = movieStartRow + participantCount - 1;
-  var bottomSeparatorRow = movieEndRow + 1;
-
-  // Гарантируем достаточное количество строк в листе
   if (bottomSeparatorRow > sheet.getMaxRows()) {
     sheet.insertRowsAfter(sheet.getMaxRows(), bottomSeparatorRow - sheet.getMaxRows() + 10);
   }
 
-  // 1. Верхняя разделительная полоса (#434343) на всю ширину экселя
-  formatSeparatorRow(sheet, topSeparatorRow, maxCols);
+  // 1. Верхняя разделительная полоса (#434343)
+  safeFormatSeparatorRow(sheet, topSeparatorRow, maxCols);
 
-  // 2. Подготовка и запись данных фильма (A:F)
-  var rows = [];
-  for (var k = 0; k < participantCount; k++) {
-    var part = participants[k];
-    var scoreVal = parseFloat(String(part.score).replace(',', '.'));
-    rows.push([
+  // 2. Подготовка и запись данных в A:E
+  const rowsAE = [];
+  for (let k = 0; k < participantCount; k++) {
+    const part = participants[k];
+    const scoreVal = parseFloat(String(part.score).replace(',', '.'));
+    if (!isNaN(scoreVal) && (scoreVal < 1 || scoreVal > 10)) {
+      throw new Error(`Оценка участника "${part.name || k + 1}" должна быть в диапазоне от 1 до 10`);
+    }
+    rowsAE.push([
       k === 0 ? nextNumber : '',
       k === 0 ? formatDate(entry.date) : '',
       k === 0 ? entry.title.trim() : '',
       part.name ? part.name.trim() : '',
       !isNaN(scoreVal) ? scoreVal : '',
-      k === 0 && avg !== '' ? Number(avg) : ''
     ]);
   }
 
-  // Очищаем и форматируем ячейки данных A:F с гарантированным белым фоном
-  var dataRange = sheet.getRange(movieStartRow, 1, participantCount, 6);
-  dataRange.breakApart();
-  dataRange.setBackground(COLOR_WHITE);
-  dataRange.setFontColor(COLOR_BLACK);
+  const rangeAE = sheet.getRange(movieStartRow, 1, participantCount, 5);
+  rangeAE.breakApart();
+  rangeAE.setValues(rowsAE);
+
+  // 3. Формула средней оценки в F (верхняя ячейка блока)
+  const rangeF = sheet.getRange(movieStartRow, 6, participantCount, 1);
+  rangeF.breakApart();
+  rangeF.clearContent();
+  sheet.getRange(movieStartRow, 6).setFormula(`=IFERROR(ROUND(AVERAGE(E${movieStartRow}:E${movieEndRow}), 2), "")`);
+
+  // Оформление A:F (белый фон или кастомный цвет)
+  const blockColor = (entry.color && entry.color.trim()) || CONFIG.COLORS.WHITE;
+  const dataRange = sheet.getRange(movieStartRow, 1, participantCount, 6);
+  dataRange.setBackground(blockColor);
+  dataRange.setFontColor(CONFIG.COLORS.BLACK);
   dataRange.setFontWeight('normal');
   dataRange.setFontStyle('normal');
-  dataRange.setValues(rows);
   dataRange.setHorizontalAlignment('center');
   dataRange.setVerticalAlignment('middle');
 
-  // Объединение ячеек в столбцах Номер (A), Дата (B), Название (C), Среднее (F)
+  // Имена участников (D) выравниваются по левому краю, оценки (E) — по правому краю
+  sheet.getRange(movieStartRow, CONFIG.COLS.NAME, participantCount, 1).setHorizontalAlignment('left');
+  sheet.getRange(movieStartRow, CONFIG.COLS.SCORE, participantCount, 1).setHorizontalAlignment('right');
+
+  // Объединение ячеек A, B, C, F при participantCount > 1
   if (participantCount > 1) {
     sheet.getRange(movieStartRow, 1, participantCount, 1).merge();
     sheet.getRange(movieStartRow, 2, participantCount, 1).merge();
@@ -407,40 +505,22 @@ function appendMovie(ss, entry) {
     sheet.getRange(movieStartRow, 6, participantCount, 1).merge();
   }
 
-  // Границы для колонок A-F (черные границы SOLID)
-  sheet.getRange(movieStartRow, 1, participantCount, 3)
-    .setBorder(true, true, true, true, true, true, COLOR_BLACK, SpreadsheetApp.BorderStyle.SOLID);
-  sheet.getRange(movieStartRow, 4, participantCount, 2)
-    .setBorder(true, true, true, true, true, true, COLOR_BLACK, SpreadsheetApp.BorderStyle.SOLID);
-  sheet.getRange(movieStartRow, 6, participantCount, 1)
-    .setBorder(true, true, true, true, true, true, COLOR_BLACK, SpreadsheetApp.BorderStyle.SOLID);
+  // Чёрные границы A:F одним вызовом
+  dataRange.setBorder(true, true, true, true, true, true, CONFIG.COLORS.BLACK, SpreadsheetApp.BorderStyle.SOLID);
 
-  // 3. Колонка G (Столбец 7) — темно-серая разделительная полоска (#434343)
+  // 4. Колонка G (#434343)
   if (maxCols >= 7) {
-    var colGRange = sheet.getRange(movieStartRow, 7, participantCount, 1);
-    colGRange.breakApart();
-    colGRange.clearContent();
-    colGRange.clearNote();
-    colGRange.setBackground(COLOR_SEPARATOR);
-    colGRange.setBorder(true, true, true, true, true, true, COLOR_SEPARATOR, SpreadsheetApp.BorderStyle.SOLID);
+    formatColumnG(sheet, movieStartRow, participantCount);
   }
 
-  // 4. Колонки H:MAXCOLS (Столбцы 8+) — белая сетка
+  // 5. Колонки H+ (белая сетка) и водяной знак Димы
   if (maxCols >= 8) {
-    var restCols = maxCols - 7;
-    var restRange = sheet.getRange(movieStartRow, 8, participantCount, restCols);
-    restRange.breakApart();
-    restRange.clearContent();
-    restRange.clearNote();
-    restRange.setBackground(COLOR_WHITE);
-    restRange.setBorder(true, true, true, true, true, true, COLOR_WHITE, SpreadsheetApp.BorderStyle.SOLID);
-
-    // 5. Проверка на «ДИМА НЕ СМОТРЕЛ»
+    formatColumnsHPlus(sheet, movieStartRow, participantCount, maxCols);
     applyDimaWatermark(sheet, movieStartRow, participantCount, maxCols, participants);
   }
 
-  // 6. Нижняя разделительная полоса (#434343) на всю ширину экселя
-  formatSeparatorRow(sheet, bottomSeparatorRow, maxCols);
+  // 6. Нижняя разделительная полоса (#434343)
+  safeFormatSeparatorRow(sheet, bottomSeparatorRow, maxCols);
 
   return { ok: true, number: nextNumber };
 }
@@ -453,39 +533,62 @@ function updateMovie(ss, entry) {
     throw new Error('Некорректные данные для обновления фильма');
   }
 
-  var sheet = ss.getSheetByName(SHEET_NAME_MOVIES);
-  var lastRow = sheet.getLastRow();
-  if (lastRow < 5) {
+  const sheet = ss.getSheetByName(CONFIG.SHEETS.MOVIES);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < CONFIG.DATA_START_ROW) {
     throw new Error('Таблица пуста');
   }
 
-  var maxCols = sheet.getMaxColumns();
-  var range = sheet.getRange(5, 1, lastRow - 4, 4);
-  var values = range.getValues();
-  var targetTitle = entry.title.trim().toLowerCase();
-  var targetDate = normalizeDate(entry.date);
+  const maxCols = sheet.getMaxColumns();
+  const range = sheet.getRange(CONFIG.DATA_START_ROW, 1, lastRow - CONFIG.DATA_START_ROW + 1, 4);
+  const values = range.getValues();
 
-  var movieRowIndex = -1;
-  for (var i = 0; i < values.length; i++) {
-    var rowDate = normalizeDate(values[i][1]);
-    var rowTitle = String(values[i][2]).trim().toLowerCase();
-    if (rowTitle === targetTitle && rowDate === targetDate) {
+  // Поиск: сначала по originalTitle + originalDate (или number), затем fallback на title + date
+  const targetNum = entry.number ? Number(entry.number) : null;
+  const targetOrigTitle = (entry.originalTitle || entry.title).trim().toLowerCase();
+  const targetOrigDate = normalizeDate(entry.originalDate || entry.date);
+
+  let movieRowIndex = -1;
+  for (let i = 0; i < values.length; i++) {
+    const rowNum = Number(values[i][0]);
+    const rowDate = normalizeDate(values[i][1]);
+    const rowTitle = String(values[i][2] ?? '').trim().toLowerCase();
+
+    if (targetNum !== null && !isNaN(targetNum) && rowNum === targetNum) {
+      movieRowIndex = i;
+      break;
+    }
+    if (rowTitle === targetOrigTitle && (!targetOrigDate || rowDate === targetOrigDate)) {
       movieRowIndex = i;
       break;
     }
   }
 
-  if (movieRowIndex === -1) {
-    throw new Error('Фильм "' + entry.title + '" не найден в таблице');
+  // Обратная совместимость: если не найден, ищем по entry.title и entry.date
+  if (movieRowIndex === -1 && (entry.originalTitle || entry.originalDate)) {
+    const fallbackTitle = entry.title.trim().toLowerCase();
+    const fallbackDate = normalizeDate(entry.date);
+    for (let i = 0; i < values.length; i++) {
+      const rowDate = normalizeDate(values[i][1]);
+      const rowTitle = String(values[i][2] ?? '').trim().toLowerCase();
+      if (rowTitle === fallbackTitle && (!fallbackDate || rowDate === fallbackDate)) {
+        movieRowIndex = i;
+        break;
+      }
+    }
   }
 
-  var movieStartRow = 5 + movieRowIndex;
-  var existingMovieNumber = values[movieRowIndex][0];
+  if (movieRowIndex === -1) {
+    throw new Error('Фильм "' + (entry.originalTitle || entry.title) + '" не найден в таблице');
+  }
 
-  // Считаем текущее количество строк участников
-  var existingCount = 0;
-  for (var j = movieRowIndex; j < values.length; j++) {
-    var pName = String(values[j][3]).trim();
+  const movieStartRow = CONFIG.DATA_START_ROW + movieRowIndex;
+  const existingMovieNumber = values[movieRowIndex][0];
+
+  // Считаем текущее количество строк участников в блоке
+  let existingCount = 0;
+  for (let j = movieRowIndex; j < values.length; j++) {
+    const pName = String(values[j][3] ?? '').trim();
     if (pName) {
       existingCount++;
     } else {
@@ -494,15 +597,59 @@ function updateMovie(ss, entry) {
   }
   if (existingCount === 0) existingCount = 1;
 
-  var participants = entry.participants.filter(function(p) {
-    return p && p.name && String(p.name).trim() !== '';
-  });
+  const participants = entry.participants.filter(p => p && p.name && String(p.name).trim() !== '');
   if (participants.length === 0) {
     throw new Error('У фильма должен остаться хотя бы один участник');
   }
-  var newCount = participants.length;
+  const newCount = participants.length;
 
-  // Разъединяем объединенные ячейки перед изменением структуры строк
+  // =========================================================================
+  // СЦЕНАРИЙ А: Число участников НЕ изменилось (newCount === existingCount)
+  // Бережное обновление содержимого без перерисовки ячеек, границ и фонов
+  // =========================================================================
+  if (newCount === existingCount) {
+    // 1. Дата и название в B{start}:C{start}
+    sheet.getRange(movieStartRow, 2, 1, 2).setValues([[formatDate(entry.date), entry.title.trim()]]);
+
+    // 2. Участники и оценки в D{start}:E{end}
+    const deRows = participants.map(p => {
+      const scoreVal = parseFloat(String(partScore(p)).replace(',', '.'));
+      if (!isNaN(scoreVal) && (scoreVal < 1 || scoreVal > 10)) {
+        throw new Error(`Оценка участника "${p.name || ''}" должна быть в диапазоне от 1 до 10`);
+      }
+      return [p.name.trim(), !isNaN(scoreVal) ? scoreVal : ''];
+    });
+    sheet.getRange(movieStartRow, 4, newCount, 2).setValues(deRows);
+
+    // Выравнивание имён по левому краю (D) и оценок по правому краю (E)
+    sheet.getRange(movieStartRow, CONFIG.COLS.NAME, newCount, 1).setHorizontalAlignment('left');
+    sheet.getRange(movieStartRow, CONFIG.COLS.SCORE, newCount, 1).setHorizontalAlignment('right');
+
+    // 3. Формула среднего балла в F{start}
+    sheet.getRange(movieStartRow, 6).setFormula(`=IFERROR(ROUND(AVERAGE(E${movieStartRow}:E${movieStartRow + newCount - 1}), 2), "")`);
+
+    // 4. Обновление водяного знака Димы в H:O
+    if (maxCols >= 8) {
+      applyDimaWatermark(sheet, movieStartRow, newCount, maxCols, participants);
+    }
+
+    // 5. Проверка разделителей сверху и снизу
+    if (movieStartRow > 1) {
+      safeFormatSeparatorRow(sheet, movieStartRow - 1, maxCols);
+    }
+    safeFormatSeparatorRow(sheet, movieStartRow + newCount, maxCols);
+
+    return { ok: true };
+  }
+
+  // =========================================================================
+  // СЦЕНАРИЙ Б: Число участников изменилось (newCount !== existingCount)
+  // =========================================================================
+  // 1. Считываем заметку ячейки C{start} и цвета первой строки A:F перед разъединением
+  const existingNoteC = sheet.getRange(movieStartRow, 3).getNote();
+  const existingColorsAF = sheet.getRange(movieStartRow, 1, 1, 6).getBackgrounds()[0];
+
+  // 2. Разъединяем объединенные ячейки A, B, C, F
   if (existingCount > 1) {
     sheet.getRange(movieStartRow, 1, existingCount, 1).breakApart();
     sheet.getRange(movieStartRow, 2, existingCount, 1).breakApart();
@@ -510,48 +657,59 @@ function updateMovie(ss, entry) {
     sheet.getRange(movieStartRow, 6, existingCount, 1).breakApart();
   }
   if (maxCols >= 8) {
-    var restColsInit = maxCols - 7;
-    var dimaColSpanInit = Math.min(8, restColsInit);
+    const restColsInit = maxCols - 7;
+    const dimaColSpanInit = Math.min(8, restColsInit);
     sheet.getRange(movieStartRow, 8, existingCount, dimaColSpanInit).breakApart();
   }
 
-  // Добавляем или удаляем строки, если число участников изменилось
+  // 3. Добавляем или удаляем строки
   if (newCount > existingCount) {
     sheet.insertRowsAfter(movieStartRow + existingCount - 1, newCount - existingCount);
   } else if (newCount < existingCount) {
     sheet.deleteRows(movieStartRow + newCount, existingCount - newCount);
   }
 
-  // Расчёт среднего балла (округление до 2 знаков после запятой)
-  var scores = [];
-  for (var p = 0; p < newCount; p++) {
-    var scoreNum = parseFloat(String(participants[p].score).replace(',', '.'));
-    if (!isNaN(scoreNum)) scores.push(scoreNum);
-  }
-  var avg = scores.length > 0 ? (Math.round(((scores.reduce(function(a, b) { return a + b; }, 0) / scores.length) + 1e-9) * 100) / 100) : '';
-
-  // Формирование обновленных строк
-  var rows = [];
-  for (var k = 0; k < newCount; k++) {
-    var part = participants[k];
-    var scoreVal = parseFloat(String(part.score).replace(',', '.'));
-    rows.push([
+  // 4. Подготовка и запись данных в A:E
+  const rowsAE = [];
+  for (let k = 0; k < newCount; k++) {
+    const part = participants[k];
+    const scoreVal = parseFloat(String(partScore(part)).replace(',', '.'));
+    rowsAE.push([
       k === 0 ? existingMovieNumber : '',
       k === 0 ? formatDate(entry.date) : '',
       k === 0 ? entry.title.trim() : '',
       part.name ? part.name.trim() : '',
       !isNaN(scoreVal) ? scoreVal : '',
-      k === 0 && avg !== '' ? Number(avg) : ''
     ]);
   }
+  sheet.getRange(movieStartRow, 1, newCount, 5).setValues(rowsAE);
 
-  var dataRange = sheet.getRange(movieStartRow, 1, newCount, 6);
-  dataRange.setBackground(COLOR_WHITE);
-  dataRange.setFontColor(COLOR_BLACK);
-  dataRange.setValues(rows);
+  // 5. Очищаем колонку F для блока и ставим формулу среднего балла в верхнюю ячейку
+  sheet.getRange(movieStartRow, 6, newCount, 1).clearContent();
+  sheet.getRange(movieStartRow, 6).setFormula(`=IFERROR(ROUND(AVERAGE(E${movieStartRow}:E${movieStartRow + newCount - 1}), 2), "")`);
+
+  // 6. Восстанавливаем цвета фона поколоночно на весь блок A:F
+  for (let c = 1; c <= 6; c++) {
+    const colBg = existingColorsAF[c - 1] || CONFIG.COLORS.WHITE;
+    sheet.getRange(movieStartRow, c, newCount, 1).setBackground(colBg);
+  }
+
+  // 7. Восстанавливаем заметку в C{start}
+  if (existingNoteC) {
+    sheet.getRange(movieStartRow, 3).setNote(existingNoteC);
+  }
+
+  // 8. Настраиваем выравнивание и шрифт A:F
+  const dataRange = sheet.getRange(movieStartRow, 1, newCount, 6);
+  dataRange.setFontColor(CONFIG.COLORS.BLACK);
   dataRange.setHorizontalAlignment('center');
   dataRange.setVerticalAlignment('middle');
 
+  // Имена участников (D) выравниваются по левому краю, оценки (E) — по правому краю
+  sheet.getRange(movieStartRow, CONFIG.COLS.NAME, newCount, 1).setHorizontalAlignment('left');
+  sheet.getRange(movieStartRow, CONFIG.COLS.SCORE, newCount, 1).setHorizontalAlignment('right');
+
+  // 9. Объединяем ячейки A, B, C, F при newCount > 1
   if (newCount > 1) {
     sheet.getRange(movieStartRow, 1, newCount, 1).merge();
     sheet.getRange(movieStartRow, 2, newCount, 1).merge();
@@ -559,180 +717,32 @@ function updateMovie(ss, entry) {
     sheet.getRange(movieStartRow, 6, newCount, 1).merge();
   }
 
-  // Границы для колонок A-F (черные границы)
-  sheet.getRange(movieStartRow, 1, newCount, 3)
-    .setBorder(true, true, true, true, true, true, COLOR_BLACK, SpreadsheetApp.BorderStyle.SOLID);
-  sheet.getRange(movieStartRow, 4, newCount, 2)
-    .setBorder(true, true, true, true, true, true, COLOR_BLACK, SpreadsheetApp.BorderStyle.SOLID);
-  sheet.getRange(movieStartRow, 6, newCount, 1)
-    .setBorder(true, true, true, true, true, true, COLOR_BLACK, SpreadsheetApp.BorderStyle.SOLID);
+  // 10. Чёрные границы A:F одним вызовом на 1..6
+  dataRange.setBorder(true, true, true, true, true, true, CONFIG.COLORS.BLACK, SpreadsheetApp.BorderStyle.SOLID);
 
-  // Колонка G (Столбец 7) — темно-серая разделительная полоса (#434343)
+  // 11. Колонка G (#434343)
   if (maxCols >= 7) {
-    var colGRange = sheet.getRange(movieStartRow, 7, newCount, 1);
-    colGRange.breakApart();
-    colGRange.clearContent();
-    colGRange.clearNote();
-    colGRange.setBackground(COLOR_SEPARATOR);
-    colGRange.setBorder(true, true, true, true, true, true, COLOR_SEPARATOR, SpreadsheetApp.BorderStyle.SOLID);
+    formatColumnG(sheet, movieStartRow, newCount);
   }
 
-  // Колонки H:MAXCOLS (Столбцы 8+) — белая сетка
+  // 12. Колонки H+ и водяной знак Димы
   if (maxCols >= 8) {
-    var restColsUpdate = maxCols - 7;
-    var restRange = sheet.getRange(movieStartRow, 8, newCount, restColsUpdate);
-    restRange.setBackground(COLOR_WHITE);
-    restRange.setBorder(true, true, true, true, true, true, COLOR_WHITE, SpreadsheetApp.BorderStyle.SOLID);
-
-    // Проверка водяного знака
+    formatColumnsHPlus(sheet, movieStartRow, newCount, maxCols);
     applyDimaWatermark(sheet, movieStartRow, newCount, maxCols, participants);
   }
 
-  // Гарантируем наличие разделительных полос сверху и снизу
+  // 13. Проверка и форматирование разделителей сверху и снизу
   if (movieStartRow > 1) {
-    formatSeparatorRow(sheet, movieStartRow - 1, maxCols);
+    safeFormatSeparatorRow(sheet, movieStartRow - 1, maxCols);
   }
-  formatSeparatorRow(sheet, movieStartRow + newCount, maxCols);
+  safeFormatSeparatorRow(sheet, movieStartRow + newCount, maxCols);
 
   return { ok: true };
 }
 
 /**
- * Восстановление / исправление фильма «Синистер» после некорректного добавления.
- * Исправляет:
- * 1. Вставляет серую полосу перед Синистером (#434343) на всю ширину экселя.
- * 2. Убирает темно-серую заливку основных ячеек (A:F) и ставит белый фон с черными границами.
- * 3. Оформляет колонку G с заливкой и границами #434343.
- * 4. Устанавливает белые границы колонкам H+ и добавляет водяной знак «ДИМА НЕ СМОТРЕЛ».
- * 5. Создает нижнюю серую полосу #434343 после Синистера на всю ширину экселя.
+ * Хелпер для безопасного извлечения оценки участника
  */
-function repairMovieSinister(ss) {
-  var sheet = ss.getSheetByName(SHEET_NAME_MOVIES);
-  var maxCols = sheet.getMaxColumns();
-  var lastRow = sheet.getLastRow();
-
-  if (lastRow < 5) {
-    return { ok: false, error: 'Таблица пуста' };
-  }
-
-  // Ищем строку с фильмом «Синистер»
-  var colC = sheet.getRange(5, 3, lastRow - 4, 1).getValues();
-  var sinisterRowIndex = -1;
-  for (var i = 0; i < colC.length; i++) {
-    var title = String(colC[i][0]).trim().toLowerCase();
-    if (title === 'синистер') {
-      sinisterRowIndex = 5 + i;
-      break;
-    }
-  }
-
-  if (sinisterRowIndex === -1) {
-    return { ok: false, error: 'Фильм «Синистер» не найден в таблице' };
-  }
-
-  // Проверяем строку перед Синистером
-  var prevRow = sinisterRowIndex - 1;
-  var isPrevSeparator = false;
-  if (prevRow >= 5) {
-    var prevBg = sheet.getRange(prevRow, 1, 1, 1).getBackground();
-    if (prevBg === COLOR_SEPARATOR) {
-      isPrevSeparator = true;
-    }
-  }
-
-  // Если перед Синистером нет серой полосы-разделителя, вставляем строку
-  if (!isPrevSeparator) {
-    sheet.insertRowBefore(sinisterRowIndex);
-    // Теперь sinisterRowIndex указывает на новую пустую строку
-    formatSeparatorRow(sheet, sinisterRowIndex, maxCols);
-    sinisterRowIndex = sinisterRowIndex + 1; // Синистер сдвинулся на 1 строку вниз
-  } else {
-    formatSeparatorRow(sheet, prevRow, maxCols);
-  }
-
-  // Считаем количество участников Синистера
-  var pCount = 0;
-  var colD = sheet.getRange(sinisterRowIndex, 4, Math.min(20, sheet.getLastRow() - sinisterRowIndex + 1), 1).getValues();
-  for (var p = 0; p < colD.length; p++) {
-    var pName = String(colD[p][0]).trim();
-    if (pName) {
-      pCount++;
-    } else {
-      break;
-    }
-  }
-  if (pCount === 0) pCount = 6;
-
-  var movieStartRow = sinisterRowIndex;
-  var movieEndRow = movieStartRow + pCount - 1;
-  var bottomSeparatorRow = movieEndRow + 1;
-
-  // 1. Очищаем форматирование и объединения колонок A:F
-  sheet.getRange(movieStartRow, 1, pCount, 6).breakApart();
-  sheet.getRange(movieStartRow, 1, pCount, 6)
-    .setBackground(COLOR_WHITE)
-    .setFontColor(COLOR_BLACK)
-    .setHorizontalAlignment('center')
-    .setVerticalAlignment('middle');
-
-  // Повторно объединяем A, B, C, F
-  if (pCount > 1) {
-    sheet.getRange(movieStartRow, 1, pCount, 1).merge();
-    sheet.getRange(movieStartRow, 2, pCount, 1).merge();
-    sheet.getRange(movieStartRow, 3, pCount, 1).merge();
-    sheet.getRange(movieStartRow, 6, pCount, 1).merge();
-  }
-
-  // Границы для колонок A-F (черные границы)
-  sheet.getRange(movieStartRow, 1, pCount, 3)
-    .setBorder(true, true, true, true, true, true, COLOR_BLACK, SpreadsheetApp.BorderStyle.SOLID);
-  sheet.getRange(movieStartRow, 4, pCount, 2)
-    .setBorder(true, true, true, true, true, true, COLOR_BLACK, SpreadsheetApp.BorderStyle.SOLID);
-  sheet.getRange(movieStartRow, 6, pCount, 1)
-    .setBorder(true, true, true, true, true, true, COLOR_BLACK, SpreadsheetApp.BorderStyle.SOLID);
-
-  // 2. Колонка G (Столбец 7) — разделительная полоска #434343
-  if (maxCols >= 7) {
-    var colGRange = sheet.getRange(movieStartRow, 7, pCount, 1);
-    colGRange.breakApart();
-    colGRange.clearContent();
-    colGRange.clearNote();
-    colGRange.setBackground(COLOR_SEPARATOR);
-    colGRange.setBorder(true, true, true, true, true, true, COLOR_SEPARATOR, SpreadsheetApp.BorderStyle.SOLID);
-  }
-
-  // 3. Колонки H:MAXCOLS (Столбцы 8+)
-  if (maxCols >= 8) {
-    var restColsRepair = maxCols - 7;
-    var restRange = sheet.getRange(movieStartRow, 8, pCount, restColsRepair);
-    restRange.breakApart();
-    restRange.clearContent();
-    restRange.clearNote();
-    restRange.setBackground(COLOR_WHITE);
-    restRange.setBorder(true, true, true, true, true, true, COLOR_WHITE, SpreadsheetApp.BorderStyle.SOLID);
-
-    // Читаем имена участников Синистера, чтобы проверить Диму
-    var partValues = sheet.getRange(movieStartRow, 4, pCount, 1).getValues();
-    var participantsList = [];
-    for (var k = 0; k < partValues.length; k++) {
-      participantsList.push({ name: String(partValues[k][0]).trim() });
-    }
-
-    applyDimaWatermark(sheet, movieStartRow, pCount, maxCols, participantsList);
-  }
-
-  // 4. Нижняя разделительная полоса (#434343)
-  if (bottomSeparatorRow > sheet.getMaxRows()) {
-    sheet.insertRowsAfter(sheet.getMaxRows(), bottomSeparatorRow - sheet.getMaxRows() + 10);
-  }
-  formatSeparatorRow(sheet, bottomSeparatorRow, maxCols);
-
-  return {
-    ok: true,
-    message: 'Фильм «Синистер» успешно восстановлен и оформлен в таблице!',
-    startRow: movieStartRow,
-    endRow: movieEndRow,
-    topSeparatorRow: movieStartRow - 1,
-    bottomSeparatorRow: bottomSeparatorRow
-  };
+function partScore(p) {
+  return p && (p.score !== undefined && p.score !== null) ? p.score : '';
 }

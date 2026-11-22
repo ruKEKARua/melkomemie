@@ -20,6 +20,7 @@ const LOCAL_STORAGE_USER_KEY = 'melkomemie_google_user';
 type GasMoviesResponse = {
   movies?: string[];
   movieComments?: string[];
+  movieColors?: string[];
   ratings?: string[][];
   participants?: string[];
   error?: string;
@@ -43,6 +44,7 @@ const loadMoviesFromGas = async (gasUrl: string): Promise<LoadedMovieData> => {
     data.movieComments ?? [],
     data.ratings ?? [],
     data.participants ?? [],
+    data.movieColors ?? [],
   );
 };
 
@@ -50,6 +52,7 @@ const useGetMovies = () => {
   const dispatch = useDispatch();
   const [data, setData] = useState<string[]>([]);
   const [movieComments, setMovieComments] = useState<string[]>([]);
+  const [movieColors, setMovieColors] = useState<string[]>([]);
   const [usersRating, setUsersRating] = useState<MovieRatings[]>([]);
   const [participantNames, setParticipantNames] = useState<string[]>([]);
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -61,6 +64,7 @@ const useGetMovies = () => {
   const applyNormalizedData = useCallback((loaded: LoadedMovieData) => {
     setData(loaded.movies);
     setMovieComments(loaded.movieComments);
+    setMovieColors(loaded.movieColors || []);
     setUsersRating(loaded.usersRating);
     setParticipantNames(loaded.participantNames);
   }, []);
@@ -217,6 +221,7 @@ const useGetMovies = () => {
   return {
     data,
     movieComments,
+    movieColors,
     usersRating,
     participantNames,
     login,
