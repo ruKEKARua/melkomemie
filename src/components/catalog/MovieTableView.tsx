@@ -1,4 +1,4 @@
-import React, { memo, useState, useRef, useEffect } from 'react';
+import { memo, useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { openModal } from '../../store/openModal';
@@ -10,7 +10,7 @@ import type { MovieSheetEntry } from '../../api/googleSheets';
 import type { SortOrder } from '../../hooks/useCatalogMovies';
 import { getActiveMovieSource, type MovieSource } from '../../api/movieSource';
 import { getMovieImageUrl } from '../../api/tmdbImage';
-import { roundRating } from '../../utils/ratings';
+import { roundRating, computeOverallRating } from '../../utils/ratings';
 import { formatTableDate } from '../../utils/dateFormat';
 import { isPurpleColor } from '../../utils/colorUtils';
 
@@ -172,6 +172,20 @@ export const MovieTableView = memo(function MovieTableView({
   };
 
   const activeMovieId = isModalOpen ? movie_ID : null;
+  const tableRef = useRef<HTMLTableElement>(null);
+
+  useEffect(() => {
+    if (!highlightMovieTitle || isLoading) {
+      return;
+    }
+
+    const normalizedHighlight = highlightMovieTitle.trim().toLowerCase();
+    const targetElement = Array.from(
+      tableRef.current?.querySelectorAll<HTMLElement>('[data-excel-title]') ?? [],
+    ).find((el) => el.dataset.excelTitle?.trim().toLowerCase() === normalizedHighlight);
+
+    targetElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlightMovieTitle, isLoading, media]);
 
   if (isLoading) {
     return (
@@ -198,7 +212,7 @@ export const MovieTableView = memo(function MovieTableView({
     <div className="w-full py-4">
       {/* Table Container styled like original table from Screenshot 4 */}
       <div className="w-full overflow-x-auto rounded-2xl border border-slate-300 dark:border-white/10 bg-white dark:bg-[#131620] shadow-xl">
-        <table className="w-full border-collapse text-left select-text">
+        <table ref={tableRef} className="w-full border-collapse text-left select-text">
           <thead>
             <tr className="bg-slate-100 dark:bg-[#181b29] text-slate-800 dark:text-zinc-200 text-xs sm:text-sm font-bold border-b border-slate-300 dark:border-white/10">
               <th className="py-3 px-1.5 sm:px-2 text-center border border-slate-300 dark:border-white/10 w-10 sm:w-12 min-[1001px]:w-14 shrink-0">
@@ -230,8 +244,7 @@ export const MovieTableView = memo(function MovieTableView({
               </th>
             </tr>
           </thead>
-          <tbody>
-            {media.map((item, index) => {
+          {media.map((item, index) => {
               if (item.media_type === 'person') return null;
 
               const title = item.title || item.original_title;
@@ -250,8 +263,7 @@ export const MovieTableView = memo(function MovieTableView({
                   )
                 : undefined;
 
-              const rawOverall = matchingRating?.ratings[0]?.scores[1];
-              const overallRating = rawOverall !== undefined ? roundRating(rawOverall) : '—';
+              const overallRating = computeOverallRating(matchingRating) || '—';
               const dateStr = formatTableDate(matchingRating?.date);
               const cellColor = matchingRating?.cellColor;
               const isPurple = isPurpleColor(cellColor);
@@ -264,7 +276,10 @@ export const MovieTableView = memo(function MovieTableView({
               );
 
               const isBlackHeader = isBlackMovieHeader(title, movieNumber);
-              const isHighlighted = item.excelTitle === highlightMovieTitle;
+              const isHighlighted = Boolean(
+                highlightMovieTitle &&
+                item.excelTitle?.trim().toLowerCase() === highlightMovieTitle.trim().toLowerCase()
+              );
 
               const headerCellClasses = isBlackHeader
                 ? '!bg-black !text-white font-bold'
@@ -275,7 +290,13 @@ export const MovieTableView = memo(function MovieTableView({
               const posterUrl = item.poster_path ? getMovieImageUrl(item.poster_path, 'w342') : null;
 
               return (
-                <React.Fragment key={`${item.id}-${index}`}>
+                <tbody
+                  key={`${item.id}-${index}`}
+                  data-excel-title={item.excelTitle}
+                  className={`transition-all duration-300 ${
+                    isHighlighted ? 'movie-table-highlight' : ''
+                  }`}
+                >
                   {/* Dark Separator Bar (#434343 from Screenshot 4 & Code.gs) */}
                   {index > 0 && (
                     <tr className="h-2.5 sm:h-3 bg-[#434343] dark:bg-[#343847]">
@@ -294,8 +315,9 @@ export const MovieTableView = memo(function MovieTableView({
                     return (
                       <tr
                         key={rIdx}
-                        className={`transition-colors ${
-                          isHighlighted ? 'bg-amber-500/10' : ''
+                        data-excel-title={rIdx === 0 ? item.excelTitle : undefined}
+                        className={`movie-table-row transition-colors ${
+                          isHighlighted ? 'bg-amber-500/15' : ''
                         } ${isPurple ? '!bg-[#B4A7D6]' : ''}`}
                       >
                         {/* Column 1: № (merged across participant rows, compact width) */}
@@ -441,10 +463,9 @@ export const MovieTableView = memo(function MovieTableView({
                       </td>
                     </tr>
                   )}
-                </React.Fragment>
+                </tbody>
               );
             })}
-          </tbody>
         </table>
       </div>
 

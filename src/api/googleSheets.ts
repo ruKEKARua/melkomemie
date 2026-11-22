@@ -5,6 +5,8 @@ export type MovieSheetEntry = {
   originalTitle?: string;
   number?: number;
   participants: Array<{ name: string; score: string }>;
+  isCinema?: boolean;
+  color?: string;
 };
 
 /**

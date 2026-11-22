@@ -9,7 +9,7 @@ import type { MovieSheetEntry } from '../api/googleSheets';
 import type { SortOrder } from '../hooks/useCatalogMovies';
 import { getMovieImageUrl, getTmdbImageUrl } from '../api/tmdbImage';
 import { getActiveMovieSource, type MovieSource } from '../api/movieSource';
-import { roundRating } from '../utils/ratings';
+import { computeOverallRating } from '../utils/ratings';
 
 export type Movie = {
   media_type: 'movie' | 'tv';
@@ -155,8 +155,7 @@ export function MovieSlider({
                   (movie) => movie.movie.trim().toLowerCase() === item.excelTitle?.trim().toLowerCase(),
                 )
               : undefined;
-            const rawRating = matchingRating?.ratings[0]?.scores[1];
-            const overallRating = rawRating !== undefined ? roundRating(rawRating) : undefined;
+            const overallRating = computeOverallRating(matchingRating) || undefined;
             const cellColor = matchingRating?.cellColor || ('cellColor' in item ? (item.cellColor as string) : undefined);
             const titleKey = (item.excelTitle ?? item.title ?? '').trim().toLowerCase();
             const canonicalNum = movieNumberMap?.get(titleKey);

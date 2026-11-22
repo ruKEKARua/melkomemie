@@ -28,11 +28,48 @@ export function normalizeMovieTitle(title?: string): string {
  */
 export function roundRating(value: string | number | undefined | null): string {
   if (value === undefined || value === null || value === '') return '';
-  const str = String(value).trim().replace(',', '.');
-  const num = parseFloat(str);
-  if (isNaN(num)) return String(value).trim();
+  const str = String(value).trim();
+  if (str.startsWith('#')) return '';
+  const cleaned = str.replace(',', '.');
+  const num = parseFloat(cleaned);
+  if (isNaN(num)) return str;
   const rounded = Math.round((num + Number.EPSILON) * 100) / 100;
   return String(rounded);
+}
+
+/**
+ * Calculates or formats the overall movie rating from MovieRatings data.
+ * If the sheet rating is missing or has a calculation error (#ERROR!, #DIV/0!, etc.),
+ * it safely computes the average of the participants' scores.
+ */
+export function computeOverallRating(matchingRating?: MovieRatings | null): string {
+  if (!matchingRating) return '';
+
+  const rawSheetRating = matchingRating.ratings?.[0]?.scores?.[1];
+  if (rawSheetRating && !rawSheetRating.startsWith('#')) {
+    const rounded = roundRating(rawSheetRating);
+    if (rounded) return rounded;
+  }
+
+  // Fallback: calculate average from participant scores
+  if (matchingRating.ratings && matchingRating.ratings.length > 0) {
+    const validScores: number[] = [];
+    for (const r of matchingRating.ratings) {
+      const pScoreStr = r.scores?.[0]?.replace(',', '.').trim();
+      if (pScoreStr) {
+        const pNum = parseFloat(pScoreStr);
+        if (!isNaN(pNum)) {
+          validScores.push(pNum);
+        }
+      }
+    }
+    if (validScores.length > 0) {
+      const avg = validScores.reduce((sum, s) => sum + s, 0) / validScores.length;
+      return roundRating(avg);
+    }
+  }
+
+  return '';
 }
 
 /**
@@ -68,11 +105,10 @@ export function getMovieNumericRating(
     match = ratings.find((r) => normalizeMovieTitle(r.movie) === normalized);
   }
 
-  const sheetRating = match?.ratings[0]?.scores[1];
-  const ratingNumber = sheetRating?.replace(',', '.').match(/-?\d+(?:\.\d+)?/)?.[0];
-  if (!ratingNumber) return undefined;
-  const num = Number(ratingNumber);
-  return isNaN(num) ? undefined : Math.round((num + Number.EPSILON) * 100) / 100;
+  const overallStr = computeOverallRating(match);
+  if (!overallStr) return undefined;
+  const num = Number(overallStr);
+  return isNaN(num) ? undefined : num;
 }
 
 /**

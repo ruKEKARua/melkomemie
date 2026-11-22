@@ -8,7 +8,7 @@ import { getMovieImageUrl } from '../api/tmdbImage';
 import type { MovieSource } from '../api/movieSource';
 import { useEditMovie } from '../HooksExcelMovies/useEditMovie';
 import { formatDate, formatDateFromExcel } from '../utils/dateFormat';
-import { roundRating, normalizeMovieTitle } from '../utils/ratings';
+import { roundRating, normalizeMovieTitle, computeOverallRating } from '../utils/ratings';
 import { isPurpleColor } from '../utils/colorUtils';
 import { ModalOverlay } from './modals/ModalOverlay';
 import { MovieEditForm } from './modals/MovieEditForm';
@@ -80,7 +80,7 @@ const Modal = ({
     ? ratings.find((movie) => normalizeMovieTitle(movie.movie) === targetTitle)
     : undefined;
   const excelRatings = excelMovie?.ratings ?? [];
-  const overallRating = roundRating(excelRatings[0]?.scores[1]);
+  const overallRating = computeOverallRating(excelMovie);
   const watchDate = excelMovie?.date ? formatDateFromExcel(excelMovie.date) : '';
   const isCinema = isPurpleColor(excelMovie?.cellColor);
 

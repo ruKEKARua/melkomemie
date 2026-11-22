@@ -59,6 +59,35 @@
 }
 
 /* -------------------------------------------------------------
+   Table View Highlight Animation (scales up and pulses with amber glow)
+   ------------------------------------------------------------- */
+@keyframes tableMovieHighlight {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(245, 158, 11, 0);
+  }
+  25%, 75% {
+    transform: scale(1.02);
+    box-shadow: 0 0 35px rgba(245, 158, 11, 0.85), 0 0 12px rgba(245, 158, 11, 0.45);
+  }
+}
+
+.movie-table-highlight {
+  animation: tableMovieHighlight 3.5s ease-in-out;
+  position: relative;
+  z-index: 20;
+}
+
+.movie-table-highlight tr.movie-table-row {
+  background-color: rgba(245, 158, 11, 0.18) !important;
+}
+
+.movie-table-highlight tr.movie-table-row td {
+  border-color: rgba(245, 158, 11, 0.6) !important;
+  box-shadow: inset 0 0 10px rgba(245, 158, 11, 0.2);
+}
+
+/* -------------------------------------------------------------
    Shelf / Category Row Horizontal Scroll (Netflix style)
    ------------------------------------------------------------- */
 .shelf-scroll {
@@ -1005,3 +1034,75 @@ input[type="range"] {
     padding: 0.5rem 0.65rem;
   }
 }
+
+/* -------------------------------------------------------------
+   Movie Save Button Hover Gradient & Floating Green Bloom Animation
+   Screenshot 1: linear-gradient(90deg, #C5C757 0%, #53ED68 50%, #C5C757 100%)
+   ------------------------------------------------------------- */
+@keyframes greenCenterFloatUp {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 85%) scale(0.3);
+    filter: blur(4px);
+  }
+  45% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.4);
+    filter: blur(8px);
+  }
+  100% {
+    opacity: 0.92;
+    transform: translate(-50%, -50%) scale(1.18);
+    filter: blur(6px);
+  }
+}
+
+@keyframes greenCenterFloatIdle {
+  0% {
+    transform: translate(-50%, -50%) scale(1.18);
+    opacity: 0.92;
+    filter: blur(6px);
+  }
+  50% {
+    transform: translate(-50%, -58%) scale(1.36);
+    opacity: 1;
+    filter: blur(8px);
+  }
+  100% {
+    transform: translate(-50%, -46%) scale(1.15);
+    opacity: 0.85;
+    filter: blur(5px);
+  }
+}
+
+.btn-save-movie {
+  box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.35);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-save-movie:hover:not(:disabled) {
+  box-shadow: 0 12px 28px -4px rgba(83, 237, 104, 0.45), 0 0 20px rgba(197, 199, 87, 0.35);
+}
+
+.btn-save-movie-hover-bg {
+  background: linear-gradient(90deg, #C5C757 0%, #53ED68 50%, #C5C757 100%);
+}
+
+.btn-save-movie-center-bloom {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 140px;
+  height: 140px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, #53ED68 0%, rgba(83, 237, 104, 0.85) 40%, rgba(83, 237, 104, 0) 70%);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 85%) scale(0.3);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.btn-save-movie:hover:not(:disabled) .btn-save-movie-center-bloom {
+  animation: greenCenterFloatUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards, greenCenterFloatIdle 2.4s ease-in-out 0.65s infinite alternate;
+}
+

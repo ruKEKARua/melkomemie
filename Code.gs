@@ -25,6 +25,7 @@ const CONFIG = {
     WHITE: '#ffffff',
     BLACK: '#000000',
     DIMA_TEXT: '#f3f3f3',
+    CINEMA_PURPLE: '#B4A7D6',
   },
   DIMA_WATERMARK: {
     TEXT: 'ДИМА НЕ СМОТРЕЛ :((((((((((((((((((((((((((((((((((((((',
@@ -62,6 +63,30 @@ function roundScore(val) {
   const num = typeof val === 'number' ? val : parseFloat(String(val).replace(',', '.'));
   if (isNaN(num)) return String(val).trim();
   return String(Math.round((num + 1e-9) * 100) / 100);
+}
+
+/**
+ * Определение разделителя аргументов функций Google Таблиц.
+ * В русской локали (ru_RU) разделителем аргументов является точка с запятой (;),
+ * так как запятая (,) зарезервирована для десятичных дробей.
+ */
+function getFormulaArgSeparator(ss) {
+  try {
+    const locale = (ss && ss.getSpreadsheetLocale && ss.getSpreadsheetLocale()) || '';
+    if (/^(en_US|en_CA|en_GB|en_AU|ja_JP|zh_CN|ko_KR)/i.test(locale)) {
+      return ',';
+    }
+  } catch (e) {}
+  return ';';
+}
+
+/**
+ * Построение формулы средней оценки.
+ * Используется простая формула: =AVERAGE(E{startRow}:E{endRow})
+ * (в русскоязычном интерфейсе Google Таблиц она автоматически отображается как =СРЗНАЧ(E{startRow}:E{endRow})).
+ */
+function buildAverageFormula(startRow, endRow) {
+  return `=AVERAGE(E${startRow}:E${endRow})`;
 }
 
 /**
@@ -330,7 +355,25 @@ function doGet(e) {
             } else if (cellVal !== null && cellVal !== undefined && cellVal !== '') {
               if (colIdx === 5) {
                 // Столбец F — средняя оценка
-                rowRatings.push(roundScore(cellVal));
+                if (String(cellVal).startsWith('#')) {
+                  // Fallback при ошибке формулы в таблице (#ERROR! и т.п.):
+                  // вычисляем среднее по фактическим оценкам участников из столбца E
+                  let sum = 0;
+                  let count = 0;
+                  for (let k = 0; i + k < numRows; k++) {
+                    if (k > 0 && (values[i + k][2] || (values[i + k][0] && !isNaN(Number(values[i + k][0]))))) {
+                      break;
+                    }
+                    const sVal = parseFloat(String(values[i + k][4]).replace(',', '.'));
+                    if (!isNaN(sVal)) {
+                      sum += sVal;
+                      count++;
+                    }
+                  }
+                  rowRatings.push(count > 0 ? roundScore(sum / count) : '');
+                } else {
+                  rowRatings.push(roundScore(cellVal));
+                }
               } else {
                 rowRatings.push(String(cellVal));
               }
@@ -361,6 +404,18 @@ function doGet(e) {
         ratings: ratings,
         participants: participants,
       });
+    }
+
+    if (action === 'repair-formulas') {
+      const lock = LockService.getScriptLock();
+      const hasLock = lock.tryLock(CONFIG.LOCK_TIMEOUT_MS);
+      if (!hasLock) return createJsonResponse({ error: 'Сервер занят другим запросом' });
+      try {
+        const res = repairBrokenFormulas(ss);
+        return createJsonResponse(res);
+      } finally {
+        lock.releaseLock();
+      }
     }
 
     return createJsonResponse({ error: 'unknown_action' });
@@ -394,6 +449,8 @@ function doPost(e) {
       result = appendMovie(ss, data.entry);
     } else if (action === 'update-movie') {
       result = updateMovie(ss, data.entry);
+    } else if (action === 'repair-formulas') {
+      result = repairBrokenFormulas(ss);
     } else {
       result = { error: 'unknown_action' };
     }
@@ -481,10 +538,19 @@ function appendMovie(ss, entry) {
   const rangeF = sheet.getRange(movieStartRow, 6, participantCount, 1);
   rangeF.breakApart();
   rangeF.clearContent();
-  sheet.getRange(movieStartRow, 6).setFormula(`=IFERROR(ROUND(AVERAGE(E${movieStartRow}:E${movieEndRow}), 2), "")`);
+  sheet.getRange(movieStartRow, 6).setFormula(buildAverageFormula(movieStartRow, movieEndRow, ss));
 
-  // Оформление A:F (белый фон или кастомный цвет)
-  const blockColor = (entry.color && entry.color.trim()) || CONFIG.COLORS.WHITE;
+  // Оформление A:F (белый фон или кастомный цвет, для кинотеатра — #B4A7D6)
+  const isCinema = Boolean(
+    entry.isCinema === true ||
+    entry.isCinema === 'true' ||
+    entry.isCinemaViewing ||
+    entry.inCinema ||
+    (entry.color && String(entry.color).toUpperCase() === '#B4A7D6')
+  );
+  const blockColor = isCinema
+    ? CONFIG.COLORS.CINEMA_PURPLE
+    : ((entry.color && entry.color.trim()) || CONFIG.COLORS.WHITE);
   const dataRange = sheet.getRange(movieStartRow, 1, participantCount, 6);
   dataRange.setBackground(blockColor);
   dataRange.setFontColor(CONFIG.COLORS.BLACK);
@@ -626,7 +692,7 @@ function updateMovie(ss, entry) {
     sheet.getRange(movieStartRow, CONFIG.COLS.SCORE, newCount, 1).setHorizontalAlignment('right');
 
     // 3. Формула среднего балла в F{start}
-    sheet.getRange(movieStartRow, 6).setFormula(`=IFERROR(ROUND(AVERAGE(E${movieStartRow}:E${movieStartRow + newCount - 1}), 2), "")`);
+    sheet.getRange(movieStartRow, 6).setFormula(buildAverageFormula(movieStartRow, movieStartRow + newCount - 1, ss));
 
     // 4. Обновление водяного знака Димы в H:O
     if (maxCols >= 8) {
@@ -686,11 +752,20 @@ function updateMovie(ss, entry) {
 
   // 5. Очищаем колонку F для блока и ставим формулу среднего балла в верхнюю ячейку
   sheet.getRange(movieStartRow, 6, newCount, 1).clearContent();
-  sheet.getRange(movieStartRow, 6).setFormula(`=IFERROR(ROUND(AVERAGE(E${movieStartRow}:E${movieStartRow + newCount - 1}), 2), "")`);
+  sheet.getRange(movieStartRow, 6).setFormula(buildAverageFormula(movieStartRow, movieStartRow + newCount - 1, ss));
 
-  // 6. Восстанавливаем цвета фона поколоночно на весь блок A:F
+  // 6. Восстанавливаем цвета фона поколоночно на весь блок A:F (или обновляем при смене isCinema)
+  let updateBlockColor = null;
+  if (entry.isCinema !== undefined) {
+    updateBlockColor = (entry.isCinema === true || entry.isCinema === 'true')
+      ? CONFIG.COLORS.CINEMA_PURPLE
+      : CONFIG.COLORS.WHITE;
+  } else if (entry.color) {
+    updateBlockColor = entry.color;
+  }
+
   for (let c = 1; c <= 6; c++) {
-    const colBg = existingColorsAF[c - 1] || CONFIG.COLORS.WHITE;
+    const colBg = updateBlockColor || existingColorsAF[c - 1] || CONFIG.COLORS.WHITE;
     sheet.getRange(movieStartRow, c, newCount, 1).setBackground(colBg);
   }
 
@@ -745,4 +820,50 @@ function updateMovie(ss, entry) {
  */
 function partScore(p) {
   return p && (p.score !== undefined && p.score !== null) ? p.score : '';
+}
+
+/**
+ * Автоматическое исправление формул с ошибкой #ERROR! или запятыми в столбце F (средняя оценка).
+ * Можно вызывать прямо из редактора Google Apps Script или через GET/POST с action: 'repair-formulas'.
+ */
+function repairBrokenFormulas(ss) {
+  const targetSs = ss || SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+  const sheet = targetSs.getSheetByName(CONFIG.SHEETS.MOVIES);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < CONFIG.DATA_START_ROW) return { ok: true, repairedCount: 0 };
+
+  const range = sheet.getRange(CONFIG.DATA_START_ROW, 1, lastRow - CONFIG.DATA_START_ROW + 1, 6);
+  const values = range.getValues();
+  const formulas = range.getFormulas();
+  let repairedCount = 0;
+
+  for (let i = 0; i < values.length; i++) {
+    const rowIdx = CONFIG.DATA_START_ROW + i;
+    const title = values[i][2] ? String(values[i][2]).trim() : '';
+    const formulaF = formulas[i][5] || '';
+    const valF = values[i][5];
+
+    // Начало блока фильма (есть название и это не разделитель)
+    if (title && isNaN(Number(title))) {
+      let count = 1;
+      while (i + count < values.length) {
+        const nextTitle = values[i + count][2] ? String(values[i + count][2]).trim() : '';
+        const nextNum = values[i + count][0];
+        if (nextTitle || (nextNum && !isNaN(Number(nextNum)))) break;
+        count++;
+      }
+
+      const startRow = rowIdx;
+      const endRow = rowIdx + count - 1;
+      const hasError = String(valF).startsWith('#') || formulaF.includes('ROUND') || formulaF.includes('IFERROR') || (formulaF.includes('AVERAGE') && formulaF.includes(','));
+
+      if (hasError || !formulaF) {
+        sheet.getRange(startRow, 6).setFormula(buildAverageFormula(startRow, endRow));
+        repairedCount++;
+      }
+    }
+  }
+
+  SpreadsheetApp.flush();
+  return { ok: true, repairedCount: repairedCount };
 }
