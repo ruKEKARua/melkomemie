@@ -8,7 +8,8 @@ import { getMovieImageUrl } from '../api/tmdbImage';
 import type { MovieSource } from '../api/movieSource';
 import { useEditMovie } from '../HooksExcelMovies/useEditMovie';
 import { formatDate, formatDateFromExcel } from '../utils/dateFormat';
-import { roundRating } from '../utils/ratings';
+import { roundRating, normalizeMovieTitle, computeOverallRating } from '../utils/ratings';
+import { isPurpleColor } from '../utils/colorUtils';
 import { ModalOverlay } from './modals/ModalOverlay';
 import { MovieEditForm } from './modals/MovieEditForm';
 import { ParticipantRatingRow } from './shared/ParticipantRatingRow';
@@ -74,12 +75,14 @@ const Modal = ({
 
   const hasError = isLoading && (!isOnline || Boolean(movieError));
 
-  const excelMovie = excelMovieTitle
-    ? ratings.find((movie) => movie.movie.trim().toLowerCase() === excelMovieTitle.trim().toLowerCase())
+  const targetTitle = normalizeMovieTitle(excelMovieTitle || fallbackTitle);
+  const excelMovie = targetTitle
+    ? ratings.find((movie) => normalizeMovieTitle(movie.movie) === targetTitle)
     : undefined;
   const excelRatings = excelMovie?.ratings ?? [];
-  const overallRating = roundRating(excelRatings[0]?.scores[1]);
+  const overallRating = computeOverallRating(excelMovie);
   const watchDate = excelMovie?.date ? formatDateFromExcel(excelMovie.date) : '';
+  const isCinema = isPurpleColor(excelMovie?.cellColor);
 
   const editMovie = useEditMovie({
     movie: excelMovie,
@@ -356,7 +359,9 @@ const Modal = ({
                 )}
                 {watchDate && (
                   <div className="flex justify-between items-center py-1 border-b border-slate-200 dark:border-white/5">
-                    <span className="text-slate-500 dark:text-zinc-400">Показ в киноклубе</span>
+                    <span className="text-slate-500 dark:text-zinc-400">
+                      {isCinema ? 'Просмотр в кинотеатре' : 'Показ в киноклубе'}
+                    </span>
                     <span className="font-medium text-amber-600 dark:text-amber-400">{watchDate}</span>
                   </div>
                 )}

@@ -17,15 +17,35 @@ type GoogleSheetsResponse = {
   values?: string[][];
 };
 
+type ColorFormat = {
+  red?: number;
+  green?: number;
+  blue?: number;
+};
+
+type CellData = {
+  note?: string;
+  userEnteredFormat?: { backgroundColor?: ColorFormat };
+  effectiveFormat?: { backgroundColor?: ColorFormat };
+};
+
 type GoogleSheetsNotesResponse = {
   sheets?: Array<{
     data?: Array<{
       rowData?: Array<{
-        values?: Array<{ note?: string }>;
+        values?: Array<CellData>;
       }>;
     }>;
   }>;
 };
+
+function rgbToHex(color?: ColorFormat): string {
+  if (!color) return '#ffffff';
+  const r = Math.round((color.red ?? 0) * 255);
+  const g = Math.round((color.green ?? 0) * 255);
+  const b = Math.round((color.blue ?? 0) * 255);
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+}
 
 async function fetchRange(accessToken: string, range: string, majorDimension: 'ROWS' | 'COLUMNS' = 'COLUMNS') {
   const query = new URLSearchParams({ majorDimension: majorDimension.toLowerCase() });
@@ -41,11 +61,11 @@ async function fetchRange(accessToken: string, range: string, majorDimension: 'R
   return (await response.json()) as GoogleSheetsResponse;
 }
 
-async function fetchMovieComments(accessToken: string) {
+async function fetchMovieCommentsAndColors(accessToken: string) {
   const query = new URLSearchParams({
     includeGridData: 'true',
     ranges: 'Киноклуб!C5:C',
-    fields: 'sheets(data(rowData(values(note))))',
+    fields: 'sheets(data(rowData(values(note,userEnteredFormat.backgroundColor,effectiveFormat.backgroundColor))))',
   });
   const response = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?${query}`,
@@ -53,15 +73,22 @@ async function fetchMovieComments(accessToken: string) {
   );
 
   if (!response.ok) {
-    throw new Error('Не удалось загрузить комментарии Google Sheets');
+    throw new Error('Не удалось загрузить комментарии и цвета Google Sheets');
   }
 
   const spreadsheet = (await response.json()) as GoogleSheetsNotesResponse;
-  return (
-    spreadsheet.sheets?.[0]?.data?.[0]?.rowData?.map(
-      (row) => row.values?.[0]?.note ?? '',
-    ) ?? []
-  );
+  const rowData = spreadsheet.sheets?.[0]?.data?.[0]?.rowData ?? [];
+  const comments: string[] = [];
+  const colors: string[] = [];
+
+  for (const row of rowData) {
+    const cell = row.values?.[0];
+    comments.push(cell?.note ?? '');
+    const bg = cell?.userEnteredFormat?.backgroundColor || cell?.effectiveFormat?.backgroundColor;
+    colors.push(rgbToHex(bg));
+  }
+
+  return { comments, colors };
 }
 
 export default async function handler(request: Request) {
@@ -74,11 +101,11 @@ export default async function handler(request: Request) {
 
   try {
     const accessToken = await refreshGoogleAccessToken(stored.session.refreshToken);
-    const [moviesResponse, movieComments, ratingsResponse, participantsResponse] = await Promise.all([
+    const [moviesResponse, commentsAndColors, ratingsResponse, participantsResponse] = await Promise.all([
       fetchRange(accessToken, 'Киноклуб!C5:C'),
-      fetchMovieComments(accessToken).catch((error: unknown) => {
-        console.error('Не удалось загрузить комментарии Google Sheets:', error);
-        return [];
+      fetchMovieCommentsAndColors(accessToken).catch((error: unknown) => {
+        console.error('Не удалось загрузить комментарии и цвета Google Sheets:', error);
+        return { comments: [], colors: [] };
       }),
       fetchRange(accessToken, 'Киноклуб!B5:F', 'ROWS'),
       fetchRange(accessToken, 'Сводная киноклуба!B3:B50'),
@@ -89,7 +116,8 @@ export default async function handler(request: Request) {
         userName: stored.session.userName,
         userPicture: stored.session.userPicture,
         movies: moviesResponse.values?.[0] ?? [],
-        movieComments,
+        movieComments: commentsAndColors.comments,
+        movieColors: commentsAndColors.colors,
         ratings: ratingsResponse.values ?? [],
         participants: participantsResponse.values?.[0] ?? [],
       },

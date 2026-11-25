@@ -1,4 +1,4 @@
-import React, { memo, useState, useRef, useEffect } from 'react';
+import { memo, useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { openModal } from '../../store/openModal';
@@ -10,8 +10,9 @@ import type { MovieSheetEntry } from '../../api/googleSheets';
 import type { SortOrder } from '../../hooks/useCatalogMovies';
 import { getActiveMovieSource, type MovieSource } from '../../api/movieSource';
 import { getMovieImageUrl } from '../../api/tmdbImage';
-import { roundRating } from '../../utils/ratings';
+import { roundRating, computeOverallRating } from '../../utils/ratings';
 import { formatTableDate } from '../../utils/dateFormat';
+import { isPurpleColor } from '../../utils/colorUtils';
 
 export interface MovieTableViewProps {
   media: Media[];
@@ -45,9 +46,10 @@ interface ParticipantCellProps {
   score: string;
   hasAsterisk: boolean;
   isBlack: boolean;
+  isPurple?: boolean;
 }
 
-const ParticipantCells = ({ name, score, hasAsterisk, isBlack }: ParticipantCellProps) => {
+const ParticipantCells = ({ name, score, hasAsterisk, isBlack, isPurple }: ParticipantCellProps) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left: number; placeBelow: boolean } | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -92,6 +94,10 @@ const ParticipantCells = ({ name, score, hasAsterisk, isBlack }: ParticipantCell
     bgClasses = '!bg-black';
     nameClasses = '!text-white font-bold !border-zinc-700';
     scoreClasses = '!text-white font-bold !border-zinc-700';
+  } else if (isPurple) {
+    bgClasses = '!bg-[#B4A7D6]';
+    nameClasses = '!text-black font-semibold !border-black/30 dark:!border-black/50';
+    scoreClasses = '!text-black font-semibold !border-black/30 dark:!border-black/50';
   } else if (hasAsterisk) {
     bgClasses = '!bg-[#facc15] dark:!bg-[#eab308]';
     nameClasses = '!text-black font-bold !border-black/40 dark:!border-black/70';
@@ -166,6 +172,20 @@ export const MovieTableView = memo(function MovieTableView({
   };
 
   const activeMovieId = isModalOpen ? movie_ID : null;
+  const tableRef = useRef<HTMLTableElement>(null);
+
+  useEffect(() => {
+    if (!highlightMovieTitle || isLoading) {
+      return;
+    }
+
+    const normalizedHighlight = highlightMovieTitle.trim().toLowerCase();
+    const targetElement = Array.from(
+      tableRef.current?.querySelectorAll<HTMLElement>('[data-excel-title]') ?? [],
+    ).find((el) => el.dataset.excelTitle?.trim().toLowerCase() === normalizedHighlight);
+
+    targetElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlightMovieTitle, isLoading, media]);
 
   if (isLoading) {
     return (
@@ -192,7 +212,7 @@ export const MovieTableView = memo(function MovieTableView({
     <div className="w-full py-4">
       {/* Table Container styled like original table from Screenshot 4 */}
       <div className="w-full overflow-x-auto rounded-2xl border border-slate-300 dark:border-white/10 bg-white dark:bg-[#131620] shadow-xl">
-        <table className="w-full border-collapse text-left select-text">
+        <table ref={tableRef} className="w-full border-collapse text-left select-text">
           <thead>
             <tr className="bg-slate-100 dark:bg-[#181b29] text-slate-800 dark:text-zinc-200 text-xs sm:text-sm font-bold border-b border-slate-300 dark:border-white/10">
               <th className="py-3 px-1.5 sm:px-2 text-center border border-slate-300 dark:border-white/10 w-10 sm:w-12 min-[1001px]:w-14 shrink-0">
@@ -224,8 +244,7 @@ export const MovieTableView = memo(function MovieTableView({
               </th>
             </tr>
           </thead>
-          <tbody>
-            {media.map((item, index) => {
+          {media.map((item, index) => {
               if (item.media_type === 'person') return null;
 
               const title = item.title || item.original_title;
@@ -244,9 +263,10 @@ export const MovieTableView = memo(function MovieTableView({
                   )
                 : undefined;
 
-              const rawOverall = matchingRating?.ratings[0]?.scores[1];
-              const overallRating = rawOverall !== undefined ? roundRating(rawOverall) : '—';
+              const overallRating = computeOverallRating(matchingRating) || '—';
               const dateStr = formatTableDate(matchingRating?.date);
+              const cellColor = matchingRating?.cellColor;
+              const isPurple = isPurpleColor(cellColor);
 
               const participantRatings: MovieRating[] = matchingRating?.ratings ?? [];
               const rowCount = Math.max(participantRatings.length, 1);
@@ -256,16 +276,27 @@ export const MovieTableView = memo(function MovieTableView({
               );
 
               const isBlackHeader = isBlackMovieHeader(title, movieNumber);
-              const isHighlighted = item.excelTitle === highlightMovieTitle;
+              const isHighlighted = Boolean(
+                highlightMovieTitle &&
+                item.excelTitle?.trim().toLowerCase() === highlightMovieTitle.trim().toLowerCase()
+              );
 
               const headerCellClasses = isBlackHeader
                 ? '!bg-black !text-white font-bold'
-                : 'bg-white dark:bg-[#131620] text-slate-800 dark:text-zinc-100';
+                : isPurple
+                  ? '!bg-[#B4A7D6] !text-black font-semibold !border-black/30 dark:!border-black/50'
+                  : 'bg-white dark:bg-[#131620] text-slate-800 dark:text-zinc-100';
 
               const posterUrl = item.poster_path ? getMovieImageUrl(item.poster_path, 'w342') : null;
 
               return (
-                <React.Fragment key={`${item.id}-${index}`}>
+                <tbody
+                  key={`${item.id}-${index}`}
+                  data-excel-title={item.excelTitle}
+                  className={`transition-all duration-300 ${
+                    isHighlighted ? 'movie-table-highlight' : ''
+                  }`}
+                >
                   {/* Dark Separator Bar (#434343 from Screenshot 4 & Code.gs) */}
                   {index > 0 && (
                     <tr className="h-2.5 sm:h-3 bg-[#434343] dark:bg-[#343847]">
@@ -284,9 +315,10 @@ export const MovieTableView = memo(function MovieTableView({
                     return (
                       <tr
                         key={rIdx}
-                        className={`transition-colors ${
-                          isHighlighted ? 'bg-amber-500/10' : ''
-                        }`}
+                        data-excel-title={rIdx === 0 ? item.excelTitle : undefined}
+                        className={`movie-table-row transition-colors ${
+                          isHighlighted ? 'bg-amber-500/15' : ''
+                        } ${isPurple ? '!bg-[#B4A7D6]' : ''}`}
                       >
                         {/* Column 1: № (merged across participant rows, compact width) */}
                         {rIdx === 0 && (
@@ -387,13 +419,14 @@ export const MovieTableView = memo(function MovieTableView({
                             score={pScore}
                             hasAsterisk={hasAsterisk}
                             isBlack={isPartBlack}
+                            isPurple={isPurple}
                           />
                         ) : (
                           <>
-                            <td className="px-2 sm:px-3 min-[1001px]:px-4 py-2 text-xs sm:text-sm text-slate-400 dark:text-zinc-500 italic border border-slate-300 dark:border-white/10 bg-white dark:bg-[#131620] w-[120px] sm:w-[140px] min-[1001px]:w-[180px] max-w-[200px] shrink-0">
+                            <td className={`px-2 sm:px-3 min-[1001px]:px-4 py-2 text-xs sm:text-sm italic border ${isPurple ? '!bg-[#B4A7D6] !text-black/60 !border-black/30' : 'border-slate-300 dark:border-white/10 bg-white dark:bg-[#131620] text-slate-400 dark:text-zinc-500'} w-[120px] sm:w-[140px] min-[1001px]:w-[180px] max-w-[200px] shrink-0`}>
                               —
                             </td>
-                            <td className="px-2 sm:px-3 min-[1001px]:px-4 py-2 text-xs sm:text-sm text-right pr-3 sm:pr-4 min-[1001px]:pr-6 text-slate-400 dark:text-zinc-500 italic border border-slate-300 dark:border-white/10 bg-white dark:bg-[#131620] w-14 sm:w-16 min-[1001px]:w-24 shrink-0">
+                            <td className={`px-2 sm:px-3 min-[1001px]:px-4 py-2 text-xs sm:text-sm text-right pr-3 sm:pr-4 min-[1001px]:pr-6 italic border ${isPurple ? '!bg-[#B4A7D6] !text-black/60 !border-black/30' : 'border-slate-300 dark:border-white/10 bg-white dark:bg-[#131620] text-slate-400 dark:text-zinc-500'} w-14 sm:w-16 min-[1001px]:w-24 shrink-0`}>
                               —
                             </td>
                           </>
@@ -430,10 +463,9 @@ export const MovieTableView = memo(function MovieTableView({
                       </td>
                     </tr>
                   )}
-                </React.Fragment>
+                </tbody>
               );
             })}
-          </tbody>
         </table>
       </div>
 

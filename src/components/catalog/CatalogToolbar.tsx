@@ -53,7 +53,7 @@ export const CatalogToolbar = ({
   rangeEndMonth,
 }: CatalogToolbarProps) => {
   return (
-    <div className="max-w-7xl 2xl:max-w-[1600px] min-[1920px]:max-w-[1800px] min-[2560px]:max-w-[2200px] mx-auto w-full px-4 sm:px-6 lg:px-8 pt-6 pb-2">
+    <div className="max-w-7xl 2xl:max-w-[1600px] min-[1920px]:max-w-[1800px] min-[2560px]:max-w-[2200px] mx-auto w-full px-4 sm:px-6 lg:px-8 pt-6 pb-4">
       <div className="flex flex-col gap-3">
         {/* Row 1: Section Header & Count (Left) + Source Status (Right, Kinopoisk only) */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">

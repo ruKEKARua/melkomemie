@@ -1,5 +1,6 @@
 import { memo, useRef, useState, useCallback } from 'react';
 import { getCardRatingStyle, roundRating } from '../utils/ratings';
+import { isPurpleColor } from '../utils/colorUtils';
 
 type MovieCardProps = {
   id: number;
@@ -7,6 +8,8 @@ type MovieCardProps = {
   posterPath: string | null;
   overallRating?: string;
   movieNumber?: number;
+  cellColor?: string;
+  isPurpleBadge?: boolean;
   func: (id: number) => void;
 };
 
@@ -16,6 +19,8 @@ const MovieCardComponent = ({
   posterPath = '',
   overallRating,
   movieNumber,
+  cellColor,
+  isPurpleBadge,
   func,
 }: MovieCardProps) => {
   const [loadedPosterPath, setLoadedPosterPath] = useState<string | null>(null);
@@ -28,6 +33,7 @@ const MovieCardComponent = ({
 
   const formattedRating = roundRating(overallRating);
   const ratingStyle = getCardRatingStyle(formattedRating);
+  const isPurple = Boolean(isPurpleBadge || isPurpleColor(cellColor));
 
   // Check truncation lazily only when mouse enters the card, eliminating Layout Thrashing
   const handleMouseEnter = useCallback(() => {
@@ -84,6 +90,32 @@ const MovieCardComponent = ({
         {/* Ambient bottom gradient overlay for readability */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-40 transition-opacity duration-300 group-hover:opacity-60" />
 
+        {/* Purple Corner Indicator (matches reference #B4A7D6 from screenshot) */}
+        {isPurple && (
+          <div
+            className="absolute top-0 left-0 z-20 pointer-events-none w-12 h-12 sm:w-14 sm:h-14 overflow-hidden"
+            title="Просмотр в кинотеатре"
+          >
+            {/* Diagonal triangle corner ribbon */}
+            <div
+              className="w-full h-full shadow-lg"
+              style={{
+                clipPath: 'polygon(0 0, 100% 0, 0 100%)',
+                background: 'linear-gradient(135deg, rgb(88 22 255) 0%, rgb(122 89 206) 50%, rgb(124 106 182) 100%)',
+                filter: 'drop-shadow(0 2px 6px rgba(88, 22, 255, 0.6))',
+              }}
+            />
+            {/* Sheen accent overlay */}
+            <div
+              className="absolute inset-0 pointer-events-none opacity-40 mix-blend-overlay"
+              style={{
+                clipPath: 'polygon(0 0, 100% 0, 0 100%)',
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.85) 0%, transparent 60%)',
+              }}
+            />
+          </div>
+        )}
+
         {/* Kinopoisk-style Rating Badge */}
         {formattedRating && ratingStyle && (
           <div
@@ -125,10 +157,10 @@ const MovieCardComponent = ({
         )}
       </div>
 
-      {/* Movie Number Badge (Screenshot 3: inside movie block, next to title, top-left corner rounded 50%) */}
+      {/* Movie Number Badge (inside movie block, next to title, smooth top-left curve, bottom-right matches card inner border radius) */}
       {movieNumber !== undefined && (
         <div
-          className="absolute bottom-0 right-0 z-20 flex items-center justify-center min-w-[39px] sm:min-w-[44px] h-[32px] sm:h-[35px] px-2.5 text-[12px] sm:text-[13px] font-bold text-slate-500 dark:text-zinc-400 bg-slate-100/95 dark:bg-[#161926] border-t border-l border-slate-200/90 dark:border-white/10 rounded-tl-full rounded-br-2xl shadow-xs transition-colors group-hover:text-amber-600 dark:group-hover:text-amber-400 select-none pointer-events-none"
+          className="absolute bottom-0 right-0 z-20 flex items-center justify-center min-w-[39px] sm:min-w-[44px] h-[32px] sm:h-[35px] px-2.5 text-[12px] sm:text-[13px] font-bold text-slate-500 dark:text-zinc-400 bg-slate-100/95 dark:bg-[#161926] border-t border-l border-slate-200/90 dark:border-white/10 rounded-tl-[24px] rounded-br-[15px] shadow-xs transition-colors group-hover:text-amber-600 dark:group-hover:text-amber-400 select-none pointer-events-none"
           title={`Фильм №${movieNumber}`}
         >
           {movieNumber}

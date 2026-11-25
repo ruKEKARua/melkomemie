@@ -63,12 +63,12 @@ export const MovieEditForm: React.FC<MovieEditFormProps> = ({
                 <input
                   aria-label={`Оценка участника ${index + 1}`}
                   type="number"
-                  min="0"
+                  min="1"
                   max="10"
-                  step="0.1"
+                  step="any"
                   value={participant.score}
                   onChange={(event) => updateParticipant(index, 'score', event.target.value)}
-                  placeholder="0-10"
+                  placeholder="1-10"
                   className="w-full rounded-lg border border-slate-300 dark:border-white/15 bg-white dark:bg-[#10121a] px-2.5 py-2 text-xs text-slate-900 dark:text-white text-center font-bold focus:outline-none focus:border-amber-500"
                 />
                 <button

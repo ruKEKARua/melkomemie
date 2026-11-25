@@ -1,4 +1,4 @@
-import { roundRating } from './ratings';
+import { roundRating, normalizeMovieTitle } from './ratings';
 
 export type MovieRating = {
   userName: string;
@@ -8,12 +8,14 @@ export type MovieRating = {
 export type MovieRatings = {
   movie: string;
   date?: string;
+  cellColor?: string;
   ratings: MovieRating[];
 };
 
 export type LoadedMovieData = {
   movies: string[];
   movieComments: string[];
+  movieColors: string[];
   usersRating: MovieRatings[];
   participantNames: string[];
 };
@@ -38,16 +40,10 @@ export type GoogleUserResponse = {
   picture?: string;
 };
 
-export type CloudflareSessionResponse = {
-  userName: string;
-  userPicture: string;
-  movies: string[];
-  movieComments?: string[];
-  ratings: string[][];
-  participants: string[];
-};
-
-export const parseMovieRatings = (rows: string[][]): MovieRatings[] => {
+export const parseMovieRatings = (
+  rows: string[][],
+  colorMap?: Map<string, string>,
+): MovieRatings[] => {
   const movies: MovieRatings[] = [];
   let currentMovie: MovieRatings | null = null;
 
@@ -76,9 +72,11 @@ export const parseMovieRatings = (rows: string[][]): MovieRatings[] => {
           movies.push(currentMovie);
         }
 
+        const cellColor: string | undefined = colorMap?.get(normalizeMovieTitle(movieName));
         currentMovie = {
           movie: movieName,
           date,
+          cellColor: cellColor || undefined,
           ratings: [],
         };
       }
@@ -96,8 +94,10 @@ export const parseMovieRatings = (rows: string[][]): MovieRatings[] => {
     const [movieOrUser, userOrScore, ...scores] = values;
 
     if (!currentMovie) {
+      const cellColor: string | undefined = colorMap?.get(normalizeMovieTitle(movieOrUser));
       currentMovie = {
         movie: movieOrUser,
+        cellColor: cellColor || undefined,
         ratings: userOrScore
           ? [{ userName: userOrScore, scores: scores.map(roundRating) }]
           : [],
@@ -121,16 +121,46 @@ export const normalizeMovieData = (
   movies: string[],
   movieComments: string[],
   ratings: string[][],
-  participants: string[]
+  participants: string[],
+  movieColors?: string[],
 ): LoadedMovieData => {
+  const colorMap = new Map<string, string>();
+
+  // Track colors across rows so that any movie whose cell or row is colored gets that color
+  let currentTitle = '';
+  for (let i = 0; i < movies.length; i++) {
+    const raw = movies[i];
+    if (raw && raw !== '2025' && raw !== '2026') {
+      currentTitle = raw;
+    }
+    const color = movieColors?.[i];
+    if (currentTitle && color && color.toLowerCase() !== '#ffffff' && color.toLowerCase() !== '#434343') {
+      colorMap.set(normalizeMovieTitle(currentTitle), color);
+    }
+  }
+
   const movieRows = movies
-    .map((movie, index) => ({ movie, comment: movieComments[index] ?? '' }))
+    .map((movie, index) => {
+      const color = movieColors?.[index] ?? colorMap.get(normalizeMovieTitle(movie)) ?? '';
+      return {
+        movie,
+        comment: movieComments[index] ?? '',
+        color,
+      };
+    })
     .filter(({ movie }) => movie !== '' && movie !== '2025' && movie !== '2026');
+
+  movieRows.forEach(({ movie, color }) => {
+    if (movie && color) {
+      colorMap.set(normalizeMovieTitle(movie), color);
+    }
+  });
 
   return {
     movies: movieRows.map(({ movie }) => movie),
     movieComments: movieRows.map(({ comment }) => comment),
-    usersRating: parseMovieRatings(ratings),
+    movieColors: movieRows.map(({ color }) => color),
+    usersRating: parseMovieRatings(ratings, colorMap),
     participantNames: [...new Set(
       participants
         .filter((name) => name !== '' && name !== 'Участники')

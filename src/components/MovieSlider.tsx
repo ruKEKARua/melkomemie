@@ -9,7 +9,7 @@ import type { MovieSheetEntry } from '../api/googleSheets';
 import type { SortOrder } from '../hooks/useCatalogMovies';
 import { getMovieImageUrl, getTmdbImageUrl } from '../api/tmdbImage';
 import { getActiveMovieSource, type MovieSource } from '../api/movieSource';
-import { roundRating } from '../utils/ratings';
+import { computeOverallRating } from '../utils/ratings';
 
 export type Movie = {
   media_type: 'movie' | 'tv';
@@ -21,6 +21,7 @@ export type Movie = {
   poster_path: string | null;
   excelTitle?: string;
   isExcelFallback?: boolean;
+  cellColor?: string;
 };
 
 export type Person = {
@@ -149,12 +150,13 @@ export function MovieSlider({
             const title = movieVariables.title || movieVariables.original_title;
             const id = movieVariables.id;
             const posterPath = movieVariables.poster_path ?? '';
-            const rawRating = item.excelTitle
+            const matchingRating = item.excelTitle
               ? ratings.find(
                   (movie) => movie.movie.trim().toLowerCase() === item.excelTitle?.trim().toLowerCase(),
-                )?.ratings[0]?.scores[1]
+                )
               : undefined;
-            const overallRating = rawRating !== undefined ? roundRating(rawRating) : undefined;
+            const overallRating = computeOverallRating(matchingRating) || undefined;
+            const cellColor = matchingRating?.cellColor || ('cellColor' in item ? (item.cellColor as string) : undefined);
             const titleKey = (item.excelTitle ?? item.title ?? '').trim().toLowerCase();
             const canonicalNum = movieNumberMap?.get(titleKey);
             const movieNumber =
@@ -176,6 +178,7 @@ export function MovieSlider({
                   posterPath={posterPath}
                   overallRating={overallRating}
                   movieNumber={movieNumber}
+                  cellColor={cellColor}
                   func={(movieID) =>
                     openDescription(
                       movieID,
