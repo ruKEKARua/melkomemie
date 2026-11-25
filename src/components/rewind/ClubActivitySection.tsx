@@ -11,6 +11,7 @@ import {
   Tooltip,
   Legend,
   type ChartConfiguration,
+  type ChartDataset,
 } from 'chart.js';
 import type { MonthlyActivityItem } from '../../utils/rewindStats';
 import { getMovieImageUrl } from '../../api/tmdbImage';
@@ -49,12 +50,53 @@ const SHORT_MONTH_NAMES = [
   'Дек',
 ];
 
+/** Build per-bar fill and border colors highlighting the selected month. */
+function getBarColors(count: number, selectedIndex: number | null) {
+  const backgroundColor: string[] = [];
+  const borderColor: string[] = [];
+
+  for (let idx = 0; idx < count; idx++) {
+    const isSelected = selectedIndex === idx;
+    backgroundColor.push(
+      isSelected ? 'rgba(245, 158, 11, 0.75)' : 'rgba(99, 102, 241, 0.55)',
+    );
+    borderColor.push(isSelected ? '#f59e0b' : 'rgb(99, 102, 241)');
+  }
+
+  return { backgroundColor, borderColor };
+}
+
+/** Return theme-dependent chart colors for light and dark modes. */
+function getThemePalette(isDark: boolean) {
+  return {
+    gridColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)',
+    textColor: isDark ? '#94a3b8' : '#64748b',
+    legendColor: isDark ? '#f1f5f9' : '#0f172a',
+    pointBorderColor: isDark ? '#131620' : '#ffffff',
+    tooltipBg: isDark ? '#131620' : '#ffffff',
+    tooltipTitle: isDark ? '#f1f5f9' : '#0f172a',
+    tooltipBody: isDark ? '#cbd5e1' : '#334155',
+    tooltipBorder: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(15, 23, 42, 0.12)',
+  };
+}
+
 export const ClubActivitySection: React.FC<ClubActivitySectionProps> = ({
   monthlyActivity,
   year,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<Chart | null>(null);
+  const latestCallbacksRef = useRef<{
+    monthlyActivity: MonthlyActivityItem[];
+    year: string | 'all';
+    toggleMonth: (idx: number) => void;
+  } | null>(null);
+  const prevChartStateRef = useRef<{
+    monthlyActivity: MonthlyActivityItem[];
+    isDark: boolean;
+    year: string | 'all';
+    selectedMonthIndex: number | null;
+  } | null>(null);
 
   // Selected month state paired with year to automatically reset on year change without effect cascades
   const [selectedMonthState, setSelectedMonthState] = useState<{
@@ -121,203 +163,273 @@ export const ClubActivitySection: React.FC<ClubActivitySectionProps> = ({
   const activeMonth = selectedMonthIndex !== null ? monthlyActivity[selectedMonthIndex] : null;
   const yearLabel = year === 'all' ? 'всех сезонов' : `${year} года`;
 
-  // Initialize and update Chart.js instance
+  // Destroy Chart.js instance only on unmount so selecting a bar never re-creates or re-animates the chart
   useEffect(() => {
+    return () => {
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.destroy();
+        chartInstanceRef.current = null;
+      }
+      prevChartStateRef.current = null;
+    };
+  }, []);
+
+  // Initialize Chart.js instance once and update changed datasets, selection colors, or theme in-place
+  useEffect(() => {
+    latestCallbacksRef.current = { monthlyActivity, year, toggleMonth };
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Destroy existing chart if any
-    if (chartInstanceRef.current) {
-      chartInstanceRef.current.destroy();
-      chartInstanceRef.current = null;
-    }
-
-    const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)';
-    const textColor = isDark ? '#94a3b8' : '#64748b';
-    const legendColor = isDark ? '#f1f5f9' : '#0f172a';
-
+    const palette = getThemePalette(isDark);
     const countsData = monthlyActivity.map((m) => m.count);
     const ratingsData = monthlyActivity.map((m) =>
       m.count > 0 && m.avgRating > 0 ? m.avgRating : null,
     );
+    const { backgroundColor, borderColor } = getBarColors(
+      countsData.length,
+      selectedMonthIndex,
+    );
 
-    const config: ChartConfiguration = {
-      type: 'bar',
-      data: {
-        labels: SHORT_MONTH_NAMES,
-        datasets: [
-          // Dataset 1: Number of movies (Bar chart, Y axis left)
-          {
-            type: 'bar',
-            label: 'Просмотров',
-            data: countsData,
-            backgroundColor: countsData.map((_, idx) =>
-              selectedMonthIndex === idx
-                ? 'rgba(245, 158, 11, 0.75)'
-                : 'rgba(99, 102, 241, 0.55)',
-            ),
-            borderColor: countsData.map((_, idx) =>
-              selectedMonthIndex === idx ? '#f59e0b' : 'rgb(99, 102, 241)',
-            ),
-            borderWidth: 1,
-            borderRadius: 6,
-            yAxisID: 'y',
-            order: 2,
-          },
-          // Dataset 2: Average rating (Line chart, Y1 axis right)
-          {
-            type: 'line',
-            label: 'Средняя оценка',
-            data: ratingsData,
-            borderColor: '#f59e0b',
-            backgroundColor: '#f59e0b',
-            pointBackgroundColor: '#f59e0b',
-            pointBorderColor: isDark ? '#131620' : '#ffffff',
-            pointBorderWidth: 2,
-            pointRadius: 4,
-            pointHoverRadius: 6,
-            borderWidth: 2.5,
-            tension: 0.35,
-            spanGaps: true,
-            yAxisID: 'y1',
-            order: 1,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: {
-          mode: 'index',
-          intersect: false,
+    const existingChart = chartInstanceRef.current;
+
+    if (!existingChart) {
+      const config: ChartConfiguration = {
+        type: 'bar',
+        data: {
+          labels: SHORT_MONTH_NAMES,
+          datasets: [
+            // Dataset 1: Number of movies (Bar chart, Y axis left)
+            {
+              type: 'bar',
+              label: 'Просмотров',
+              data: countsData,
+              backgroundColor,
+              borderColor,
+              borderWidth: 1,
+              borderRadius: 6,
+              yAxisID: 'y',
+              order: 2,
+            },
+            // Dataset 2: Average rating (Line chart, Y1 axis right)
+            {
+              type: 'line',
+              label: 'Средняя оценка',
+              data: ratingsData,
+              borderColor: '#f59e0b',
+              backgroundColor: '#f59e0b',
+              pointBackgroundColor: '#f59e0b',
+              pointBorderColor: palette.pointBorderColor,
+              pointBorderWidth: 2,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              borderWidth: 2.5,
+              tension: 0.35,
+              spanGaps: true,
+              yAxisID: 'y1',
+              order: 1,
+            },
+          ],
         },
-        onClick: (_event, elements) => {
-          if (elements && elements.length > 0) {
-            const dataIndex = elements[0].index;
-            if (typeof dataIndex === 'number') {
-              toggleMonth(dataIndex);
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false,
+          },
+          onClick: (_event, elements) => {
+            if (elements && elements.length > 0) {
+              const dataIndex = elements[0].index;
+              if (typeof dataIndex === 'number') {
+                latestCallbacksRef.current?.toggleMonth(dataIndex);
+              }
             }
-          }
-        },
-        onHover: (event, chartElement) => {
-          const target = event.native?.target as HTMLElement | undefined;
-          if (target) {
-            target.style.cursor = chartElement.length > 0 ? 'pointer' : 'default';
-          }
-        },
-        plugins: {
-          legend: {
-            display: true,
-            position: 'top',
-            align: 'end',
-            labels: {
-              color: legendColor,
-              font: {
-                size: 12,
-                weight: 600,
-              },
-              boxWidth: 14,
-              boxHeight: 8,
-              useBorderRadius: true,
-              borderRadius: 3,
-            },
           },
-          tooltip: {
-            backgroundColor: isDark ? '#131620' : '#ffffff',
-            titleColor: isDark ? '#f1f5f9' : '#0f172a',
-            bodyColor: isDark ? '#cbd5e1' : '#334155',
-            borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(15, 23, 42, 0.12)',
-            borderWidth: 1,
-            padding: 10,
-            boxPadding: 4,
-            usePointStyle: true,
-            callbacks: {
-              title: (tooltipItems) => {
-                const idx = tooltipItems[0]?.dataIndex ?? 0;
-                const monthItem = monthlyActivity[idx];
-                return `${monthItem?.label || SHORT_MONTH_NAMES[idx]} ${year === 'all' ? '' : year}`;
+          onHover: (event, chartElement) => {
+            const target = event.native?.target as HTMLElement | undefined;
+            if (target) {
+              target.style.cursor = chartElement.length > 0 ? 'pointer' : 'default';
+            }
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              align: 'end',
+              labels: {
+                color: palette.legendColor,
+                font: {
+                  size: 12,
+                  weight: 600,
+                },
+                boxWidth: 14,
+                boxHeight: 8,
+                useBorderRadius: true,
+                borderRadius: 3,
               },
-              label: (context) => {
-                if (context.datasetIndex === 0) {
-                  const count = context.parsed.y ?? 0;
-                  return ` Просмотров: ${count} ${
-                    count === 1 ? 'фильм' : count < 5 ? 'фильма' : 'фильмов'
+            },
+            tooltip: {
+              backgroundColor: palette.tooltipBg,
+              titleColor: palette.tooltipTitle,
+              bodyColor: palette.tooltipBody,
+              borderColor: palette.tooltipBorder,
+              borderWidth: 1,
+              padding: 10,
+              boxPadding: 4,
+              usePointStyle: true,
+              callbacks: {
+                title: (tooltipItems) => {
+                  const idx = tooltipItems[0]?.dataIndex ?? 0;
+                  const latest = latestCallbacksRef.current;
+                  const currentActivity = latest?.monthlyActivity ?? monthlyActivity;
+                  const currentYear = latest?.year ?? year;
+                  const monthItem = currentActivity[idx];
+                  return `${monthItem?.label || SHORT_MONTH_NAMES[idx]} ${
+                    currentYear === 'all' ? '' : currentYear
                   }`;
-                }
-                if (context.datasetIndex === 1) {
-                  const rating = context.parsed.y;
-                  return rating !== null && rating !== undefined
-                    ? ` Средняя оценка: ★ ${rating.toFixed(2)}`
-                    : ' Средняя оценка: нет данных';
-                }
-                return '';
+                },
+                label: (context) => {
+                  if (context.datasetIndex === 0) {
+                    const count = context.parsed.y ?? 0;
+                    return ` Просмотров: ${count} ${
+                      count === 1 ? 'фильм' : count < 5 ? 'фильма' : 'фильмов'
+                    }`;
+                  }
+                  if (context.datasetIndex === 1) {
+                    const rating = context.parsed.y;
+                    return rating !== null && rating !== undefined
+                      ? ` Средняя оценка: ★ ${rating.toFixed(2)}`
+                      : ' Средняя оценка: нет данных';
+                  }
+                  return '';
+                },
+              },
+            },
+          },
+          scales: {
+            x: {
+              grid: {
+                display: false,
+              },
+              ticks: {
+                color: palette.textColor,
+                font: {
+                  size: 11,
+                  weight: 600,
+                },
+              },
+            },
+            // Left Y Axis (Movie counts)
+            y: {
+              type: 'linear',
+              display: true,
+              position: 'left',
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1,
+                color: palette.textColor,
+                font: {
+                  size: 11,
+                  weight: 600,
+                },
+                precision: 0,
+              },
+              grid: {
+                color: palette.gridColor,
+              },
+            },
+            // Right Y1 Axis (Average rating)
+            y1: {
+              type: 'linear',
+              display: true,
+              position: 'right',
+              min: 3,
+              max: 10,
+              ticks: {
+                stepSize: 1,
+                color: '#f59e0b',
+                font: {
+                  size: 11,
+                  weight: 700,
+                },
+                callback: (val) => `★ ${val}`,
+              },
+              grid: {
+                display: false,
               },
             },
           },
         },
-        scales: {
-          x: {
-            grid: {
-              display: false,
-            },
-            ticks: {
-              color: textColor,
-              font: {
-                size: 11,
-                weight: 600,
-              },
-            },
-          },
-          // Left Y Axis (Movie counts)
-          y: {
-            type: 'linear',
-            display: true,
-            position: 'left',
-            beginAtZero: true,
-            ticks: {
-              stepSize: 1,
-              color: textColor,
-              font: {
-                size: 11,
-                weight: 600,
-              },
-              precision: 0,
-            },
-            grid: {
-              color: gridColor,
-            },
-          },
-          // Right Y1 Axis (Average rating)
-          y1: {
-            type: 'linear',
-            display: true,
-            position: 'right',
-            min: 3,
-            max: 10,
-            ticks: {
-              stepSize: 1,
-              color: '#f59e0b',
-              font: {
-                size: 11,
-                weight: 700,
-              },
-              callback: (val) => `★ ${val}`,
-            },
-            grid: {
-              display: false,
-            },
-          },
-        },
-      },
+      };
+
+      chartInstanceRef.current = new Chart(canvas, config);
+      prevChartStateRef.current = {
+        monthlyActivity,
+        isDark,
+        year,
+        selectedMonthIndex,
+      };
+      return;
+    }
+
+    const prev = prevChartStateRef.current;
+    const dataChanged =
+      !prev || prev.monthlyActivity !== monthlyActivity || prev.year !== year;
+    const themeChanged = !prev || prev.isDark !== isDark;
+    const selectionChanged =
+      !prev || prev.selectedMonthIndex !== selectedMonthIndex;
+
+    if (dataChanged) {
+      existingChart.data.datasets[0].data = countsData;
+      existingChart.data.datasets[1].data = ratingsData;
+    }
+
+    if (dataChanged || selectionChanged) {
+      existingChart.data.datasets[0].backgroundColor = backgroundColor;
+      existingChart.data.datasets[0].borderColor = borderColor;
+    }
+
+    if (themeChanged) {
+      const lineDataset = existingChart.data.datasets[1] as ChartDataset<
+        'line',
+        (number | null)[]
+      >;
+      lineDataset.pointBorderColor = palette.pointBorderColor;
+
+      const { plugins, scales } = existingChart.options;
+      if (plugins?.legend?.labels) {
+        plugins.legend.labels.color = palette.legendColor;
+      }
+      if (plugins?.tooltip) {
+        plugins.tooltip.backgroundColor = palette.tooltipBg;
+        plugins.tooltip.titleColor = palette.tooltipTitle;
+        plugins.tooltip.bodyColor = palette.tooltipBody;
+        plugins.tooltip.borderColor = palette.tooltipBorder;
+      }
+      if (scales?.x?.ticks) {
+        scales.x.ticks.color = palette.textColor;
+      }
+      if (scales?.y?.ticks) {
+        scales.y.ticks.color = palette.textColor;
+      }
+      if (scales?.y?.grid) {
+        scales.y.grid.color = palette.gridColor;
+      }
+    }
+
+    prevChartStateRef.current = {
+      monthlyActivity,
+      isDark,
+      year,
+      selectedMonthIndex,
     };
 
-    const newChart = new Chart(canvas, config);
-    chartInstanceRef.current = newChart;
-
-    return () => {
-      newChart.destroy();
-      chartInstanceRef.current = null;
-    };
+    if (dataChanged) {
+      existingChart.update();
+    } else if (themeChanged || selectionChanged) {
+      existingChart.update('none');
+    }
   }, [monthlyActivity, isDark, year, selectedMonthIndex, toggleMonth]);
 
   return (
