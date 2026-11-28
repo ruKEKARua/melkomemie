@@ -4,9 +4,9 @@ import type { NormalizedMovie } from '../api/movieSource';
 import type { Movie } from '../store/foundMovies';
 import { buildRewindStats, getAvailableRewindYears } from '../utils/rewindStats';
 import RewindHeaderControls from '../components/rewind/RewindHeaderControls';
-import RewindHeroSection from '../components/rewind/RewindHeroSection';
+// import RewindHeroSection from '../components/rewind/RewindHeroSection';
 import RewindClubSummarySection from '../components/rewind/RewindClubSummarySection';
-import RewindAchievementsSection from '../components/rewind/RewindAchievementsSection';
+// import RewindAchievementsSection from '../components/rewind/RewindAchievementsSection';
 import GenreRadarSection from '../components/rewind/GenreRadarSection';
 import HeadToHeadSection from '../components/rewind/HeadToHeadSection';
 import ClubActivitySection from '../components/rewind/ClubActivitySection';
@@ -27,9 +27,8 @@ export const RewindPage: React.FC<RewindPageProps> = ({
   // Available years from date field in sheets
   const availableYears = useMemo(() => getAvailableRewindYears(usersRating), [usersRating]);
 
-  // Default to the most recent year available (e.g. 2026), or fallback to 'all'
-  const defaultYear = availableYears[0] ?? '2026';
-  const [selectedYear, setSelectedYear] = useState<string | 'all'>(defaultYear);
+  // Default to all-time analytics
+  const [selectedYear, setSelectedYear] = useState<string | 'all'>('all');
 
   // Derive effectively active year: if selected year not in list (and not 'all'), use default
   const activeYear = useMemo(() => {
@@ -68,7 +67,7 @@ export const RewindPage: React.FC<RewindPageProps> = ({
         />
 
         {/* Section 1: Hero Banner */}
-        <RewindHeroSection year={activeYear} movies={stats.movies} />
+        {/* <RewindHeroSection year={activeYear} movies={stats.movies} /> */}
 
         {/* Section 2: Club Summary & Top 3 Best / Worst */}
         <RewindClubSummarySection
@@ -77,7 +76,7 @@ export const RewindPage: React.FC<RewindPageProps> = ({
         />
 
         {/* Section 4: Achievements in Steam Style */}
-        <RewindAchievementsSection achievements={stats.achievements} year={activeYear} />
+        {/* <RewindAchievementsSection achievements={stats.achievements} year={activeYear} /> */}
 
         {/* Section 5: Genre Radar & Personal Tops */}
         <GenreRadarSection

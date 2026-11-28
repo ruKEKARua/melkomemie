@@ -437,17 +437,9 @@ export const ClubActivitySection: React.FC<ClubActivitySectionProps> = ({
       {/* Section Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-white/5">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 mb-2">
-            <span>📈</span>
-            <span>Сезонная динамика</span>
-          </div>
           <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             Общая активность киноклуба по месяцам
           </h2>
-          <p className="text-xs sm:text-sm text-slate-600 dark:text-zinc-400 mt-1 max-w-2xl leading-relaxed">
-            Сколько фильмов смотрел клуб в каждый месяц и какого они были качества. Нажмите на столбец
-            или точку графика, чтобы раскрыть список картин.
-          </p>
         </div>
 
         {/* Right Header Badges: Streak & Total */}
@@ -463,15 +455,12 @@ export const ClubActivitySection: React.FC<ClubActivitySectionProps> = ({
           )}
 
           {/* Total Year Count Pill */}
-          <div className="px-4 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center gap-2.5">
-            <span className="text-xl">🎬</span>
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-                Всего за период
-              </div>
-              <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white tabular-nums">
-                {totalMoviesYear} фильмов
-              </div>
+          <div className="px-4 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+              Всего за период
+            </div>
+            <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white tabular-nums">
+              {totalMoviesYear} фильмов
             </div>
           </div>
         </div>

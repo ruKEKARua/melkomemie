@@ -55,7 +55,7 @@ export const HeaderPageSelector = ({
     tournaments: { title: 'Турниры', icon: '🏆' },
     roulette: { title: 'Рулетка', icon: '🎲' },
     'book-club': { title: 'Книжный клуб', icon: '📚' },
-    rewind: { title: '✨ Rewind', icon: '✨' },
+    rewind: { title: 'Сводная киноклуба', icon: '✨' },
     entry: { title: 'Добавить фильм', icon: '➕' },
   };
 
@@ -104,7 +104,7 @@ export const HeaderPageSelector = ({
     },
     {
       id: 'rewind',
-      title: '✨ Rewind',
+      title: 'Сводная киноклуба',
       subtitle: 'Итоги киноклуба',
       icon: '✨',
       badgeBg: 'bg-purple-500/20',

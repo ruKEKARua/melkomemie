@@ -131,17 +131,9 @@ export const HeadToHeadSection: React.FC<HeadToHeadSectionProps> = ({
     <section className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#131620] p-5 sm:p-7 md:p-8 shadow-sm transition-colors">
       {/* Section Header */}
       <div className="pb-6 border-b border-slate-100 dark:border-white/5">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30 mb-2">
-          <span>⚔️</span>
-          <span>Вкусовая совместимость</span>
-        </div>
         <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
           Дуэль киноманов 1 на 1 и матрица клуба
         </h2>
-        <p className="text-xs sm:text-sm text-slate-600 dark:text-zinc-400 mt-1 max-w-2xl leading-relaxed">
-          Узнайте, с кем из соклубников ваши вкусы совпадают на все 100%, а с кем каждое обсуждение
-          превращается в горячий спор.
-        </p>
       </div>
 
       {/* Main 2-Column Grid: 1-on-1 Duel (Left) vs Heatmap Matrix (Right) */}
@@ -255,12 +247,11 @@ export const HeadToHeadSection: React.FC<HeadToHeadSectionProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Top 5 Closest */}
               <div className="rounded-xl p-4 bg-emerald-500/5 border border-emerald-500/25">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
-                    <span>🎯</span>
-                    <span>Ближайшие вкусы (+)</span>
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
+                    Ближайшие вкусы
                   </div>
-                  <span className="text-[10px] font-semibold text-slate-400 dark:text-zinc-500">
+                  <span className="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 shrink-0">
                     Мин. разница
                   </span>
                 </div>
@@ -308,12 +299,11 @@ export const HeadToHeadSection: React.FC<HeadToHeadSectionProps> = ({
 
               {/* Top 5 Disagreements */}
               <div className="rounded-xl p-4 bg-rose-500/5 border border-rose-500/25">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-1.5 text-xs font-extrabold text-rose-600 dark:text-rose-400 uppercase tracking-wide">
-                    <span>⚡</span>
-                    <span>Разногласия (-)</span>
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="text-xs font-extrabold text-rose-600 dark:text-rose-400 uppercase tracking-wide">
+                    Самая большая разница в оценке
                   </div>
-                  <span className="text-[10px] font-semibold text-slate-400 dark:text-zinc-500">
+                  <span className="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 shrink-0">
                     Макс. разрыв
                   </span>
                 </div>

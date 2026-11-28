@@ -130,10 +130,6 @@ export const GenreRadarSection: React.FC<GenreRadarSectionProps> = ({
       <div className="flex flex-col gap-4 pb-6 border-b border-slate-100 dark:border-white/5">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 mb-2">
-              <span>🕸️</span>
-              <span>Жанровый радар</span>
-            </div>
             <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               Паутина вкусов и личные топы
             </h2>
@@ -151,25 +147,20 @@ export const GenreRadarSection: React.FC<GenreRadarSectionProps> = ({
           </div>
         </div>
 
-        <p className="text-xs sm:text-sm text-slate-600 dark:text-zinc-400 max-w-2xl leading-relaxed">
-          Сравните свои жанровые пристрастия с картиной всего клуба и изучите свои личные золотые и
-          провальные премьеры года.
-        </p>
-
-        {/* Context Selector: Club + Eligible Participants Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+        {/* Context Selector: Club + Eligible Participants Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 py-1">
           {/* Entire Club Button */}
           <button
             type="button"
             onClick={() => setSelectedContext('all')}
-            className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 shrink-0 ${
+            className={`w-full min-w-0 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all cursor-pointer flex items-center justify-start gap-2 ${
               selectedContext === 'all'
                 ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/25 ring-2 ring-amber-400/50'
                 : 'bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-white/5'
             }`}
           >
-            <span>👥</span>
-            <span>Весь клуб</span>
+            <span className="shrink-0">👥</span>
+            <span className="truncate">Весь клуб</span>
           </button>
 
           {/* Individual Eligible Participants */}
@@ -180,16 +171,19 @@ export const GenreRadarSection: React.FC<GenreRadarSectionProps> = ({
               <button
                 key={userName}
                 type="button"
+                title={userName}
                 onClick={() => setSelectedContext(userName)}
-                className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 shrink-0 ${
+                className={`w-full min-w-0 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold tracking-tight transition-all cursor-pointer flex items-center justify-between gap-2 ${
                   isSelected
                     ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/25 ring-2 ring-amber-400/50'
                     : 'bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-white/5'
                 }`}
               >
-                <span>👤</span>
-                <span>{userName}</span>
-                <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded ${
+                <span className="flex items-center gap-2 min-w-0">
+                  <span className="shrink-0">👤</span>
+                  <span className="truncate">{userName}</span>
+                </span>
+                <span className={`shrink-0 text-[10px] font-extrabold px-1.5 py-0.5 rounded tabular-nums ${
                   isSelected
                     ? 'bg-slate-950/20 text-slate-950'
                     : 'bg-slate-200 dark:bg-white/10 text-slate-500 dark:text-zinc-400'
@@ -225,28 +219,26 @@ export const GenreRadarSection: React.FC<GenreRadarSectionProps> = ({
               <button
                 type="button"
                 onClick={() => setRadarMode('frequency')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   radarMode === 'frequency'
                     ? 'bg-amber-500 text-slate-950 shadow-xs ring-1 ring-amber-400'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
                 title="Сортировка и масштаб по взвешенной частоте жанров"
               >
-                <span>📊</span>
-                <span>Чаще смотрят</span>
+                Чаще смотрят
               </button>
               <button
                 type="button"
                 onClick={() => setRadarMode('rating')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   radarMode === 'rating'
                     ? 'bg-amber-500 text-slate-950 shadow-xs ring-1 ring-amber-400'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
                 title="Масштаб по среднему баллу жанра (до 10)"
               >
-                <span>⭐</span>
-                <span>Выше оценивают</span>
+                Выше оценивают
               </button>
             </div>
           </div>

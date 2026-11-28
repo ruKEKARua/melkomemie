@@ -8,9 +8,9 @@ interface RewindHeaderControlsProps {
 }
 
 export const RewindHeaderControls: React.FC<RewindHeaderControlsProps> = ({
-  availableYears,
-  selectedYear,
-  onSelectYear,
+  // availableYears,
+  // selectedYear,
+  // onSelectYear,
   onBack,
 }) => {
   return (
@@ -25,7 +25,7 @@ export const RewindHeaderControls: React.FC<RewindHeaderControlsProps> = ({
       </button>
 
       {/* Year Selector Tabs */}
-      <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-200/70 dark:bg-white/5 border border-slate-300/70 dark:border-white/10 overflow-x-auto no-scrollbar max-w-full">
+      {/* <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-200/70 dark:bg-white/5 border border-slate-300/70 dark:border-white/10 overflow-x-auto no-scrollbar max-w-full">
         {availableYears.map((yr) => {
           const isSelected = selectedYear === yr;
           return (
@@ -55,7 +55,7 @@ export const RewindHeaderControls: React.FC<RewindHeaderControlsProps> = ({
         >
           Всё время
         </button>
-      </div>
+      </div> */}
     </div>
   );
 };
